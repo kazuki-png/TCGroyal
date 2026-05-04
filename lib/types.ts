@@ -1,0 +1,90 @@
+export type OrderStatus =
+  | 'unhandled'
+  | 'accepted'
+  | 'waiting_arrival'
+  | 'inspecting'
+  | 'pending_approval'
+  | 'pending_transfer'
+  | 'completed'
+
+export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  unhandled: '未対応',
+  accepted: '受付済み',
+  waiting_arrival: '到着待ち',
+  inspecting: '査定中',
+  pending_approval: '承認待ち',
+  pending_transfer: '振込待ち',
+  completed: '完了',
+}
+
+export const ORDER_STATUS_FLOW: OrderStatus[] = [
+  'unhandled',
+  'accepted',
+  'waiting_arrival',
+  'inspecting',
+  'pending_approval',
+  'pending_transfer',
+  'completed',
+]
+
+export const EMAIL_TRIGGER_STATUSES: OrderStatus[] = [
+  'accepted',
+  'waiting_arrival',
+  'completed',
+]
+
+export interface Card {
+  id: string
+  name: string
+  category: 'pokemon' | 'onepiece'
+  grade: 'PSA10' | 'PSA9' | 'PSA8'
+  buy_price: number
+  image_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Profile {
+  id: string
+  full_name: string | null
+  postal_code: string | null
+  address: string | null
+  phone: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Order {
+  id: string
+  user_id: string
+  status: OrderStatus
+  total_amount: number
+  bank_name: string | null
+  bank_branch: string | null
+  bank_account_no: string | null
+  bank_holder: string | null
+  note: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface OrderItem {
+  id: string
+  order_id: string
+  card_id: string | null
+  card_name: string
+  grade: string
+  quantity: number
+  unit_price: number
+  created_at: string
+}
+
+export interface OrderWithItems extends Order {
+  order_items: OrderItem[]
+  profiles?: Pick<Profile, 'full_name'> & { email?: string }
+}
+
+export interface CartItem {
+  card: Card
+  quantity: number
+}

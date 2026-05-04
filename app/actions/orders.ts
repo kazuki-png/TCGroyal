@@ -67,8 +67,8 @@ export async function createOrder(
     return { error: '注文明細の作成に失敗しました' }
   }
 
-  revalidatePath('/dashboard')
-  redirect('/dashboard')
+  revalidatePath('/mypage')
+  redirect('/mypage')
 }
 
 export async function updateOrderStatus(

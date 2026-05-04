@@ -35,6 +35,7 @@ export const EMAIL_TRIGGER_STATUSES: OrderStatus[] = [
 
 export interface Card {
   id: string
+  card_number: string | null
   name: string
   category: 'pokemon' | 'onepiece'
   grade: 'PSA10' | 'PSA9' | 'PSA8'
@@ -46,16 +47,32 @@ export interface Card {
 
 export interface Profile {
   id: string
-  full_name: string | null
+  last_name: string
+  first_name: string
+  last_name_kana: string
+  first_name_kana: string
+  birthday: string | null
+  gender: 'male' | 'female' | 'other' | null
+  occupation: string | null
   postal_code: string | null
   address: string | null
   phone: string | null
+  is_qualified_invoice: boolean
+  id_type: string | null
+  id_image_url: string | null
+  identity_verified: boolean
+  bank_name: string | null
+  branch_name: string | null
+  account_type: 'ordinary' | 'current' | null
+  account_number: string | null
+  account_holder_kana: string | null
   created_at: string
   updated_at: string
 }
 
 export interface Order {
   id: string
+  order_number: string
   user_id: string
   status: OrderStatus
   total_amount: number
@@ -81,7 +98,7 @@ export interface OrderItem {
 
 export interface OrderWithItems extends Order {
   order_items: OrderItem[]
-  profiles?: Pick<Profile, 'full_name'> & { email?: string }
+  profiles?: Pick<Profile, 'last_name' | 'first_name'> & { email?: string }
 }
 
 export interface CartItem {

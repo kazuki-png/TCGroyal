@@ -34,8 +34,9 @@ export async function proxy(request: NextRequest) {
   const isAdminRoute =
     pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')
   const isUserProtectedRoute =
-    pathname.startsWith('/dashboard') || pathname.startsWith('/orders')
-  const isAuthPage = pathname === '/login' || pathname === '/signup'
+    pathname.startsWith('/mypage') || pathname.startsWith('/cart')
+  const isAuthPage =
+    pathname === '/login' || pathname === '/register'
 
   if (isAdminRoute && !user) {
     return NextResponse.redirect(new URL('/admin/login', request.url))
@@ -46,7 +47,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthPage && user) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return NextResponse.redirect(new URL('/mypage', request.url))
   }
 
   return supabaseResponse

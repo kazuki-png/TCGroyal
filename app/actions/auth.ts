@@ -17,7 +17,7 @@ export async function login(
     return { error: 'メールアドレスまたはパスワードが正しくありません' }
   }
 
-  redirect('/dashboard')
+  redirect('/mypage')
 }
 
 export async function adminLogin(
@@ -51,20 +51,21 @@ export async function adminLogin(
   redirect('/admin/orders')
 }
 
-export async function signup(
+export async function register(
   _prevState: { error?: string } | undefined,
   formData: FormData
 ): Promise<{ error?: string }> {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
-  const fullName = formData.get('full_name') as string
+  const lastName = formData.get('last_name') as string
+  const firstName = formData.get('first_name') as string
 
   const supabase = await createClient()
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { full_name: fullName },
+      data: { last_name: lastName, first_name: firstName },
     },
   })
 
@@ -72,7 +73,7 @@ export async function signup(
     return { error: error.message }
   }
 
-  redirect('/dashboard')
+  redirect('/mypage')
 }
 
 export async function logout(): Promise<void> {

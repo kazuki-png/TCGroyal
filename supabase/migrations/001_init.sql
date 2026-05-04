@@ -4,13 +4,28 @@
 
 -- profiles（ユーザー詳細情報）
 create table if not exists public.profiles (
-  id          uuid primary key references auth.users(id) on delete cascade,
-  full_name   text,
-  postal_code text,
-  address     text,
-  phone       text,
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+  id                   uuid primary key references auth.users(id) on delete cascade,
+  last_name            text not null default '',
+  first_name           text not null default '',
+  last_name_kana       text not null default '',
+  first_name_kana      text not null default '',
+  birthday             date,
+  gender               text check (gender in ('male', 'female', 'other')),
+  occupation           text,
+  postal_code          text,
+  address              text,
+  phone                text,
+  is_qualified_invoice boolean default false,
+  id_type              text,
+  id_image_url         text,
+  identity_verified    boolean default false,
+  bank_name            text,
+  branch_name          text,
+  account_type         text check (account_type in ('ordinary', 'current')),
+  account_number       text,
+  account_holder_kana  text,
+  created_at           timestamptz not null default now(),
+  updated_at           timestamptz not null default now()
 );
 
 alter table public.profiles enable row level security;
@@ -29,14 +44,15 @@ create policy "ユーザーは自分のプロフィールを作成できる"
 
 -- cards（カードマスタ）
 create table if not exists public.cards (
-  id         uuid primary key default gen_random_uuid(),
-  name       text not null,
-  category   text not null check (category in ('pokemon', 'onepiece')),
-  grade      text not null check (grade in ('PSA10', 'PSA9', 'PSA8')),
-  buy_price  integer not null default 0,
-  image_url  text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  id          uuid primary key default gen_random_uuid(),
+  card_number text,
+  name        text not null,
+  category    text not null check (category in ('pokemon', 'onepiece')),
+  grade       text not null check (grade in ('PSA10', 'PSA9', 'PSA8')),
+  buy_price   integer not null default 0,
+  image_url   text,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
 );
 
 alter table public.cards enable row level security;
@@ -58,6 +74,7 @@ create type public.order_status as enum (
 
 create table if not exists public.orders (
   id              uuid primary key default gen_random_uuid(),
+  order_number    text unique not null default '',
   user_id         uuid not null references auth.users(id) on delete cascade,
   status          public.order_status not null default 'unhandled',
   total_amount    integer not null default 0,

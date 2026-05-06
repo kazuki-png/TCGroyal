@@ -149,6 +149,11 @@ function cardImageSource(
   return null
 }
 
+function imageSourceUrl(src: StaticImageData | string | null) {
+  if (!src) return null
+  return typeof src === 'string' ? src : src.src
+}
+
 function getPaginationItems(current: number, total: number): (number | 'ellipsis')[] {
   if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1)
   if (current <= 3) return [1, 2, 3, 'ellipsis', total]
@@ -540,9 +545,24 @@ export function CartForm({
     pagination.signature === pageSignature
       ? Math.min(pagination.page, totalPages)
       : 1
-  const displayCards = filteredCards.slice(
-    (currentPage - 1) * CARDS_PER_PAGE,
-    currentPage * CARDS_PER_PAGE
+  const displayCards = useMemo(
+    () =>
+      filteredCards.slice(
+        (currentPage - 1) * CARDS_PER_PAGE,
+        currentPage * CARDS_PER_PAGE
+      ),
+    [currentPage, filteredCards]
+  )
+  const displayImageUrls = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          displayCards
+            .map((card) => imageSourceUrl(cardImageSource(card, repeatedImageUrls)))
+            .filter((src): src is string => Boolean(src))
+        )
+      ),
+    [displayCards, repeatedImageUrls]
   )
 
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0)
@@ -619,6 +639,30 @@ export function CartForm({
     const timer = window.setTimeout(() => setNotice(undefined), 1800)
     return () => window.clearTimeout(timer)
   }, [notice])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSubmittedKeyword(keyword.trim())
+    }, 180)
+
+    return () => window.clearTimeout(timer)
+  }, [keyword])
+
+  useEffect(() => {
+    const preloadedImages = displayImageUrls.map((src) => {
+      const image = new window.Image()
+      image.decoding = 'async'
+      image.src = src
+      return image
+    })
+
+    return () => {
+      preloadedImages.forEach((image) => {
+        image.onload = null
+        image.onerror = null
+      })
+    }
+  }, [displayImageUrls])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -1069,6 +1113,7 @@ export function CartForm({
               src={preview.src}
               alt={preview.alt}
               fill
+              unoptimized
               sizes="(max-width: 640px) 92vw, 420px"
               className="object-contain"
             />

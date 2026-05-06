@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   description: 'ポケモンカード・ワンピースカードの郵送買取サービス',
 }
 
-const THEME_SCRIPT = `try{var t=localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark')}catch{}`
+const THEME_SCRIPT = `try{var t=localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t}catch{}`
 
 export default function RootLayout({
   children,

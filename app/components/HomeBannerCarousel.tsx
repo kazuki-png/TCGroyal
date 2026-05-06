@@ -2,7 +2,8 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { TouchEvent } from 'react'
 import type { HomepageBanner } from '@/lib/types'
 
 export function HomeBannerCarousel({
@@ -17,6 +18,15 @@ export function HomeBannerCarousel({
     [banners]
   )
   const [currentIndex, setCurrentIndex] = useState(0)
+  const touchStartXRef = useRef<number | null>(null)
+  const didSwipeRef = useRef(false)
+
+  const moveBanner = (offset: number) => {
+    setCurrentIndex((index) => {
+      const next = index + offset
+      return (next + activeBanners.length) % activeBanners.length
+    })
+  }
 
   useEffect(() => {
     if (activeBanners.length <= 1) return
@@ -55,14 +65,52 @@ export function HomeBannerCarousel({
   const banner = activeBanners[normalizedIndex]
   const isExternal = /^https?:\/\//.test(banner.link_url)
 
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (activeBanners.length <= 1) return
+    touchStartXRef.current = event.touches[0]?.clientX ?? null
+    didSwipeRef.current = false
+  }
+
+  const handleTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    const startX = touchStartXRef.current
+    const endX = event.changedTouches[0]?.clientX
+    touchStartXRef.current = null
+
+    if (
+      activeBanners.length <= 1 ||
+      startX === null ||
+      typeof endX !== 'number'
+    ) {
+      return
+    }
+
+    const diff = endX - startX
+    if (Math.abs(diff) < 44) return
+
+    didSwipeRef.current = true
+    moveBanner(diff < 0 ? 1 : -1)
+    window.setTimeout(() => {
+      didSwipeRef.current = false
+    }, 250)
+  }
+
   return (
     <section className="w-full border-b border-zinc-100 bg-white dark:border-[#2d2a20] dark:bg-[#111110]">
-      <div className="relative min-h-[240px] overflow-hidden sm:min-h-[360px] lg:min-h-[440px]">
+      <div
+        className="relative min-h-[240px] touch-pan-y select-none overflow-hidden sm:min-h-[360px] lg:min-h-[440px]"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <Link
           href={banner.link_url || '#'}
           target={isExternal ? '_blank' : undefined}
           rel={isExternal ? 'noreferrer' : undefined}
           className="absolute inset-0 block"
+          onClick={(event) => {
+            if (didSwipeRef.current) {
+              event.preventDefault()
+            }
+          }}
         >
           <Image
             src={banner.image_url}

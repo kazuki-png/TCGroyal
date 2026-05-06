@@ -16,7 +16,7 @@ export async function createOrder(
     bank_account_no: string
     bank_holder: string
   }
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; redirectTo?: string }> {
   if (items.length === 0) {
     return { error: 'カードを選択してください' }
   }
@@ -52,7 +52,10 @@ export async function createOrder(
 
   const orderItems = items.map((item) => ({
     order_id: order.id,
-    card_id: item.card.id,
+    card_id:
+      item.card.id.startsWith('unlisted-') || item.card.id.startsWith('sample-')
+        ? null
+        : item.card.id,
     card_name: item.card.name,
     grade: item.card.grade,
     quantity: item.quantity,
@@ -67,8 +70,8 @@ export async function createOrder(
     return { error: '注文明細の作成に失敗しました' }
   }
 
-  revalidatePath('/mypage')
-  redirect('/mypage')
+  revalidatePath('/mypage/orders')
+  return { redirectTo: '/mypage/orders' }
 }
 
 export async function updateOrderStatus(

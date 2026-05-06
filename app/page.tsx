@@ -1,63 +1,161 @@
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/server'
-import { CardList } from './components/CardList'
-import type { Card } from '@/lib/types'
+import { HomeBannerCarousel } from './components/HomeBannerCarousel'
+import { HomeCardSection } from './components/HomeCardSection'
+import { SiteFooter } from './components/SiteFooter'
+import { SiteHeader } from './components/SiteHeader'
+import type { Card, HomepageBanner } from '@/lib/types'
+
+const LINE_ASSESSMENT_URL = '#'
+const ONLINE_STORE_URL = '#'
+
+function LineIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 48 48"
+      className="h-12 w-12"
+    >
+      <rect width="48" height="48" rx="10" fill="#06C755" />
+      <path
+        d="M38 22.4c0-7.1-6.3-12.9-14-12.9s-14 5.8-14 12.9c0 6.3 5 11.6 11.8 12.7.5.1 1.1.3 1.2.8.1.4.1 1 0 1.4l-.2 1.3c-.1.4-.3 1.6 1.2.9 1.5-.6 7.9-4.7 10.8-8 2-2.2 3.2-5.3 3.2-9.1Z"
+        fill="#fff"
+      />
+      <path
+        d="M17.3 25.9h-3.4v-7.1h1.5v5.7h1.9v1.4Zm2.7 0h-1.5v-7.1H20v7.1Zm7.3 0h-1.4l-3-4.1v4.1h-1.5v-7.1h1.4l3 4.1v-4.1h1.5v7.1Zm6.1-5.7h-3.1v1.3h2.8v1.4h-2.8v1.6h3.1v1.4h-4.6v-7.1h4.6v1.4Z"
+        fill="#06C755"
+      />
+    </svg>
+  )
+}
+
+function CartPurchaseIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 48 48"
+      className="h-12 w-12"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="3"
+    >
+      <path d="M7 10h5l4 24h23l4-17H16" />
+      <path d="M18 22h22" />
+      <path d="M21 17v17" />
+      <path d="M29 17v17" />
+      <circle cx="20" cy="40" r="2.7" fill="currentColor" stroke="none" />
+      <circle cx="36" cy="40" r="2.7" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+function StoreIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 48 48"
+      className="h-12 w-12"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="3"
+    >
+      <path d="M9 19h30" />
+      <path d="M11 19l2-10h22l2 10" />
+      <path d="M13 19v20h22V19" />
+      <path d="M19 39V27h10v12" />
+      <path d="M15 9v10" />
+      <path d="M21 9v10" />
+      <path d="M27 9v10" />
+      <path d="M33 9v10" />
+    </svg>
+  )
+}
+
+function ActionLink({
+  href,
+  className,
+  icon,
+  children,
+}: {
+  href: string
+  className: string
+  icon?: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <Link
+      href={href}
+      className={`relative flex min-h-[104px] items-center gap-5 rounded-2xl border px-6 py-5 text-xl font-black shadow-sm transition-transform hover:-translate-y-0.5 sm:min-h-[124px] sm:px-7 sm:text-2xl lg:min-h-[136px] ${className}`}
+    >
+      {icon}
+      <span>{children}</span>
+    </Link>
+  )
+}
+
 
 export default async function HomePage() {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { data: banners } = await supabase
+    .from('homepage_banners')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: false })
+
   const { data: cards } = await supabase
     .from('cards')
     .select('*')
-    .order('category')
-    .order('name')
-
-  const pokemon = (cards ?? []).filter((c) => c.category === 'pokemon') as Card[]
-  const onepiece = (cards ?? []).filter((c) => c.category === 'onepiece') as Card[]
+    .order('buy_price', { ascending: false })
+    .limit(32)
 
   return (
-    <div className="min-h-screen bg-white">
-      <header className="border-b border-zinc-200 px-6 py-4">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <span className="text-xl font-bold tracking-tight">TCG Royal</span>
-          <div className="flex gap-4">
-            <Link
-              href="/login"
-              className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900"
-            >
-              ログイン
-            </Link>
-            <Link
-              href="/register"
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
-            >
-              新規登録
-            </Link>
-          </div>
-        </div>
-      </header>
+    <div className="flex min-h-screen flex-col bg-white text-zinc-900 dark:bg-[#111110] dark:text-[#ede8d5]">
+      <SiteHeader
+        isAuthenticated={Boolean(user)}
+        borderClassName="border-b border-zinc-200"
+        priorityLogo
+      />
 
-      <main className="mx-auto max-w-5xl px-6 py-12">
-        <div className="mb-10 text-center">
-          <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900">
-            PSA鑑定カード 郵送買取
-          </h1>
-          <p className="mt-3 text-lg text-zinc-500">
-            ポケモン・ワンピースのPSA鑑定品を高価買取
-          </p>
-          <Link
-            href="/register"
-            className="mt-6 inline-block rounded-xl bg-zinc-900 px-8 py-3 text-sm font-semibold text-white hover:bg-zinc-700"
+      <HomeBannerCarousel banners={(banners ?? []) as HomepageBanner[]} />
+
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-9">
+        <div className="grid gap-4 md:grid-cols-3">
+          <ActionLink
+            href="/cart"
+            className="border-[#a99512] bg-[linear-gradient(135deg,#e3cf42_0%,#c2aa10_58%,#a48906_100%)] text-zinc-950 shadow-[0_12px_26px_rgba(142,119,12,0.2)]"
+            icon={<CartPurchaseIcon />}
           >
-            無料で申し込む
-          </Link>
+            カート買取
+          </ActionLink>
+          <ActionLink
+            href={LINE_ASSESSMENT_URL}
+            className="border-[#8ddba8] bg-[linear-gradient(135deg,#f7fff8_0%,#dff7e6_48%,#bceccd_100%)] text-[#063d20] shadow-[0_12px_26px_rgba(24,128,67,0.14)]"
+            icon={<LineIcon />}
+          >
+            LINE査定
+          </ActionLink>
+          <ActionLink
+            href={ONLINE_STORE_URL}
+            className="border-[#b7141a] bg-[linear-gradient(135deg,#ff5a52_0%,#e51f27_55%,#a80f17_100%)] text-white shadow-[0_12px_26px_rgba(172,24,28,0.2)]"
+            icon={<StoreIcon />}
+          >
+            オンラインストア
+          </ActionLink>
         </div>
-
-        <CardList pokemon={pokemon} onepiece={onepiece} />
+        <HomeCardSection cards={(cards ?? []) as Card[]} />
       </main>
 
-      <footer className="border-t border-zinc-200 px-6 py-8 text-center text-sm text-zinc-400">
-        © 2025 TCG Royal. All rights reserved.
-      </footer>
+      <SiteFooter />
     </div>
   )
 }

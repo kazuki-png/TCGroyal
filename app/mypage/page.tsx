@@ -1,73 +1,42 @@
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import { StatusBadge } from '@/app/components/StatusBadge'
-import type { OrderStatus } from '@/lib/types'
+import { logout } from '@/app/actions/auth'
 
-export default async function MypagePage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  const { data: orders } = await supabase
-    .from('orders')
-    .select('*, order_items(*)')
-    .eq('user_id', user!.id)
-    .order('created_at', { ascending: false })
-
+function MenuLink({
+  href,
+  children,
+}: {
+  href: string
+  children: React.ReactNode
+}) {
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">買取申込一覧</h1>
-        <Link
-          href="/cart"
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
-        >
-          新規申込
-        </Link>
-      </div>
+    <Link
+      href={href}
+      className="flex h-[50px] items-center justify-center rounded-[18px] bg-[#b9b7b7] px-6 text-lg font-black text-zinc-950 transition-colors hover:bg-[#aaa8a8]"
+    >
+      {children}
+    </Link>
+  )
+}
 
-      {!orders || orders.length === 0 ? (
-        <div className="rounded-2xl border border-zinc-200 bg-white p-12 text-center">
-          <p className="text-zinc-500">まだ買取申込がありません</p>
-          <Link
-            href="/cart"
-            className="mt-4 inline-block rounded-lg bg-zinc-900 px-6 py-3 text-sm font-medium text-white hover:bg-zinc-700"
+export default function MypageMenuPage() {
+  return (
+    <div className="mx-auto w-full max-w-md bg-white px-3 pb-10 pt-2 text-zinc-950 md:max-w-3xl">
+      <h1 className="mb-7 text-center text-xl font-black text-zinc-950">
+        マイページ
+      </h1>
+      <div className="space-y-3">
+        <MenuLink href="/mypage/profile">会員情報</MenuLink>
+        <MenuLink href="/mypage/orders">郵送買取一覧</MenuLink>
+        <MenuLink href="/auth/update-password">パスワード変更</MenuLink>
+        <form action={logout}>
+          <button
+            type="submit"
+            className="flex h-[50px] w-full items-center justify-center rounded-[18px] bg-[#b9b7b7] px-6 text-lg font-black text-zinc-950 transition-colors hover:bg-[#aaa8a8]"
           >
-            最初の申込をする
-          </Link>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {orders.map((order) => (
-            <Link
-              key={order.id}
-              href={`/mypage/orders/${order.id}`}
-              className="block rounded-2xl border border-zinc-200 bg-white p-6 hover:border-zinc-400 transition-colors"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs text-zinc-400 mb-1">
-                    {order.order_number}
-                  </p>
-                  <p className="font-semibold text-zinc-900">
-                    ¥{order.total_amount.toLocaleString()}
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-500">
-                    {order.order_items?.length ?? 0}点
-                  </p>
-                </div>
-                <div className="text-right">
-                  <StatusBadge status={order.status as OrderStatus} />
-                  <p className="mt-2 text-xs text-zinc-400">
-                    {new Date(order.created_at).toLocaleDateString('ja-JP')}
-                  </p>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+            ログアウト
+          </button>
+        </form>
+      </div>
     </div>
   )
 }

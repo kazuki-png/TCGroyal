@@ -2,19 +2,23 @@
 
 import { useActionState } from 'react'
 import Link from 'next/link'
+import { SiteFooter } from '@/app/components/SiteFooter'
+import { SiteHeader } from '@/app/components/SiteHeader'
 import { forgotPasswordAction } from './actions'
 
 export default function ForgotPasswordPage() {
   const [state, action, pending] = useActionState(forgotPasswordAction, undefined)
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
-      <div className="w-full max-w-md">
+    <div className="flex min-h-screen flex-col bg-zinc-950">
+      <SiteHeader isAuthenticated={false} priorityLogo />
+      <main className="flex flex-1 items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <Link href="/" className="text-2xl font-bold tracking-tight text-white hover:text-zinc-300 transition-colors">
-            TCG Royal
-          </Link>
-          <p className="mt-2 text-zinc-400">パスワードのリセット</p>
+          <h1 className="text-2xl font-bold tracking-tight text-white">
+            パスワードのリセット
+          </h1>
+          <p className="mt-2 text-zinc-400">TCG Royal</p>
         </div>
 
         <div className="rounded-2xl bg-zinc-800 border border-zinc-700 p-8">
@@ -86,11 +90,9 @@ export default function ForgotPasswordPage() {
             </>
           )}
         </div>
-
-        <p className="mt-8 text-center text-xs text-zinc-600">
-          © 2025 TCG Royal
-        </p>
-      </div>
+        </div>
+      </main>
+      <SiteFooter />
     </div>
   )
 }

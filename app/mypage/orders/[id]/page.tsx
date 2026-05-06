@@ -1,8 +1,28 @@
-import { redirect, notFound } from 'next/navigation'
-import Link from 'next/link'
+import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { StatusBadge } from '@/app/components/StatusBadge'
+import {
+  customerStatusClass,
+  customerStatusLabel,
+  formatDateTime,
+  totalQuantity,
+  type OrderItemRow,
+} from '../orderDisplay'
 import type { OrderStatus } from '@/lib/types'
+
+type OrderRow = {
+  id: string
+  order_number: string
+  status: OrderStatus
+  total_amount: number
+  created_at: string
+  order_items: OrderItemRow[] | null
+}
+
+type StatusLogRow = {
+  id: string
+  new_status: OrderStatus
+  created_at: string
+}
 
 export default async function OrderDetailPage({
   params,
@@ -19,91 +39,106 @@ export default async function OrderDetailPage({
 
   const { data: order } = await supabase
     .from('orders')
-    .select('*, order_items(*)')
+    .select('id, order_number, status, total_amount, created_at, order_items(id, card_name, grade, quantity, unit_price)')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
 
   if (!order) notFound()
 
+  const { data: logs } = await supabase
+    .from('order_status_logs')
+    .select('id, new_status, created_at')
+    .eq('order_id', id)
+    .order('created_at', { ascending: true })
+
+  const row = order as OrderRow
+  const items = row.order_items ?? []
+  const status = row.status as OrderStatus
+  const history = [
+    {
+      id: 'initial',
+      label: '受付',
+      created_at: row.created_at,
+    },
+    ...((logs ?? []) as StatusLogRow[]).map((log) => ({
+      id: log.id,
+      label: customerStatusLabel(log.new_status as OrderStatus),
+      created_at: log.created_at,
+    })),
+  ]
+
   return (
-    <div>
-      <div className="mb-4 flex items-center gap-3">
-        <Link href="/mypage" className="text-sm text-zinc-500 hover:text-zinc-900">
-          ← 一覧に戻る
-        </Link>
-      </div>
+    <div className="mx-auto w-full max-w-md bg-white px-5 pb-10 pt-2 text-zinc-950 md:max-w-4xl">
+      <h1 className="mb-5 text-center text-xl font-black">申込詳細</h1>
 
-      <div className="mb-4 flex items-center gap-3">
-        <h1 className="text-2xl font-bold">{order.order_number}</h1>
-        <StatusBadge status={order.status as OrderStatus} />
-      </div>
-      <p className="mb-6 text-sm text-zinc-400">
-        {new Date(order.created_at).toLocaleDateString('ja-JP')}
-      </p>
+      <section className="space-y-3 text-base font-black">
+        <div className="grid grid-cols-[110px_1fr] items-center gap-2">
+          <span>ステータス</span>
+          <span
+            className={`px-4 py-2 text-center text-sm font-black ${customerStatusClass(status)}`}
+          >
+            {customerStatusLabel(status)}
+          </span>
+        </div>
+        <p>注文番号：#{row.order_number}</p>
+        <p>合計数量：{totalQuantity(items)}</p>
+        <p className="text-sm">合計金額：¥{row.total_amount.toLocaleString()}</p>
+        <p className="text-sm">受付日時：{formatDateTime(row.created_at)}</p>
+      </section>
 
-      <div className="mb-6 rounded-2xl border border-zinc-200 bg-white p-6">
-        <h2 className="mb-4 text-lg font-semibold">申込カード</h2>
-        <table className="w-full">
+      <section className="mt-4 bg-[#b9b7b7] px-3 py-3">
+        <h2 className="mb-3 text-sm font-black">ステータス履歴</h2>
+        <div className="space-y-3 text-sm font-black">
+          {history.map((event) => (
+            <div
+              key={event.id}
+              className="grid grid-cols-[1fr_auto] items-center gap-4"
+            >
+              <span>{formatDateTime(event.created_at)}</span>
+              <span>{event.label}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-6 bg-[#b9b7b7] px-2 py-3">
+        <h2 className="sr-only">申し込んだカードの内訳</h2>
+        <table className="w-full text-[10px] font-black">
           <thead>
-            <tr className="border-b border-zinc-100 text-left text-sm text-zinc-500">
-              <th className="pb-2 font-medium">カード名</th>
-              <th className="pb-2 font-medium">グレード</th>
-              <th className="pb-2 text-right font-medium">枚数</th>
-              <th className="pb-2 text-right font-medium">単価</th>
-              <th className="pb-2 text-right font-medium">小計</th>
+            <tr className="text-left">
+              <th className="pb-3">カード名</th>
+              <th className="pb-3 text-center">数量</th>
+              <th className="pb-3 text-right">買取申込額</th>
+              <th className="pb-3 text-right">小計</th>
             </tr>
           </thead>
           <tbody>
-            {order.order_items?.map((item: {
-              id: string
-              card_name: string
-              grade: string
-              quantity: number
-              unit_price: number
-            }) => (
-              <tr key={item.id} className="border-b border-zinc-50">
-                <td className="py-3 text-sm">{item.card_name}</td>
-                <td className="py-3 text-sm text-zinc-500">{item.grade}</td>
-                <td className="py-3 text-right text-sm">{item.quantity}枚</td>
-                <td className="py-3 text-right text-sm">
-                  ¥{item.unit_price.toLocaleString()}
+            {items.map((item) => (
+              <tr key={item.id}>
+                <td className="py-2 pr-2">{item.card_name}</td>
+                <td className="py-2 text-center">{item.quantity}</td>
+                <td className="py-2 text-right">
+                  {item.unit_price.toLocaleString()}
                 </td>
-                <td className="py-3 text-right text-sm font-medium">
-                  ¥{(item.unit_price * item.quantity).toLocaleString()}
+                <td className="py-2 text-right">
+                  {(item.unit_price * item.quantity).toLocaleString()}
                 </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={4} className="pt-3 text-right font-semibold">
+              <td colSpan={3} className="pt-6 text-right">
                 合計
               </td>
-              <td className="pt-3 text-right text-lg font-bold">
-                ¥{order.total_amount.toLocaleString()}
+              <td className="pt-6 text-right">
+                {row.total_amount.toLocaleString()}
               </td>
             </tr>
           </tfoot>
         </table>
-      </div>
-
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-        <h2 className="mb-4 text-lg font-semibold">振込先口座</h2>
-        <dl className="space-y-2 text-sm">
-          {[
-            { label: '銀行', value: order.bank_name },
-            { label: '支店', value: order.bank_branch },
-            { label: '口座番号', value: order.bank_account_no },
-            { label: '口座名義', value: order.bank_holder },
-          ].map(({ label, value }) => (
-            <div key={label} className="flex gap-4">
-              <dt className="w-20 text-zinc-500">{label}</dt>
-              <dd className="font-medium">{value ?? '-'}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
+      </section>
     </div>
   )
 }

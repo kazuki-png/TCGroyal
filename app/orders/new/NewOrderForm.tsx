@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { createOrder } from '@/app/actions/orders'
 import type { Card, CartItem } from '@/lib/types'
 
 export function NewOrderForm({ cards }: { cards: Card[] }) {
+  const router = useRouter()
   const [cart, setCart] = useState<CartItem[]>([])
   const [category, setCategory] = useState<'all' | 'pokemon' | 'onepiece'>('all')
   const [error, setError] = useState<string>()
@@ -56,7 +58,12 @@ export function NewOrderForm({ cards }: { cards: Card[] }) {
     }
     startTransition(async () => {
       const res = await createOrder(cart, bankInfo)
-      if (res?.error) setError(res.error)
+      if (res?.error) {
+        setError(res.error)
+        return
+      }
+      setCart([])
+      router.push(res?.redirectTo ?? '/mypage/orders')
     })
   }
 

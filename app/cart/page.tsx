@@ -1,8 +1,10 @@
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { SiteFooter } from '@/app/components/SiteFooter'
+import { SiteHeader } from '@/app/components/SiteHeader'
+import { CartHeaderLink } from './CartHeaderLink'
 import { CartForm } from './CartForm'
-import type { Card } from '@/lib/types'
+import type { Card, HomepageBanner, Profile } from '@/lib/types'
 
 export default async function CartPage() {
   const supabase = await createClient()
@@ -10,30 +12,45 @@ export default async function CartPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) redirect('/login')
-
   const { data: cards } = await supabase
     .from('cards')
     .select('*')
     .order('category')
     .order('name')
 
+  const { data: banners } = await supabase
+    .from('homepage_banners')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: false })
+
+  const { data: profile } = user
+    ? await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+    : { data: null }
+
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <header className="border-b border-zinc-200 bg-white px-6 py-4">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <Link href="/" className="text-xl font-bold tracking-tight">
-            TCG Royal
+    <div className="flex min-h-screen flex-col bg-white dark:bg-[#111110] dark:text-[#ede8d5]">
+      <SiteHeader
+        isAuthenticated={Boolean(user)}
+        priorityLogo
+        borderClassName="border-b border-zinc-200"
+        afterAccount={<CartHeaderLink />}
+        nav={user ? (
+          <Link href="/mypage" className="hidden text-sm text-zinc-500 hover:text-zinc-900 dark:text-[#7a6e55] dark:hover:text-[#c9a52e] md:inline">
+            マイページ
           </Link>
-          <Link href="/mypage" className="text-sm text-zinc-500 hover:text-zinc-900">
-            ← マイページ
-          </Link>
-        </div>
-      </header>
-      <main className="mx-auto max-w-5xl px-6 py-8">
-        <h1 className="mb-6 text-2xl font-bold">買取申込</h1>
-        <CartForm cards={(cards ?? []) as Card[]} />
+        ) : null}
+      />
+      <main className="w-full flex-1">
+        <CartForm
+          cards={(cards ?? []) as Card[]}
+          banners={(banners ?? []) as HomepageBanner[]}
+          profile={profile as Profile | null}
+          userEmail={user?.email ?? null}
+        />
       </main>
+      <SiteFooter />
     </div>
   )
 }

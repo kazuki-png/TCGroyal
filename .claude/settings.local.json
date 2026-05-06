@@ -11,7 +11,12 @@
       "Bash(git checkout *)",
       "Bash(git remote *)",
       "Bash(git push *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(npx tailwindcss *)",
+      "Bash(xargs grep -l \"DarkMode\\\\|darkMode\")",
+      "Bash(head -100 /c/Users/ysk92/AppData/Local/Temp/claude/c--Users-ysk92-tcg-royal/73fa43a5-3f8d-4da4-96b6-5b09935f1c64/tasks/ba5da2oy4.output)",
+      "Read(//c/Users/ysk92/AppData/Local/Temp/claude/c--Users-ysk92-tcg-royal/73fa43a5-3f8d-4da4-96b6-5b09935f1c64/tasks/**)",
+      "Bash(npx next *)"
     ]
   }
 }

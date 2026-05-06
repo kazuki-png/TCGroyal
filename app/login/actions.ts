@@ -17,5 +17,5 @@ export async function loginAction(
     return { error: 'メールアドレスまたはパスワードが正しくありません' }
   }
 
-  redirect('/')
+  redirect('/mypage')
 }

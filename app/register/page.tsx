@@ -1,30 +1,21 @@
-import Link from 'next/link'
+import { SiteFooter } from '@/app/components/SiteFooter'
+import { SiteHeader } from '@/app/components/SiteHeader'
 import { RegisterForm } from '@/components/auth/RegisterForm'
 
 export const metadata = {
-  title: '新規登録 - TCG Royal',
+  title: 'TCG Royal',
 }
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-screen bg-zinc-950 px-4 py-12">
-      <div className="mx-auto w-full max-w-xl">
-        <div className="mb-8 text-center">
-          <Link
-            href="/"
-            className="text-2xl font-bold tracking-tight text-white hover:text-zinc-300 transition-colors"
-          >
-            TCG Royal
-          </Link>
-          <p className="mt-2 text-zinc-400">新規アカウント登録</p>
+    <div className="flex min-h-screen flex-col bg-white">
+      <SiteHeader isAuthenticated={false} priorityLogo />
+      <main className="flex-1 px-0 py-0 md:px-6 md:py-8">
+        <div className="mx-auto w-full max-w-md md:max-w-5xl">
+          <RegisterForm />
         </div>
-
-        <RegisterForm />
-
-        <p className="mt-8 text-center text-xs text-zinc-600">
-          © 2025 TCG Royal
-        </p>
-      </div>
+      </main>
+      <SiteFooter />
     </div>
   )
 }

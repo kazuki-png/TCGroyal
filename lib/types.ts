@@ -45,6 +45,18 @@ export interface Card {
   updated_at: string
 }
 
+export interface HomepageBanner {
+  id: string
+  title: string
+  image_url: string
+  storage_path: string | null
+  link_url: string
+  sort_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Profile {
   id: string
   last_name: string

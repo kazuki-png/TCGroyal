@@ -6,6 +6,10 @@ import { StatusUpdateForm } from './StatusUpdateForm'
 import { ORDER_STATUS_FLOW, ORDER_STATUS_LABELS } from '@/lib/types'
 import type { OrderStatus } from '@/lib/types'
 
+function displayOrderNumber(order: { id: string; order_number?: string | null }) {
+  return order.order_number || order.id.slice(0, 8).toUpperCase()
+}
+
 export default async function AdminOrderDetailPage({
   params,
 }: {
@@ -40,12 +44,12 @@ export default async function AdminOrderDetailPage({
       <div className="mb-6 flex items-center gap-3">
         <Link
           href="/admin/orders"
-          className="text-sm text-zinc-400 hover:text-white"
+          className="text-sm font-black text-zinc-400 hover:text-red-500"
         >
           ← 一覧
         </Link>
-        <h1 className="text-2xl font-bold text-white">
-          注文 {order.id.slice(0, 8).toUpperCase()}
+        <h1 className="text-2xl font-black text-white">
+          注文 {displayOrderNumber(order)}
         </h1>
         <StatusBadge status={order.status as OrderStatus} />
       </div>

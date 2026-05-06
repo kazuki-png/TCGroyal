@@ -7,7 +7,7 @@ export default function AdminLoginPage() {
   const [state, action, pending] = useActionState(adminLogin, undefined)
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-900 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-black px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <span className="text-2xl font-bold tracking-tight text-white">
@@ -57,7 +57,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={pending}
-            className="w-full rounded-lg bg-white py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-100 disabled:opacity-50"
+            className="w-full rounded-lg bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50"
           >
             {pending ? 'ログイン中...' : 'ログイン'}
           </button>

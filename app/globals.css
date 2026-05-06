@@ -1,26 +1,78 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-noto-serif), ui-serif, serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ライトモード */
+:root {
+  --dk-body:          #fafafa;
+  --dk-page:          #ffffff;
+  --dk-card:          #ffffff;
+  --dk-card-shadow:   rgba(24, 24, 27, 0.08);
+  --dk-raised:        #f4f4f5;
+  --dk-border:        #e4e4e7;
+  --dk-text:          #09090b;
+  --dk-text-2:        #71717a;
+  --dk-text-3:        #a1a1aa;
+  --dk-text-4:        #d4d4d8;
+  --dk-primary:       #09090b;
+  --dk-primary-fg:    #d4c400;
+  --dk-primary-ring:  rgba(212, 196, 0, 0.35);
+  --dk-account-ring:  rgba(215, 184, 101, 0.75);
+  --dk-account-fg:    #d7b865;
+  --dk-footer:        #f4f4f5;
+  --dk-footer-text:   #475569;
+  --dk-footer-hover:  #0f172a;
+  --dk-scroll-bg:     #09090b;
+  --dk-scroll-fg:     #ffffff;
+  --dk-gold:          #c9a52e;
+  --dk-toggle:        #71717a;
+  --dk-toggle-hover:  #f4f4f5;
+}
+
+/* ダークモード（高級感・ロゴカラーベース） */
+.dark {
+  --dk-body:          #111110;
+  --dk-page:          #111110;
+  --dk-card:          #1c1b18;
+  --dk-card-shadow:   rgba(0, 0, 0, 0.5);
+  --dk-raised:        #252420;
+  --dk-border:        #2d2a20;
+  --dk-text:          #ede8d5;
+  --dk-text-2:        #7a6e55;
+  --dk-text-3:        #5a5243;
+  --dk-text-4:        #4a4233;
+  --dk-primary:       #1c1b18;
+  --dk-primary-fg:    #c9a52e;
+  --dk-primary-ring:  rgba(201, 165, 46, 0.4);
+  --dk-account-ring:  rgba(201, 165, 46, 0.6);
+  --dk-account-fg:    #c9a52e;
+  --dk-footer:        #0c0b09;
+  --dk-footer-text:   #5a5243;
+  --dk-footer-hover:  #c9a52e;
+  --dk-scroll-bg:     #c9a52e;
+  --dk-scroll-fg:     #0e0c09;
+  --dk-gold:          #c9a52e;
+  --dk-toggle:        #c9a52e;
+  --dk-toggle-hover:  #1c1b18;
+}
+
+/* ダークモード見出しフォント */
+.dark .luxury-title {
+  font-family: var(--font-noto-serif), ui-serif, serif;
+  letter-spacing: 0.06em;
+}
+.dark .luxury-brand {
+  font-family: var(--font-noto-serif), ui-serif, serif;
+  letter-spacing: 0.15em;
+  color: #c9a52e;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
+  background-color: var(--dk-body);
+  color: var(--dk-text);
 }

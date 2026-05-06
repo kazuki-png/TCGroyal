@@ -48,7 +48,7 @@ export async function adminLogin(
     return { error: '管理者権限がありません' }
   }
 
-  redirect('/admin/orders')
+  redirect('/admin')
 }
 
 export async function register(

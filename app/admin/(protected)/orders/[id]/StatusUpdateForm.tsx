@@ -50,7 +50,7 @@ export function StatusUpdateForm({
             key={s}
             className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors ${
               selected === s
-                ? 'border-white bg-zinc-700'
+                ? 'border-red-500 bg-zinc-800'
                 : 'border-zinc-700 hover:border-zinc-500'
             }`}
           >
@@ -60,7 +60,7 @@ export function StatusUpdateForm({
               value={s}
               checked={selected === s}
               onChange={() => setSelected(s)}
-              className="accent-white"
+              className="accent-red-600"
             />
             <div>
               <p className="text-sm font-medium text-white">
@@ -77,7 +77,7 @@ export function StatusUpdateForm({
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-lg bg-white py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-100 disabled:opacity-50"
+        className="w-full rounded-lg bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50"
       >
         {pending ? '更新中...' : 'ステータスを更新'}
       </button>

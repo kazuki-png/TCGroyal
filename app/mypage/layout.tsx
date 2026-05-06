@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { LogoutButton } from '@/app/components/LogoutButton'
+import { SiteFooter } from '@/app/components/SiteFooter'
+import { SiteHeader } from '@/app/components/SiteHeader'
 
 export default async function MypageLayout({
   children,
@@ -16,18 +18,23 @@ export default async function MypageLayout({
   if (!user) redirect('/login')
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <header className="border-b border-zinc-200 bg-white px-6 py-4">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <Link href="/" className="text-xl font-bold tracking-tight">
-            TCG Royal
-          </Link>
-          <nav className="flex items-center gap-6">
+    <div className="flex min-h-screen flex-col bg-zinc-50">
+      <SiteHeader
+        isAuthenticated
+        priorityLogo
+        nav={
+          <nav className="hidden items-center gap-5 md:flex">
             <Link
               href="/mypage"
               className="text-sm text-zinc-600 hover:text-zinc-900"
             >
-              申込一覧
+              マイページ
+            </Link>
+            <Link
+              href="/mypage/orders"
+              className="text-sm text-zinc-600 hover:text-zinc-900"
+            >
+              郵送買取一覧
             </Link>
             <Link
               href="/mypage/profile"
@@ -43,9 +50,10 @@ export default async function MypageLayout({
             </Link>
             <LogoutButton />
           </nav>
-        </div>
-      </header>
-      <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+        }
+      />
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">{children}</main>
+      <SiteFooter />
     </div>
   )
 }

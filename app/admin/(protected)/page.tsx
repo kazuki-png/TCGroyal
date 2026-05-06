@@ -20,19 +20,34 @@ type Summary = {
   orderCount: number
   totalAmount: number
   averageUnitPrice: number
-  pvCount: number | null
   totalQuantity: number
 }
 
-const RANGE_OPTIONS: { key: RangeKey; label: string; days: number }[] = [
-  { key: 'today', label: '今日', days: 1 },
-  { key: '7d', label: '過去7日', days: 7 },
-  { key: '30d', label: '過去30日', days: 30 },
+type Comparison = {
+  label: string
+  value: string
+  tone: 'positive' | 'negative' | 'neutral'
+}
+
+const RANGE_OPTIONS: { key: RangeKey; label: string; shortLabel: string; days: number }[] = [
+  { key: 'today', label: '今日', shortLabel: '今日', days: 1 },
+  { key: '7d', label: '過去7日', shortLabel: '7日', days: 7 },
+  { key: '30d', label: '過去30日', shortLabel: '30日', days: 30 },
 ]
 
 const ACTIVE_STATUSES = ORDER_STATUS_FLOW.filter(
   (status) => status !== 'completed'
 ) as OrderStatus[]
+
+const STATUS_ACCENTS: Record<OrderStatus, string> = {
+  unhandled: 'bg-red-500',
+  accepted: 'bg-amber-400',
+  waiting_arrival: 'bg-orange-400',
+  inspecting: 'bg-sky-400',
+  pending_approval: 'bg-fuchsia-400',
+  pending_transfer: 'bg-emerald-400',
+  completed: 'bg-lime-400',
+}
 
 function resolveRange(value: string | string[] | undefined) {
   const raw = Array.isArray(value) ? value[0] : value
@@ -67,6 +82,15 @@ function formatDate(date: Date) {
   }).format(date)
 }
 
+function formatFullDate(date: Date) {
+  return new Intl.DateTimeFormat('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  }).format(date)
+}
+
 function formatPeriod(period: { start: Date; end: Date }) {
   return `${formatDate(period.start)} - ${formatDate(period.end)}`
 }
@@ -83,11 +107,19 @@ function quantityTotal(orders: DashboardOrder[]) {
   }, 0)
 }
 
-function compareLabel(current: number, previous: number) {
-  if (previous === 0) return current === 0 ? '0%' : '新規'
+function compare(current: number, previous: number): Pick<Comparison, 'value' | 'tone'> {
+  if (previous === 0) {
+    if (current === 0) return { value: '0%', tone: 'neutral' }
+    return { value: '新規', tone: 'positive' }
+  }
+
   const diff = ((current - previous) / previous) * 100
-  const sign = diff > 0 ? '+' : ''
-  return `${sign}${Math.round(diff)}%`
+  const rounded = Math.round(diff)
+  if (rounded === 0) return { value: '0%', tone: 'neutral' }
+  return {
+    value: `${rounded > 0 ? '+' : ''}${rounded}%`,
+    tone: rounded > 0 ? 'positive' : 'negative',
+  }
 }
 
 function comparisonRows(
@@ -95,11 +127,11 @@ function comparisonRows(
   previousDay: number,
   previousWeek: number,
   previousMonth: number
-) {
+): Comparison[] {
   return [
-    { label: '前日比', value: compareLabel(current, previousDay) },
-    { label: '先週比', value: compareLabel(current, previousWeek) },
-    { label: '先月比', value: compareLabel(current, previousMonth) },
+    { label: '前日比', ...compare(current, previousDay) },
+    { label: '先週比', ...compare(current, previousWeek) },
+    { label: '先月比', ...compare(current, previousMonth) },
   ]
 }
 
@@ -121,44 +153,119 @@ async function loadSummary(
     orderCount: rows.length,
     totalAmount,
     averageUnitPrice: totalQuantity > 0 ? Math.round(totalAmount / totalQuantity) : 0,
-    pvCount: null,
     totalQuantity,
   }
+}
+
+function ComparisonPills({ comparisons }: { comparisons: Comparison[] }) {
+  return (
+    <div className="mt-5 grid grid-cols-3 gap-2">
+      {comparisons.map((comparison) => (
+        <div key={comparison.label} className="rounded-md bg-black/35 px-2.5 py-2">
+          <p className="text-[10px] font-black text-zinc-500">{comparison.label}</p>
+          <p
+            className={[
+              'mt-1 text-sm font-black',
+              comparison.tone === 'positive'
+                ? 'text-emerald-400'
+                : comparison.tone === 'negative'
+                  ? 'text-red-400'
+                  : 'text-zinc-300',
+            ].join(' ')}
+          >
+            {comparison.value}
+          </p>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function MetricCard({
   label,
   value,
+  description,
   comparisons,
-  note,
+  accentClassName,
 }: {
   label: string
   value: string
-  comparisons: { label: string; value: string }[]
-  note?: string
+  description: string
+  comparisons?: Comparison[]
+  accentClassName: string
 }) {
   return (
-    <div className="min-h-[184px] rounded-lg bg-[#222221] px-5 py-5 text-white">
-      <p className="text-sm font-black text-zinc-400">{label}</p>
-      <p className="mt-4 break-words text-3xl font-black tracking-normal">{value}</p>
-      {note && <p className="mt-2 text-xs font-black text-zinc-500">{note}</p>}
-      <div className="mt-4 grid gap-2 text-xs font-black">
-        {comparisons.map((comparison) => (
-          <p key={comparison.label} className="flex justify-between gap-3">
-            <span className="text-zinc-500">{comparison.label}</span>
-            <span
-              className={
-                comparison.value.startsWith('-')
-                  ? 'text-red-400'
-                  : 'text-emerald-500'
-              }
-            >
-              {comparison.value}
-            </span>
+    <section className="relative min-h-[202px] overflow-hidden rounded-lg border border-zinc-800 bg-[#151515] p-5 shadow-[0_18px_48px_rgba(0,0,0,0.34)]">
+      <div className={`absolute left-0 top-0 h-1 w-full ${accentClassName}`} />
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
+            {label}
           </p>
-        ))}
+          <p className="mt-4 break-words text-4xl font-black text-white">
+            {value}
+          </p>
+        </div>
+        <span className={`mt-1 h-3 w-3 rounded-full ${accentClassName}`} />
       </div>
-    </div>
+      <p className="mt-3 min-h-5 text-xs font-semibold text-zinc-500">
+        {description}
+      </p>
+      {comparisons && <ComparisonPills comparisons={comparisons} />}
+    </section>
+  )
+}
+
+function StatusPanel({
+  statusCounts,
+}: {
+  statusCounts: Map<OrderStatus, number>
+}) {
+  const maxCount = Math.max(1, ...ACTIVE_STATUSES.map((status) => statusCounts.get(status) ?? 0))
+  const activeTotal = ACTIVE_STATUSES.reduce(
+    (sum, status) => sum + (statusCounts.get(status) ?? 0),
+    0
+  )
+
+  return (
+    <section className="rounded-lg border border-zinc-800 bg-[#151515] p-5 shadow-[0_18px_48px_rgba(0,0,0,0.34)]">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
+            Open Orders
+          </p>
+          <h2 className="mt-2 text-2xl font-black text-white">ステータス別件数</h2>
+        </div>
+        <p className="text-right text-3xl font-black text-white">
+          {activeTotal.toLocaleString('ja-JP')}
+        </p>
+      </div>
+
+      <div className="mt-7 space-y-5">
+        {ACTIVE_STATUSES.map((status) => {
+          const count = statusCounts.get(status) ?? 0
+          const width = `${Math.max(6, Math.round((count / maxCount) * 100))}%`
+          return (
+            <div key={status}>
+              <div className="mb-2 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <span className={`h-2.5 w-2.5 rounded-full ${STATUS_ACCENTS[status]}`} />
+                  <span className="text-sm font-black text-zinc-300">
+                    {ORDER_STATUS_LABELS[status]}
+                  </span>
+                </div>
+                <span className="font-mono text-sm font-black text-white">
+                  {count.toLocaleString('ja-JP')}
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-black">
+                <div className={`h-full rounded-full ${STATUS_ACCENTS[status]}`} style={{ width }} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
@@ -195,15 +302,26 @@ export default async function AdminDashboardPage({
   })
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <section className="bg-zinc-950 px-5 py-6 text-white md:px-8 md:py-8">
-        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+    <div className="space-y-6">
+      <section className="rounded-lg border border-zinc-800 bg-[#121212] px-5 py-5 shadow-[0_18px_48px_rgba(0,0,0,0.32)] md:px-7 md:py-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-3xl font-black">ダッシュボード</h1>
-            <p className="mt-3 text-sm font-black text-zinc-400">
-              {selectedRange.label} / {formatPeriod(period)}
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#c9a52e]">
+              TCG Royal Admin
             </p>
+            <h1 className="mt-3 text-4xl font-black tracking-normal text-white md:text-5xl">
+              ダッシュボード
+            </h1>
+            <div className="mt-4 flex flex-wrap gap-2 text-sm font-black text-zinc-400">
+              <span className="rounded-full border border-zinc-800 bg-black px-3 py-1">
+                {formatFullDate(new Date())}
+              </span>
+              <span className="rounded-full border border-zinc-800 bg-black px-3 py-1">
+                集計期間 {formatPeriod(period)}
+              </span>
+            </div>
           </div>
+
           <div className="flex flex-wrap gap-2">
             {RANGE_OPTIONS.map((option) => {
               const active = option.key === selectedRange.key
@@ -211,11 +329,12 @@ export default async function AdminDashboardPage({
                 <Link
                   key={option.key}
                   href={`/admin?range=${option.key}`}
+                  aria-current={active ? 'page' : undefined}
                   className={[
-                    'rounded-xl border px-4 py-3 text-sm font-black transition-colors',
+                    'h-11 rounded-md border px-4 text-sm font-black leading-[42px] transition-colors',
                     active
-                      ? 'border-red-500 bg-red-600 text-white'
-                      : 'border-zinc-700 text-zinc-300 hover:bg-zinc-900',
+                      ? 'border-[#c9a52e] bg-[#c9a52e] text-black'
+                      : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600 hover:text-white',
                   ].join(' ')}
                 >
                   {option.label}
@@ -224,63 +343,92 @@ export default async function AdminDashboardPage({
             })}
           </div>
         </div>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            label="新規申し込み数"
-            value={current.orderCount.toLocaleString('ja-JP')}
-            comparisons={comparisonRows(
-              current.orderCount,
-              previousDay.orderCount,
-              previousWeek.orderCount,
-              previousMonth.orderCount
-            )}
-          />
-          <MetricCard
-            label="買取総額"
-            value={currency(current.totalAmount)}
-            comparisons={comparisonRows(
-              current.totalAmount,
-              previousDay.totalAmount,
-              previousWeek.totalAmount,
-              previousMonth.totalAmount
-            )}
-          />
-          <MetricCard
-            label="平均単価"
-            value={currency(current.averageUnitPrice)}
-            note={`${current.totalQuantity.toLocaleString('ja-JP')}点で算出`}
-            comparisons={comparisonRows(
-              current.averageUnitPrice,
-              previousDay.averageUnitPrice,
-              previousWeek.averageUnitPrice,
-              previousMonth.averageUnitPrice
-            )}
-          />
-          <MetricCard
-            label="総PV"
-            value="Vercel"
-            note="Web Analyticsで計測中"
-            comparisons={[]}
-          />
-        </div>
       </section>
 
-      <section className="bg-[#252523] px-6 py-7 text-white">
-        <h2 className="mb-8 text-2xl font-black">ステータス別件数</h2>
-        <dl className="space-y-6">
-          {ACTIVE_STATUSES.map((status) => (
-            <div key={status} className="flex items-center justify-between gap-4">
-              <dt className="text-lg font-black text-zinc-300">
-                {ORDER_STATUS_LABELS[status]}
-              </dt>
-              <dd className="text-2xl font-black">
-                {(statusCounts.get(status) ?? 0).toLocaleString('ja-JP')}
-              </dd>
+      <section className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
+        <MetricCard
+          label="New Orders"
+          value={current.orderCount.toLocaleString('ja-JP')}
+          description="指定期間内の新規申し込み数"
+          accentClassName="bg-red-500"
+          comparisons={comparisonRows(
+            current.orderCount,
+            previousDay.orderCount,
+            previousWeek.orderCount,
+            previousMonth.orderCount
+          )}
+        />
+        <MetricCard
+          label="Buy Amount"
+          value={currency(current.totalAmount)}
+          description="指定期間内の買取申込合計額"
+          accentClassName="bg-[#c9a52e]"
+          comparisons={comparisonRows(
+            current.totalAmount,
+            previousDay.totalAmount,
+            previousWeek.totalAmount,
+            previousMonth.totalAmount
+          )}
+        />
+        <MetricCard
+          label="Avg Unit"
+          value={currency(current.averageUnitPrice)}
+          description={`${current.totalQuantity.toLocaleString('ja-JP')}点の平均単価`}
+          accentClassName="bg-emerald-400"
+          comparisons={comparisonRows(
+            current.averageUnitPrice,
+            previousDay.averageUnitPrice,
+            previousWeek.averageUnitPrice,
+            previousMonth.averageUnitPrice
+          )}
+        />
+        <MetricCard
+          label="Total PV"
+          value="Vercel"
+          description="Web Analytics / Speed Insightsで計測中"
+          accentClassName="bg-sky-400"
+        />
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="rounded-lg border border-zinc-800 bg-[#151515] p-5 shadow-[0_18px_48px_rgba(0,0,0,0.34)]">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
+                Period Overview
+              </p>
+              <h2 className="mt-2 text-2xl font-black text-white">取引サマリー</h2>
             </div>
-          ))}
-        </dl>
-      </section>
+            <Link
+              href="/admin/orders"
+              className="inline-flex h-10 items-center justify-center rounded-md border border-zinc-700 px-4 text-sm font-black text-zinc-300 transition-colors hover:border-[#c9a52e] hover:text-[#c9a52e]"
+            >
+              取引を見る
+            </Link>
+          </div>
+
+          <div className="mt-6 grid gap-3 md:grid-cols-3">
+            {[
+              ['商品数', `${current.totalQuantity.toLocaleString('ja-JP')}点`],
+              ['平均注文額', currency(current.orderCount > 0 ? Math.round(current.totalAmount / current.orderCount) : 0)],
+              ['期間', selectedRange.shortLabel],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-zinc-800 bg-black px-4 py-4">
+                <p className="text-xs font-black text-zinc-500">{label}</p>
+                <p className="mt-2 text-2xl font-black text-white">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 rounded-lg border border-zinc-800 bg-black p-4">
+            <p className="text-sm font-black text-zinc-400">
+              PVはVercel Web Analyticsへ移行済みです。アプリDBにはPVを保存せず、Vercel側のダッシュボードでページビューとCore Web Vitalsを確認します。
+            </p>
+          </div>
+        </section>
+
+        <StatusPanel statusCounts={statusCounts} />
+      </div>
     </div>
   )
 }

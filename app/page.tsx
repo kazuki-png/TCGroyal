@@ -100,23 +100,39 @@ function ActionLink({
 
 
 export default async function HomePage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const hasSupabaseConfig = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  )
+  let user = null
+  let banners: HomepageBanner[] = []
+  let cards: Card[] = []
 
-  const { data: banners } = await supabase
-    .from('homepage_banners')
-    .select('*')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: false })
+  if (hasSupabaseConfig) {
+    const supabase = await createClient()
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser()
 
-  const { data: cards } = await supabase
-    .from('cards')
-    .select('*')
-    .order('buy_price', { ascending: false })
-    .limit(32)
+    user = currentUser
+
+    const [{ data: bannerRows }, { data: cardRows }] = await Promise.all([
+      supabase
+        .from('homepage_banners')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('cards')
+        .select('*')
+        .order('buy_price', { ascending: false })
+        .limit(32),
+    ])
+
+    banners = (bannerRows ?? []) as HomepageBanner[]
+    cards = (cardRows ?? []) as Card[]
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-white text-zinc-900 dark:bg-[#111110] dark:text-[#ede8d5]">
@@ -126,7 +142,7 @@ export default async function HomePage() {
         priorityLogo
       />
 
-      <HomeBannerCarousel banners={(banners ?? []) as HomepageBanner[]} />
+      <HomeBannerCarousel banners={banners} />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-9">
         <div className="grid gap-4 md:grid-cols-3">
@@ -152,7 +168,7 @@ export default async function HomePage() {
             オンラインストア
           </ActionLink>
         </div>
-        <HomeCardSection cards={(cards ?? []) as Card[]} />
+        <HomeCardSection cards={cards} />
       </main>
 
       <SiteFooter />

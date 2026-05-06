@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/pv-retention",
+      "schedule": "30 18 * * *"
+    }
+  ]
+}

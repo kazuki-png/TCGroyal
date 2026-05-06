@@ -4,6 +4,7 @@ import { Noto_Serif_JP } from 'next/font/google'
 import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import { PageViewTracker } from '@/app/components/PageViewTracker'
 import { ThemeProvider } from '@/app/components/ThemeProvider'
 import './globals.css'
 
@@ -41,6 +42,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }}
         />
         <ThemeProvider>
+          <PageViewTracker />
           {children}
         </ThemeProvider>
         <Analytics />

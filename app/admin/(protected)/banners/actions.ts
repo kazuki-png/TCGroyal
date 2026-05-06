@@ -43,6 +43,10 @@ function redirectWithSaved(): never {
   redirect('/admin/banners?saved=1')
 }
 
+function redirectWithDeleted(): never {
+  redirect('/admin/banners?deleted=1')
+}
+
 function getString(formData: FormData, key: string) {
   return ((formData.get(key) as string | null) ?? '').trim()
 }
@@ -224,5 +228,5 @@ export async function deleteBanner(formData: FormData) {
 
   revalidatePath('/')
   revalidatePath('/admin/banners')
-  redirectWithSaved()
+  redirectWithDeleted()
 }

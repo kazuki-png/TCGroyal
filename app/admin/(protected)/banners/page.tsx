@@ -4,13 +4,14 @@ import { ImageUploadPreviewInput } from '@/components/ImageUploadPreviewInput'
 import type { HomepageBanner } from '@/lib/types'
 import { AdminFlashMessage } from './AdminFlashMessage'
 import { createBanner, deleteBanner, updateBanner } from './actions'
+import { DeleteBannerButton } from './DeleteBannerButton'
 
 export default async function AdminBannersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; saved?: string }>
+  searchParams: Promise<{ error?: string; saved?: string; deleted?: string }>
 }) {
-  const { error, saved } = await searchParams
+  const { error, saved, deleted } = await searchParams
   const admin = createAdminClient()
   const { data } = await admin
     .from('homepage_banners')
@@ -36,6 +37,9 @@ export default async function AdminBannersPage({
       {error && <AdminFlashMessage tone="error">{error}</AdminFlashMessage>}
       {saved && (
         <AdminFlashMessage tone="success">保存しました</AdminFlashMessage>
+      )}
+      {deleted && (
+        <AdminFlashMessage tone="deleted">削除しました</AdminFlashMessage>
       )}
 
       <form
@@ -180,13 +184,7 @@ export default async function AdminBannersPage({
                       >
                         保存
                       </button>
-                      <button
-                        type="submit"
-                        formAction={deleteBanner}
-                        className="rounded-lg border border-red-800 px-5 py-2 text-sm font-semibold text-red-200 hover:bg-red-950"
-                      >
-                        削除
-                      </button>
+                      <DeleteBannerButton action={deleteBanner} />
                     </div>
                   </div>
                 </form>

@@ -38,9 +38,11 @@ export function formatDateTime(value: string) {
 export type OrderItemRow = {
   id: string
   card_name: string
+  item_type?: 'card' | 'unlisted'
   grade: string
   quantity: number
   unit_price: number
+  requested_note?: string | null
 }
 
 export function totalQuantity(items: OrderItemRow[] | null | undefined) {

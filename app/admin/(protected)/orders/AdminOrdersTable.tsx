@@ -2,7 +2,11 @@
 
 import { useState, useTransition } from 'react'
 import { setOrderStatus } from './actions'
-import { ORDER_STATUS_LABELS, ORDER_STATUS_FLOW, type OrderStatus } from '@/lib/types'
+import {
+  ORDER_STATUS_LABELS,
+  nextOrderStatuses,
+  type OrderStatus,
+} from '@/lib/types'
 
 export type AdminOrderRow = {
   id: string
@@ -41,6 +45,7 @@ function relativeTime(value: string) {
 function StatusSelect({ order }: { order: AdminOrderRow }) {
   const [status, setStatus] = useState<OrderStatus>(order.status)
   const [pending, startTransition] = useTransition()
+  const availableStatuses = [status, ...nextOrderStatuses(status)]
 
   return (
     <select
@@ -58,7 +63,7 @@ function StatusSelect({ order }: { order: AdminOrderRow }) {
       }}
       className="h-9 rounded-lg border border-zinc-700 bg-zinc-950 px-2 text-xs font-black text-white outline-none disabled:opacity-50"
     >
-      {ORDER_STATUS_FLOW.map((nextStatus) => (
+      {availableStatuses.map((nextStatus) => (
         <option key={nextStatus} value={nextStatus}>
           {ORDER_STATUS_LABELS[nextStatus]}
         </option>

@@ -33,6 +33,12 @@ const CATEGORY_LABEL: Record<Category, string> = {
   onepiece: 'ワンピース',
 }
 
+const SORT_LABEL: Record<SortKey, string> = {
+  'price-desc': '価格が高い順',
+  'price-asc': '価格が低い順',
+  name: '名前順',
+}
+
 const SAMPLE_CARDS: Card[] = [
   {
     id: 'sample-kangaskhan-pokemon',
@@ -564,6 +570,16 @@ export function CartForm({
       ),
     [displayCards, repeatedImageUrls]
   )
+  const activeCategoryLabels = (['pokemon', 'onepiece'] as Category[])
+    .filter((category) => enabledCategories[category])
+    .map((category) => CATEGORY_LABEL[category])
+  const activeCategoryText =
+    activeCategoryLabels.length > 0 ? activeCategoryLabels.join('・') : 'なし'
+  const appliedKeyword = submittedKeyword.trim()
+  const hasSearchConditions =
+    appliedKeyword.length > 0 ||
+    activeCategoryLabels.length !== 2 ||
+    sort !== 'price-desc'
 
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0)
   const unlistedInCart = cart.some((item) => item.card.id === UNLISTED_CARD.id)
@@ -700,6 +716,14 @@ export function CartForm({
       ...current,
       [category]: !current[category],
     }))
+  }
+
+  const clearSearchConditions = () => {
+    setKeyword('')
+    setSubmittedKeyword('')
+    setEnabledCategories({ pokemon: true, onepiece: true })
+    setSort('price-desc')
+    setPagination({ page: 1, signature: '' })
   }
 
   const handlePageChange = (nextPage: number) => {
@@ -938,6 +962,39 @@ export function CartForm({
           </button>
         </form>
 
+        <div
+          aria-live="polite"
+          className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm shadow-sm dark:border-[#2d2a20] dark:bg-[#1c1b18]"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="font-black text-zinc-950 dark:text-[#ede8d5]">
+              検索結果 {filteredCards.length.toLocaleString('ja-JP')}件 / 全{availableCards.length.toLocaleString('ja-JP')}件
+            </p>
+            {hasSearchConditions && (
+              <button
+                type="button"
+                onClick={clearSearchConditions}
+                className="rounded-full border border-zinc-300 px-3 py-1 text-xs font-black text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-[#4a4233] dark:text-[#c9a52e] dark:hover:bg-[#252420]"
+              >
+                条件クリア
+              </button>
+            )}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-zinc-600 dark:text-[#7a6e55]">
+            <span className="rounded-full bg-zinc-100 px-3 py-1 dark:bg-[#252420]">
+              カテゴリ: {activeCategoryText}
+            </span>
+            <span className="rounded-full bg-zinc-100 px-3 py-1 dark:bg-[#252420]">
+              並び順: {SORT_LABEL[sort]}
+            </span>
+            {appliedKeyword && (
+              <span className="rounded-full bg-zinc-100 px-3 py-1 dark:bg-[#252420]">
+                検索語: {appliedKeyword}
+              </span>
+            )}
+          </div>
+        </div>
+
         {error && (
           <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
             {error}
@@ -1047,9 +1104,14 @@ export function CartForm({
         </div>
 
         {filteredCards.length === 0 && (
-          <p className="py-8 text-center text-sm text-zinc-500 dark:text-[#7a6e55]">
-            該当するカードがありません
-          </p>
+          <div className="py-8 text-center text-sm text-zinc-500 dark:text-[#7a6e55]">
+            <p className="font-black text-zinc-700 dark:text-[#ede8d5]">
+              該当するカードがありません
+            </p>
+            <p className="mt-2">
+              検索語またはカテゴリを変更してください。
+            </p>
+          </div>
         )}
 
         <Pagination

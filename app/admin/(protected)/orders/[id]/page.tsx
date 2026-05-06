@@ -3,7 +3,11 @@ import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { StatusBadge } from '@/app/components/StatusBadge'
 import { StatusUpdateForm } from './StatusUpdateForm'
-import { ORDER_STATUS_FLOW, ORDER_STATUS_LABELS } from '@/lib/types'
+import {
+  ORDER_STATUS_LABELS,
+  nextOrderStatuses,
+  previousOrderStatuses,
+} from '@/lib/types'
 import type { OrderStatus } from '@/lib/types'
 
 function displayOrderNumber(order: { id: string; order_number?: string | null }) {
@@ -36,8 +40,9 @@ export default async function AdminOrderDetailPage({
     .eq('order_id', id)
     .order('created_at', { ascending: true })
 
-  const currentIndex = ORDER_STATUS_FLOW.indexOf(order.status as OrderStatus)
-  const nextStatuses = ORDER_STATUS_FLOW.slice(currentIndex + 1)
+  const currentStatus = order.status as OrderStatus
+  const nextStatuses = nextOrderStatuses(currentStatus)
+  const previousStatuses = previousOrderStatuses(currentStatus)
 
   return (
     <div>
@@ -77,12 +82,21 @@ export default async function AdminOrderDetailPage({
                 {order.order_items?.map((item: {
                   id: string
                   card_name: string
+                  item_type?: 'card' | 'unlisted'
                   grade: string
                   quantity: number
                   unit_price: number
+                  requested_note?: string | null
                 }) => (
                   <tr key={item.id} className="border-b border-zinc-800">
-                    <td className="py-3 text-sm text-white">{item.card_name}</td>
+                    <td className="py-3 text-sm text-white">
+                      {item.card_name}
+                      {item.item_type === 'unlisted' && item.requested_note && (
+                        <span className="mt-1 block text-xs text-zinc-500">
+                          {item.requested_note}
+                        </span>
+                      )}
+                    </td>
                     <td className="py-3 text-sm text-zinc-400">{item.grade}</td>
                     <td className="py-3 text-right text-sm text-white">
                       {item.quantity}枚
@@ -169,7 +183,20 @@ export default async function AdminOrderDetailPage({
             {nextStatuses.length === 0 ? (
               <p className="text-sm text-zinc-500">このステータスは完了です</p>
             ) : (
-              <StatusUpdateForm orderId={order.id} nextStatuses={nextStatuses} />
+              <StatusUpdateForm
+                orderId={order.id}
+                nextStatuses={nextStatuses}
+                previousStatuses={previousStatuses}
+              />
+            )}
+            {nextStatuses.length === 0 && previousStatuses.length > 0 && (
+              <div className="mt-5">
+                <StatusUpdateForm
+                  orderId={order.id}
+                  nextStatuses={[]}
+                  previousStatuses={previousStatuses}
+                />
+              </div>
             )}
           </div>
         </div>

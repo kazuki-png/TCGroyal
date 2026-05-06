@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ORDER_STATUS_LABELS, type OrderStatus } from '@/lib/types'
 import { UserIdentitySelect } from './UserIdentitySelect'
@@ -7,6 +8,7 @@ type IdentityFilter = 'all' | 'verified' | 'unverified'
 
 type ProfileRow = {
   id: string
+  email: string | null
   last_name: string | null
   first_name: string | null
   last_name_kana: string | null
@@ -31,6 +33,8 @@ type OrderRow = {
   created_at: string
 }
 
+const PAGE_SIZE = 30
+
 const FILTERS: { key: IdentityFilter; label: string }[] = [
   { key: 'all', label: '全員' },
   { key: 'verified', label: '本人確認済み' },
@@ -41,6 +45,12 @@ function normalizeFilter(value: string | string[] | undefined): IdentityFilter {
   const raw = Array.isArray(value) ? value[0] : value
   if (raw === 'verified' || raw === 'unverified') return raw
   return 'all'
+}
+
+function normalizePage(value: string | string[] | undefined) {
+  const raw = Array.isArray(value) ? value[0] : value
+  const page = Number.parseInt(raw ?? '1', 10)
+  return Number.isFinite(page) && page > 0 ? page : 1
 }
 
 function displayName(profile: ProfileRow) {
@@ -71,39 +81,40 @@ function currency(value: number) {
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string | string[] }>
+  searchParams: Promise<{ status?: string | string[]; page?: string | string[] }>
 }) {
   const params = await searchParams
   const filter = normalizeFilter(params.status)
+  const requestedPage = normalizePage(params.page)
+  const from = (requestedPage - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
   const admin = createAdminClient()
 
   let profileQuery = admin
     .from('profiles')
-    .select('*')
+    .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
-    .limit(80)
+    .range(from, to)
 
   if (filter === 'verified') profileQuery = profileQuery.eq('identity_verified', true)
   if (filter === 'unverified') profileQuery = profileQuery.eq('identity_verified', false)
 
-  const { data: profiles } = await profileQuery
+  const { data: profiles, count } = await profileQuery
   const rows = (profiles ?? []) as ProfileRow[]
   const userIds = rows.map((profile) => profile.id)
-  const [{ data: orders }, authUsers] = await Promise.all([
-    userIds.length > 0
-      ? admin
-          .from('orders')
-          .select('id, order_number, user_id, status, total_amount, created_at')
-          .in('user_id', userIds)
-          .order('created_at', { ascending: false })
-      : Promise.resolve({ data: [] }),
-    Promise.all(
-      userIds.map(async (userId) => {
-        const { data } = await admin.auth.admin.getUserById(userId)
-        return [userId, data.user?.email ?? '-'] as const
-      })
-    ),
-  ])
+  const total = count ?? rows.length
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const page = Math.min(requestedPage, totalPages)
+  if (requestedPage > totalPages && total > 0) {
+    redirect(`/admin/users?status=${filter}&page=${totalPages}`)
+  }
+  const { data: orders } = userIds.length > 0
+    ? await admin
+        .from('orders')
+        .select('id, order_number, user_id, status, total_amount, created_at')
+        .in('user_id', userIds)
+        .order('created_at', { ascending: false })
+    : { data: [] }
 
   const ordersByUser = new Map<string, OrderRow[]>()
   ;((orders ?? []) as OrderRow[]).forEach((order) => {
@@ -111,7 +122,6 @@ export default async function AdminUsersPage({
     current.push(order)
     ordersByUser.set(order.user_id, current)
   })
-  const emailMap = new Map(authUsers)
 
   return (
     <div className="space-y-5">
@@ -166,7 +176,7 @@ export default async function AdminUsersPage({
                       </p>
                     </td>
                     <td className="px-4 py-3 text-sm text-zinc-300">
-                      {emailMap.get(profile.id) ?? '-'}
+                      {profile.email ?? '-'}
                     </td>
                     <td className="px-4 py-3 text-sm text-zinc-300">
                       {profile.phone ?? '-'}
@@ -207,6 +217,42 @@ export default async function AdminUsersPage({
             </tbody>
           </table>
         )}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-400">
+        <p>
+          {total.toLocaleString('ja-JP')}件中 {rows.length === 0 ? 0 : from + 1}
+          -{Math.min(from + rows.length, total)}件を表示
+        </p>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/admin/users?status=${filter}&page=${Math.max(1, page - 1)}`}
+            aria-disabled={page <= 1}
+            className={[
+              'rounded-lg border border-zinc-700 px-3 py-2 font-black transition-colors',
+              page <= 1
+                ? 'pointer-events-none text-zinc-700'
+                : 'text-white hover:bg-zinc-900',
+            ].join(' ')}
+          >
+            前へ
+          </Link>
+          <span className="font-black text-white">
+            {page} / {totalPages}
+          </span>
+          <Link
+            href={`/admin/users?status=${filter}&page=${Math.min(totalPages, page + 1)}`}
+            aria-disabled={page >= totalPages}
+            className={[
+              'rounded-lg border border-zinc-700 px-3 py-2 font-black transition-colors',
+              page >= totalPages
+                ? 'pointer-events-none text-zinc-700'
+                : 'text-white hover:bg-zinc-900',
+            ].join(' ')}
+          >
+            次へ
+          </Link>
+        </div>
       </div>
     </div>
   )

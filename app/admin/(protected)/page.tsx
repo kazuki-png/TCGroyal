@@ -20,7 +20,7 @@ type Summary = {
   orderCount: number
   totalAmount: number
   averageUnitPrice: number
-  pvCount: number
+  pvCount: number | null
   totalQuantity: number
 }
 
@@ -107,18 +107,11 @@ async function loadSummary(
   admin: ReturnType<typeof createAdminClient>,
   period: { start: Date; end: Date }
 ): Promise<Summary> {
-  const [{ data: orders }, { count: pvCount }] = await Promise.all([
-    admin
-      .from('orders')
-      .select('id, status, total_amount, created_at, order_items(quantity)')
-      .gte('created_at', period.start.toISOString())
-      .lt('created_at', period.end.toISOString()),
-    admin
-      .from('page_views')
-      .select('id', { count: 'exact', head: true })
-      .gte('created_at', period.start.toISOString())
-      .lt('created_at', period.end.toISOString()),
-  ])
+  const { data: orders } = await admin
+    .from('orders')
+    .select('id, status, total_amount, created_at, order_items(quantity)')
+    .gte('created_at', period.start.toISOString())
+    .lt('created_at', period.end.toISOString())
 
   const rows = (orders ?? []) as DashboardOrder[]
   const totalAmount = rows.reduce((sum, order) => sum + (order.total_amount ?? 0), 0)
@@ -128,7 +121,7 @@ async function loadSummary(
     orderCount: rows.length,
     totalAmount,
     averageUnitPrice: totalQuantity > 0 ? Math.round(totalAmount / totalQuantity) : 0,
-    pvCount: pvCount ?? 0,
+    pvCount: null,
     totalQuantity,
   }
 }
@@ -266,13 +259,9 @@ export default async function AdminDashboardPage({
           />
           <MetricCard
             label="総PV"
-            value={current.pvCount.toLocaleString('ja-JP')}
-            comparisons={comparisonRows(
-              current.pvCount,
-              previousDay.pvCount,
-              previousWeek.pvCount,
-              previousMonth.pvCount
-            )}
+            value="Vercel"
+            note="Web Analyticsで計測中"
+            comparisons={[]}
           />
         </div>
       </section>

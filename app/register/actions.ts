@@ -101,6 +101,7 @@ export async function registerAction(
 
   const { error: profileError } = await admin.from('profiles').upsert({
     id: userId,
+    email,
     last_name: value(formData, 'last_name'),
     first_name: value(formData, 'first_name'),
     last_name_kana: value(formData, 'last_name_kana'),

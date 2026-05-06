@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
 import { Noto_Serif_JP } from 'next/font/google'
 import Script from 'next/script'
-import { PageViewTracker } from '@/app/components/PageViewTracker'
+import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import { ThemeProvider } from '@/app/components/ThemeProvider'
 import './globals.css'
 
@@ -40,9 +41,10 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }}
         />
         <ThemeProvider>
-          <PageViewTracker />
           {children}
         </ThemeProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )

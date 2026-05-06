@@ -33,6 +33,34 @@ export const EMAIL_TRIGGER_STATUSES: OrderStatus[] = [
   'completed',
 ]
 
+export function orderStatusIndex(status: OrderStatus) {
+  return ORDER_STATUS_FLOW.indexOf(status)
+}
+
+export function isForwardOrderStatusTransition(
+  currentStatus: OrderStatus,
+  newStatus: OrderStatus
+) {
+  return orderStatusIndex(newStatus) > orderStatusIndex(currentStatus)
+}
+
+export function isBackwardOrderStatusTransition(
+  currentStatus: OrderStatus,
+  newStatus: OrderStatus
+) {
+  return orderStatusIndex(newStatus) < orderStatusIndex(currentStatus)
+}
+
+export function nextOrderStatuses(currentStatus: OrderStatus) {
+  const currentIndex = orderStatusIndex(currentStatus)
+  return currentIndex >= 0 ? ORDER_STATUS_FLOW.slice(currentIndex + 1) : []
+}
+
+export function previousOrderStatuses(currentStatus: OrderStatus) {
+  const currentIndex = orderStatusIndex(currentStatus)
+  return currentIndex > 0 ? ORDER_STATUS_FLOW.slice(0, currentIndex) : []
+}
+
 export interface Card {
   id: string
   card_number: string | null
@@ -59,6 +87,7 @@ export interface HomepageBanner {
 
 export interface Profile {
   id: string
+  email: string | null
   last_name: string
   first_name: string
   last_name_kana: string
@@ -101,10 +130,12 @@ export interface OrderItem {
   id: string
   order_id: string
   card_id: string | null
+  item_type: 'card' | 'unlisted'
   card_name: string
   grade: string
   quantity: number
   unit_price: number
+  requested_note: string | null
   created_at: string
 }
 

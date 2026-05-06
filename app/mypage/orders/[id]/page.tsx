@@ -39,7 +39,7 @@ export default async function OrderDetailPage({
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, order_number, status, total_amount, created_at, order_items(id, card_name, grade, quantity, unit_price)')
+    .select('id, order_number, status, total_amount, created_at, order_items(id, card_name, item_type, grade, quantity, unit_price, requested_note)')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
@@ -116,7 +116,14 @@ export default async function OrderDetailPage({
           <tbody>
             {items.map((item) => (
               <tr key={item.id}>
-                <td className="py-2 pr-2">{item.card_name}</td>
+                <td className="py-2 pr-2">
+                  {item.card_name}
+                  {item.item_type === 'unlisted' && item.requested_note && (
+                    <span className="mt-1 block text-[9px] font-medium">
+                      {item.requested_note}
+                    </span>
+                  )}
+                </td>
                 <td className="py-2 text-center">{item.quantity}</td>
                 <td className="py-2 text-right">
                   {item.unit_price.toLocaleString()}

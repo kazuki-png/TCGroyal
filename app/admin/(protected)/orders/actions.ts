@@ -5,7 +5,12 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendStatusEmail } from '@/lib/email/send'
-import { EMAIL_TRIGGER_STATUSES, ORDER_STATUS_FLOW } from '@/lib/types'
+import {
+  EMAIL_TRIGGER_STATUSES,
+  ORDER_STATUS_FLOW,
+  isBackwardOrderStatusTransition,
+  isForwardOrderStatusTransition,
+} from '@/lib/types'
 import type { OrderStatus, OrderWithItems } from '@/lib/types'
 
 async function requireAdmin() {
@@ -27,7 +32,11 @@ async function requireAdmin() {
   return user
 }
 
-export async function setOrderStatus(orderId: string, newStatus: OrderStatus) {
+export async function setOrderStatus(
+  orderId: string,
+  newStatus: OrderStatus,
+  reason?: string
+) {
   const user = await requireAdmin()
 
   if (!ORDER_STATUS_FLOW.includes(newStatus)) {
@@ -42,7 +51,24 @@ export async function setOrderStatus(orderId: string, newStatus: OrderStatus) {
     .single()
 
   if (!currentOrder) return { error: '注文が見つかりません' }
-  if (currentOrder.status === newStatus) return {}
+  const currentStatus = currentOrder.status as OrderStatus
+  const rollbackReason = reason?.trim()
+
+  if (currentStatus === newStatus) return {}
+
+  if (
+    isBackwardOrderStatusTransition(currentStatus, newStatus) &&
+    !rollbackReason
+  ) {
+    return { error: 'ステータスを戻す場合は理由を入力してください' }
+  }
+
+  if (
+    !isForwardOrderStatusTransition(currentStatus, newStatus) &&
+    !isBackwardOrderStatusTransition(currentStatus, newStatus)
+  ) {
+    return { error: '無効なステータス変更です' }
+  }
 
   const { error } = await admin
     .from('orders')
@@ -53,9 +79,10 @@ export async function setOrderStatus(orderId: string, newStatus: OrderStatus) {
 
   await admin.from('order_status_logs').insert({
     order_id: orderId,
-    old_status: currentOrder.status,
+    old_status: currentStatus,
     new_status: newStatus,
     changed_by: user.id,
+    note: rollbackReason || null,
   })
 
   if (EMAIL_TRIGGER_STATUSES.includes(newStatus)) {

@@ -20,6 +20,7 @@ type OrderRow = {
 
 type ProfileRow = {
   id: string
+  email: string | null
   last_name: string | null
   first_name: string | null
 }
@@ -51,23 +52,14 @@ export default async function AdminOrdersPage({
   const { data: orders } = await query
   const orderRows = (orders ?? []) as OrderRow[]
   const userIds = Array.from(new Set(orderRows.map((order) => order.user_id)))
-  const [{ data: profiles }, authUsers] = await Promise.all([
-    userIds.length > 0
-      ? admin
-          .from('profiles')
-          .select('id, last_name, first_name')
-          .in('id', userIds)
-      : Promise.resolve({ data: [] }),
-    Promise.all(
-      userIds.map(async (userId) => {
-        const { data } = await admin.auth.admin.getUserById(userId)
-        return [userId, data.user?.email ?? '-'] as const
-      })
-    ),
-  ])
+  const { data: profiles } = userIds.length > 0
+    ? await admin
+        .from('profiles')
+        .select('id, email, last_name, first_name')
+        .in('id', userIds)
+    : { data: [] }
 
   const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile as ProfileRow]))
-  const emailMap = new Map(authUsers)
   const rows: AdminOrderRow[] = orderRows.map((order) => ({
     id: order.id,
     orderNumber: displayOrderNumber(order),
@@ -77,7 +69,7 @@ export default async function AdminOrdersPage({
     createdAt: order.created_at,
     updatedAt: order.updated_at,
     userName: displayName(profileMap.get(order.user_id)),
-    userEmail: emailMap.get(order.user_id) ?? '-',
+    userEmail: profileMap.get(order.user_id)?.email ?? '-',
     bankName: order.bank_name ?? '',
     bankBranch: order.bank_branch ?? '',
     bankAccountNo: order.bank_account_no ?? '',

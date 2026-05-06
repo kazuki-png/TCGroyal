@@ -18,6 +18,7 @@ const UUID_PATTERN =
 
 const UNLISTED_CARD_ID = 'unlisted-card-request'
 const UNLISTED_NOTE = 'リストにない商品の査定依頼'
+const DUPLICATE_KEY_ERROR_CODE = '23505'
 
 type AuthoritativeCard = {
   id: string
@@ -41,6 +42,39 @@ function normalizeQuantity(value: number) {
   return Math.min(999, Math.max(1, Math.floor(value)))
 }
 
+function todayOrderPrefix() {
+  const formatter = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+
+  return formatter.format(new Date()).replaceAll('/', '')
+}
+
+async function nextOrderNumber(
+  adminClient: ReturnType<typeof createAdminClient>,
+  offset = 0
+) {
+  const prefix = todayOrderPrefix()
+  const { data } = await adminClient
+    .from('orders')
+    .select('order_number')
+    .like('order_number', `${prefix}-%`)
+    .order('order_number', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const latestNumber =
+    typeof data?.order_number === 'string'
+      ? Number(data.order_number.match(/-(\d+)$/)?.[1] ?? 0)
+      : 0
+  const nextNumber = latestNumber + 1 + offset
+
+  return `${prefix}-${String(nextNumber).padStart(2, '0')}`
+}
+
 export async function createOrder(
   items: CartItem[],
   bankInfo: {
@@ -48,8 +82,9 @@ export async function createOrder(
     bank_branch: string
     bank_account_no: string
     bank_holder: string
+    note?: string
   }
-): Promise<{ error?: string; redirectTo?: string }> {
+): Promise<{ error?: string; redirectTo?: string; orderNumber?: string }> {
   if (items.length === 0) {
     return { error: 'カードを選択してください' }
   }
@@ -145,31 +180,51 @@ export async function createOrder(
     0
   )
 
-  const { data: order, error: orderError } = await supabase
-    .from('orders')
-    .insert({
-      user_id: user.id,
-      status: 'unhandled',
-      total_amount: totalAmount,
-      ...bankInfo,
-    })
-    .select()
-    .single()
+  let order: { id: string; order_number: string } | null = null
+  let orderError: { code?: string; message?: string } | null = null
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const orderNumber = await nextOrderNumber(adminClient, attempt)
+    const { data, error } = await adminClient
+      .from('orders')
+      .insert({
+        order_number: orderNumber,
+        user_id: user.id,
+        status: 'unhandled',
+        total_amount: totalAmount,
+        note: bankInfo.note ?? null,
+        ...bankInfo,
+      })
+      .select('id, order_number')
+      .single()
+
+    if (!error && data) {
+      order = data
+      orderError = null
+      break
+    }
+
+    orderError = error
+    if (error?.code !== DUPLICATE_KEY_ERROR_CODE) break
+  }
 
   if (orderError || !order) {
+    console.error('createOrder order insert failed', orderError)
     return { error: '注文の作成に失敗しました' }
   }
 
-  const { error: itemsError } = await supabase
+  const { error: itemsError } = await adminClient
     .from('order_items')
     .insert(orderItems.map((item) => ({ ...item, order_id: order.id })))
 
   if (itemsError) {
+    console.error('createOrder item insert failed', itemsError)
+    await adminClient.from('orders').delete().eq('id', order.id)
     return { error: '注文明細の作成に失敗しました' }
   }
 
   revalidatePath('/mypage/orders')
-  return { redirectTo: '/mypage/orders' }
+  return { redirectTo: '/mypage/orders', orderNumber: order.order_number }
 }
 
 export async function updateOrderStatus(

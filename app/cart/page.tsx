@@ -30,11 +30,11 @@ export default async function CartPage() {
     : { data: null }
 
   return (
-    <div className="flex min-h-screen flex-col bg-white dark:bg-[#111110] dark:text-[#ede8d5]">
+    <div className="flex min-h-screen flex-col bg-[#111110] text-[#ede8d5]">
       <SiteHeader
         isAuthenticated={Boolean(user)}
         priorityLogo
-        borderClassName="border-b border-zinc-200"
+        borderClassName="border-b border-[#2d2a20]"
         afterAccount={<CartHeaderLink />}
         nav={user ? (
           <Link href="/mypage" className="hidden text-sm text-zinc-500 hover:text-zinc-900 dark:text-[#7a6e55] dark:hover:text-[#c9a52e] md:inline">

@@ -399,19 +399,24 @@ export function ProfileEditForm({
   }
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} noValidate>
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      noValidate
+      className="rounded-[28px] border border-[#2d2a20] bg-[#12100c] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-6"
+    >
       {serverState?.error && (
-        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+        <div className="mb-4 rounded-[16px] border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
           {serverState.error}
         </div>
       )}
       {serverState?.success && (
-        <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-black text-emerald-700">
+        <div className="mb-4 rounded-[16px] border border-emerald-300/30 bg-emerald-400/10 px-4 py-3 text-sm font-black text-emerald-300">
           {serverState.success}
         </div>
       )}
 
-      <div className="md:grid md:grid-cols-2 md:gap-x-8 md:gap-y-4">
+      <div className="grid gap-5 xl:grid-cols-2">
         <Section title="基本情報">
           <Field
             label="氏名"
@@ -479,7 +484,7 @@ export function ProfileEditForm({
           />
 
           <div>
-            <label className="mb-1 block text-xs font-black">
+            <label className="mb-1.5 block text-xs font-black text-[#d7ceb8]">
               生年月日 <Required />
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -521,7 +526,7 @@ export function ProfileEditForm({
           />
 
           <div>
-            <label className="mb-1 block text-xs font-black">
+            <label className="mb-1.5 block text-xs font-black text-[#d7ceb8]">
               ご職業 <Required />
             </label>
             <SelectInput
@@ -538,7 +543,7 @@ export function ProfileEditForm({
               )}
             />
             {allErrors.occupation && (
-              <p className="mt-1 text-[11px] font-semibold text-red-600">
+              <p className="mt-1 text-[11px] font-semibold text-red-300">
                 {allErrors.occupation}
               </p>
             )}
@@ -547,7 +552,7 @@ export function ProfileEditForm({
 
         <Section title="身分証">
           <div>
-            <label className="mb-1 block text-xs font-black">
+            <label className="mb-1.5 block text-xs font-black text-[#d7ceb8]">
               身分証 <Required />
             </label>
             <SelectInput
@@ -561,24 +566,24 @@ export function ProfileEditForm({
               )}
             />
             {allErrors.id_type && (
-              <p className="mt-1 text-[11px] font-semibold text-red-600">
+              <p className="mt-1 text-[11px] font-semibold text-red-300">
                 {allErrors.id_type}
               </p>
             )}
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-black">
+            <label className="mb-1.5 block text-xs font-black text-[#d7ceb8]">
               身分証画像アップロード <Required />
             </label>
             {idImagePreviewUrl && (
               <div
-                className="mb-2 h-40 w-full rounded-[14px] border border-zinc-300 bg-contain bg-center bg-no-repeat"
+                className="mb-2 h-40 w-full rounded-[18px] border border-[#3a3528] bg-[#0f0e0b] bg-contain bg-center bg-no-repeat"
                 style={{ backgroundImage: `url("${idImagePreviewUrl}")` }}
                 aria-label="選択した身分証画像のプレビュー"
               />
             )}
-            <label className="flex h-10 cursor-pointer items-center justify-center rounded-[14px] border border-zinc-300 bg-white px-3 text-xs font-black">
+            <label className="flex h-11 cursor-pointer items-center justify-center rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-xs font-black text-[#f6f0dc] transition-colors hover:border-[#c9a52e]/60">
               {fileName ?? (
                 initialData.hasIdentityImage
                   ? initialData.identityVerified
@@ -602,7 +607,7 @@ export function ProfileEditForm({
               />
             </label>
             {allErrors.id_image && (
-              <p className="mt-1 text-[11px] font-semibold text-red-600">
+              <p className="mt-1 text-[11px] font-semibold text-red-300">
                 {allErrors.id_image}
               </p>
             )}
@@ -684,7 +689,7 @@ export function ProfileEditForm({
           <input type="hidden" name="branch_name" value={branchName} />
 
           <div>
-            <label className="mb-1 block text-xs font-black">
+            <label className="mb-1.5 block text-xs font-black text-[#d7ceb8]">
               口座種別 <Required />
             </label>
             <SelectInput
@@ -698,7 +703,7 @@ export function ProfileEditForm({
               ]}
             />
             {allErrors.account_type && (
-              <p className="mt-1 text-[11px] font-semibold text-red-600">
+              <p className="mt-1 text-[11px] font-semibold text-red-300">
                 {allErrors.account_type}
               </p>
             )}
@@ -728,7 +733,7 @@ export function ProfileEditForm({
       <button
         type="submit"
         disabled={pending}
-        className="mx-auto mt-6 block h-11 w-full max-w-xl rounded-[14px] bg-black text-base font-black text-[#d4c400] disabled:opacity-50"
+        className="mx-auto mt-6 block h-12 w-full max-w-xl rounded-[18px] bg-[#c9a52e] text-base font-black text-[#0e0c09] shadow-[0_14px_40px_rgba(201,165,46,0.18)] transition-colors hover:bg-[#d7b865] disabled:opacity-50"
       >
         {pending ? '保存中...' : '保存する'}
       </button>
@@ -737,7 +742,7 @@ export function ProfileEditForm({
 }
 
 function Required() {
-  return <span className="text-red-600">*</span>
+  return <span className="text-red-300">*</span>
 }
 
 function Section({
@@ -748,9 +753,9 @@ function Section({
   children: ReactNode
 }) {
   return (
-    <section className="mt-4 md:mt-0">
-      <h2 className="mb-2 text-sm font-black">{title}</h2>
-      <div className="space-y-2">{children}</div>
+    <section className="rounded-[24px] border border-[#2d2a20] bg-[#15130f] p-4">
+      <h2 className="mb-4 text-sm font-black text-[#c9a52e]">{title}</h2>
+      <div className="space-y-3">{children}</div>
     </section>
   )
 }
@@ -781,7 +786,7 @@ function Field({
   const error = errors?.[name]
   return (
     <div>
-      <label htmlFor={name} className="mb-1 block text-xs font-black">
+      <label htmlFor={name} className="mb-1.5 block text-xs font-black text-[#d7ceb8]">
         {label} {required && <Required />}
       </label>
       <input
@@ -794,9 +799,9 @@ function Field({
         inputMode={inputMode}
         maxLength={maxLength}
         defaultValue={defaultValue}
-        className="h-10 w-full rounded-[14px] border border-zinc-300 bg-white px-3 text-sm font-semibold outline-none placeholder:text-zinc-400"
+        className="h-11 w-full rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-sm font-semibold text-[#f6f0dc] outline-none transition-colors placeholder:text-[#5f5748] focus:border-[#c9a52e] focus:ring-2 focus:ring-[#c9a52e]/15"
       />
-      {error && <p className="mt-1 text-[11px] font-semibold text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-[11px] font-semibold text-red-300">{error}</p>}
     </div>
   )
 }
@@ -819,7 +824,7 @@ function SelectInput({
       name={name}
       required={required}
       defaultValue={defaultValue ?? ''}
-      className="h-10 w-full rounded-[14px] border border-zinc-300 bg-white px-3 text-sm font-semibold outline-none"
+      className="h-11 w-full rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-sm font-semibold text-[#f6f0dc] outline-none transition-colors focus:border-[#c9a52e] focus:ring-2 focus:ring-[#c9a52e]/15"
     >
       {placeholder && (
         <option value="" disabled>
@@ -854,14 +859,14 @@ function RadioGroup({
 
   return (
     <div>
-      <p className="mb-1 text-xs font-black">
+      <p className="mb-1.5 text-xs font-black text-[#d7ceb8]">
         {label} {required && <Required />}
       </p>
       <div className="flex flex-wrap gap-2">
         {options.map(({ value, label }) => (
           <label
             key={value}
-            className="flex h-10 min-w-[94px] cursor-pointer items-center gap-2 rounded-[14px] border border-zinc-300 bg-white px-3 text-sm font-black"
+            className="flex h-11 min-w-[94px] cursor-pointer items-center gap-2 rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-sm font-black text-[#f6f0dc] transition-colors hover:border-[#c9a52e]/60"
           >
             <input
               type="radio"
@@ -869,13 +874,13 @@ function RadioGroup({
               value={value}
               required={required}
               defaultChecked={value === defaultValue}
-              className="h-4 w-4 accent-zinc-950"
+              className="h-4 w-4 accent-[#c9a52e]"
             />
             <span>{label}</span>
           </label>
         ))}
       </div>
-      {error && <p className="mt-1 text-[11px] font-semibold text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-[11px] font-semibold text-red-300">{error}</p>}
     </div>
   )
 }
@@ -913,7 +918,7 @@ function BankSearch({
         }
       }}
     >
-      <label className="mb-1 block text-xs font-black">
+      <label className="mb-1.5 block text-xs font-black text-[#d7ceb8]">
         {label} <Required />
       </label>
       <input
@@ -928,10 +933,10 @@ function BankSearch({
           setQuery(event.target.value)
         }}
         placeholder="銀行名 / 銀行コードで検索"
-        className="h-10 w-full rounded-[14px] border border-zinc-300 bg-white px-3 text-sm font-semibold outline-none placeholder:text-zinc-400"
+        className="h-11 w-full rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-sm font-semibold text-[#f6f0dc] outline-none transition-colors placeholder:text-[#5f5748] focus:border-[#c9a52e] focus:ring-2 focus:ring-[#c9a52e]/15"
       />
       {selectedBank && (
-        <p className="mt-1 text-[11px] font-black text-zinc-600">
+        <p className="mt-1 text-[11px] font-black text-[#8f8369]">
           選択中：{selectedBank.name}（{selectedBank.code}）
         </p>
       )}
@@ -949,7 +954,7 @@ function BankSearch({
           }))}
         />
       )}
-      {error && <p className="mt-1 text-[11px] font-semibold text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-[11px] font-semibold text-red-300">{error}</p>}
     </div>
   )
 }
@@ -989,7 +994,7 @@ function BranchSearch({
         }
       }}
     >
-      <label className="mb-1 block text-xs font-black">
+      <label className="mb-1.5 block text-xs font-black text-[#d7ceb8]">
         {label} <Required />
       </label>
       <input
@@ -1007,10 +1012,10 @@ function BranchSearch({
         }}
         disabled={!selectedBank}
         placeholder={selectedBank ? '支店名 / 支店コードで検索' : '銀行を先に選択してください'}
-        className="h-10 w-full rounded-[14px] border border-zinc-300 bg-white px-3 text-sm font-semibold outline-none placeholder:text-zinc-400 disabled:bg-zinc-100"
+        className="h-11 w-full rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-sm font-semibold text-[#f6f0dc] outline-none transition-colors placeholder:text-[#5f5748] focus:border-[#c9a52e] focus:ring-2 focus:ring-[#c9a52e]/15 disabled:bg-[#171511] disabled:text-[#5f5748]"
       />
       {selectedBranch && (
-        <p className="mt-1 text-[11px] font-black text-zinc-600">
+        <p className="mt-1 text-[11px] font-black text-[#8f8369]">
           選択中：{selectedBranch.name}（{selectedBranch.code}）
         </p>
       )}
@@ -1028,7 +1033,7 @@ function BranchSearch({
           }))}
         />
       )}
-      {error && <p className="mt-1 text-[11px] font-semibold text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-[11px] font-semibold text-red-300">{error}</p>}
     </div>
   )
 }
@@ -1046,10 +1051,10 @@ function CandidateList({
     <div
       id={id}
       role="listbox"
-      className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-zinc-300 bg-white"
+      className="mt-1 max-h-48 overflow-y-auto rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] shadow-[0_18px_50px_rgba(0,0,0,0.35)]"
     >
       {items.length === 0 ? (
-        <p className="px-3 py-2 text-xs font-semibold text-zinc-500">{emptyText}</p>
+        <p className="px-3 py-2 text-xs font-semibold text-[#8f8369]">{emptyText}</p>
       ) : (
         items.map((item) => (
           <button
@@ -1063,7 +1068,7 @@ function CandidateList({
             onClick={() => {
               item.onClick()
             }}
-            className="block w-full border-b border-zinc-100 px-3 py-2 text-left text-xs font-black last:border-b-0 hover:bg-zinc-100"
+            className="block w-full border-b border-[#2d2a20] px-3 py-2 text-left text-xs font-black text-[#f6f0dc] last:border-b-0 hover:bg-[#1b1812]"
           >
             {item.label}
           </button>

@@ -76,7 +76,7 @@ export default function ForgotPasswordPage() {
                 <button
                   type="submit"
                   disabled={pending}
-                  className="w-full rounded-xl bg-white py-2.5 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-100 disabled:opacity-50"
+                  className="w-full rounded-xl bg-[#c9a52e] py-2.5 text-sm font-black text-[#0e0c09] shadow-[0_14px_40px_rgba(201,165,46,0.18)] transition-colors hover:bg-[#d7b865] disabled:opacity-50"
                 >
                   {pending ? '送信中...' : 'リセットメールを送信'}
                 </button>

@@ -10,7 +10,7 @@ export function LogoutButton() {
     <button
       disabled={pending}
       onClick={() => startTransition(() => logout())}
-      className="text-sm text-zinc-500 hover:text-zinc-900 disabled:opacity-50"
+      className="text-sm font-semibold text-[#8f8369] transition-colors hover:text-[#d7b865] disabled:opacity-50"
     >
       ログアウト
     </button>

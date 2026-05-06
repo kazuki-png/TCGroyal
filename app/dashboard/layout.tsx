@@ -20,7 +20,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50">
+    <div className="flex min-h-screen flex-col bg-[#111110] text-[#ede8d5]">
       <SiteHeader
         isAuthenticated
         priorityLogo
@@ -28,11 +28,11 @@ export default async function DashboardLayout({
           <nav className="hidden items-center gap-5 md:flex">
             <Link
               href="/orders/new"
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+              className="rounded-full bg-[#c9a52e] px-4 py-2 text-sm font-black text-[#0e0c09] transition-colors hover:bg-[#d7b865]"
             >
               買取申込
             </Link>
-            <span className="text-sm text-zinc-500">{user.email}</span>
+            <span className="text-sm font-semibold text-[#8f8369]">{user.email}</span>
             <LogoutButton />
           </nav>
         }

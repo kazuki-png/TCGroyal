@@ -2,32 +2,38 @@
 
 import { useActionState } from 'react'
 import { adminLogin } from '@/app/actions/auth'
+import { SiteLogo } from '@/app/components/SiteLogo'
 
 export default function AdminLoginPage() {
   const [state, action, pending] = useActionState(adminLogin, undefined)
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-black px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#0b0a08] px-4 text-[#ede8d5]">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <span className="text-2xl font-bold tracking-tight text-white">
-            TCG Royal
-          </span>
-          <p className="mt-2 text-zinc-400">管理者ログイン</p>
+          <div className="mb-4 flex justify-center">
+            <SiteLogo priority />
+          </div>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#c9a52e]">
+            Admin Login
+          </p>
+          <h1 className="mt-2 text-2xl font-black tracking-tight text-[#f6f0dc]">
+            管理者ログイン
+          </h1>
         </div>
 
         <form
           action={action}
-          className="rounded-2xl bg-zinc-800 p-8 border border-zinc-700"
+          className="rounded-[28px] border border-[#2d2a20] bg-[#12100c] p-8 shadow-[0_24px_80px_rgba(0,0,0,0.35)]"
         >
           {state?.error && (
-            <p className="mb-4 rounded-lg bg-red-900/40 px-4 py-3 text-sm text-red-400">
+            <p className="mb-4 rounded-[16px] border border-red-300/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
               {state.error}
             </p>
           )}
 
           <div className="mb-4">
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-zinc-300">
+            <label htmlFor="email" className="mb-1 block text-sm font-black text-[#d7ceb8]">
               メールアドレス
             </label>
             <input
@@ -36,12 +42,12 @@ export default function AdminLoginPage() {
               type="email"
               required
               autoComplete="email"
-              className="w-full rounded-lg border border-zinc-600 bg-zinc-700 px-4 py-2.5 text-sm text-white outline-none focus:border-zinc-400 placeholder:text-zinc-500"
+              className="w-full rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] px-4 py-2.5 text-sm font-semibold text-[#f6f0dc] outline-none transition-colors placeholder:text-[#5f5748] focus:border-[#c9a52e] focus:ring-2 focus:ring-[#c9a52e]/15"
             />
           </div>
 
           <div className="mb-6">
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-zinc-300">
+            <label htmlFor="password" className="mb-1 block text-sm font-black text-[#d7ceb8]">
               パスワード
             </label>
             <input
@@ -50,14 +56,14 @@ export default function AdminLoginPage() {
               type="password"
               required
               autoComplete="current-password"
-              className="w-full rounded-lg border border-zinc-600 bg-zinc-700 px-4 py-2.5 text-sm text-white outline-none focus:border-zinc-400"
+              className="w-full rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] px-4 py-2.5 text-sm font-semibold text-[#f6f0dc] outline-none transition-colors focus:border-[#c9a52e] focus:ring-2 focus:ring-[#c9a52e]/15"
             />
           </div>
 
           <button
             type="submit"
             disabled={pending}
-            className="w-full rounded-lg bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50"
+            className="w-full rounded-[18px] bg-[#c9a52e] py-2.5 text-sm font-black text-[#0e0c09] shadow-[0_14px_40px_rgba(201,165,46,0.18)] transition-colors hover:bg-[#d7b865] disabled:opacity-50"
           >
             {pending ? 'ログイン中...' : 'ログイン'}
           </button>

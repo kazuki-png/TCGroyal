@@ -60,8 +60,32 @@ export default async function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-md bg-white px-3 pb-10 pt-2 text-zinc-950 md:max-w-5xl md:px-6 md:pb-8 md:pt-4">
-      <h1 className="mb-7 text-center text-xl font-black text-zinc-950">会員情報</h1>
+    <div className="space-y-6">
+      <section className="rounded-[28px] border border-[#2d2a20] bg-[#12100c] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-7">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#c9a52e]">
+          Profile
+        </p>
+        <div className="mt-3 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-2xl font-black text-[#f6f0dc] sm:text-3xl">
+              会員情報
+            </h1>
+            <p className="mt-2 text-sm font-semibold text-[#8f8369]">
+              登録情報、身分証、連絡先、振込先を編集できます。
+            </p>
+          </div>
+          <span
+            className={`inline-flex w-fit rounded-full px-4 py-2 text-xs font-black ${
+              p?.identity_verified
+                ? 'bg-emerald-400/15 text-emerald-300 ring-1 ring-emerald-300/30'
+                : 'bg-red-400/15 text-red-300 ring-1 ring-red-300/30'
+            }`}
+          >
+            {p?.identity_verified ? '本人確認済み' : '本人確認 未確認'}
+          </span>
+        </div>
+      </section>
+
       <ProfileEditForm initialData={initialData} />
     </div>
   )

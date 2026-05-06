@@ -135,10 +135,10 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-white text-zinc-900 dark:bg-[#111110] dark:text-[#ede8d5]">
+    <div className="flex min-h-screen flex-col bg-[#111110] text-[#ede8d5]">
       <SiteHeader
         isAuthenticated={Boolean(user)}
-        borderClassName="border-b border-zinc-200"
+        borderClassName="border-b border-[#2d2a20]"
         priorityLogo
       />
 

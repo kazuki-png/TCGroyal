@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -11,7 +12,7 @@ import type { OrderStatus } from '@/lib/types'
 
 type OrderRow = {
   id: string
-  order_number: string
+  order_number: string | null
   status: OrderStatus
   total_amount: number
   created_at: string
@@ -22,6 +23,10 @@ type StatusLogRow = {
   id: string
   new_status: OrderStatus
   created_at: string
+}
+
+function currency(value: number) {
+  return `¥${value.toLocaleString('ja-JP')}`
 }
 
 export default async function OrderDetailPage({
@@ -69,82 +74,142 @@ export default async function OrderDetailPage({
   ]
 
   return (
-    <div className="mx-auto w-full max-w-md bg-white px-5 pb-10 pt-2 text-zinc-950 md:max-w-4xl">
-      <h1 className="mb-5 text-center text-xl font-black">申込詳細</h1>
+    <div className="space-y-6">
+      <Link
+        href="/mypage/orders"
+        className="inline-flex items-center gap-2 text-sm font-black text-[#8f8369] transition-colors hover:text-[#d7b865]"
+      >
+        ← 郵送買取一覧へ戻る
+      </Link>
 
-      <section className="space-y-3 text-base font-black">
-        <div className="grid grid-cols-[110px_1fr] items-center gap-2">
-          <span>ステータス</span>
+      <section className="rounded-[28px] border border-[#2d2a20] bg-[#12100c] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-7">
+        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#c9a52e]">
+              Order Detail
+            </p>
+            <h1 className="mt-3 text-2xl font-black text-[#f6f0dc] sm:text-3xl">
+              申込詳細
+            </h1>
+            <p className="mt-2 text-sm font-semibold text-[#8f8369]">
+              注文番号 #{row.order_number ?? row.id.slice(0, 8)}
+            </p>
+          </div>
           <span
-            className={`px-4 py-2 text-center text-sm font-black ${customerStatusClass(status)}`}
+            className={`w-fit rounded-full px-4 py-2 text-sm font-black ${customerStatusClass(status)}`}
           >
             {customerStatusLabel(status)}
           </span>
         </div>
-        <p>注文番号：#{row.order_number}</p>
-        <p>合計数量：{totalQuantity(items)}</p>
-        <p className="text-sm">合計金額：¥{row.total_amount.toLocaleString()}</p>
-        <p className="text-sm">受付日時：{formatDateTime(row.created_at)}</p>
-      </section>
 
-      <section className="mt-4 bg-[#b9b7b7] px-3 py-3">
-        <h2 className="mb-3 text-sm font-black">ステータス履歴</h2>
-        <div className="space-y-3 text-sm font-black">
-          {history.map((event) => (
+        <dl className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ['合計数量', `${totalQuantity(items)}点`],
+            ['合計金額', currency(row.total_amount)],
+            ['受付日時', formatDateTime(row.created_at)],
+            ['ステータス', customerStatusLabel(status)],
+          ].map(([label, value]) => (
             <div
-              key={event.id}
-              className="grid grid-cols-[1fr_auto] items-center gap-4"
+              key={label}
+              className="rounded-[18px] border border-[#2d2a20] bg-[#0f0e0b] px-4 py-3"
             >
-              <span>{formatDateTime(event.created_at)}</span>
-              <span>{event.label}</span>
+              <dt className="text-xs font-bold text-[#8f8369]">{label}</dt>
+              <dd className="mt-1 break-words text-lg font-black text-[#f6f0dc]">
+                {value}
+              </dd>
             </div>
           ))}
-        </div>
+        </dl>
       </section>
 
-      <section className="mt-6 bg-[#b9b7b7] px-2 py-3">
-        <h2 className="sr-only">申し込んだカードの内訳</h2>
-        <table className="w-full text-[10px] font-black">
-          <thead>
-            <tr className="text-left">
-              <th className="pb-3">カード名</th>
-              <th className="pb-3 text-center">数量</th>
-              <th className="pb-3 text-right">買取申込額</th>
-              <th className="pb-3 text-right">小計</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td className="py-2 pr-2">
-                  {item.card_name}
-                  {item.item_type === 'unlisted' && item.requested_note && (
-                    <span className="mt-1 block text-[9px] font-medium">
-                      {item.requested_note}
-                    </span>
-                  )}
-                </td>
-                <td className="py-2 text-center">{item.quantity}</td>
-                <td className="py-2 text-right">
-                  {item.unit_price.toLocaleString()}
-                </td>
-                <td className="py-2 text-right">
-                  {(item.unit_price * item.quantity).toLocaleString()}
-                </td>
-              </tr>
+      <section className="grid gap-6 lg:grid-cols-[360px_1fr]">
+        <div className="rounded-[24px] border border-[#2d2a20] bg-[#15130f] p-5">
+          <h2 className="text-lg font-black text-[#f6f0dc]">ステータス履歴</h2>
+          <div className="mt-5 space-y-4">
+            {history.map((event, index) => (
+              <div key={event.id} className="relative pl-6">
+                <span className="absolute left-0 top-1.5 h-3 w-3 rounded-full bg-[#c9a52e]" />
+                {index !== history.length - 1 && (
+                  <span className="absolute bottom-[-18px] left-[5px] top-5 w-px bg-[#2d2a20]" />
+                )}
+                <p className="text-sm font-black text-[#f6f0dc]">
+                  {event.label}
+                </p>
+                <p className="mt-1 text-xs font-semibold text-[#8f8369]">
+                  {formatDateTime(event.created_at)}
+                </p>
+              </div>
             ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={3} className="pt-6 text-right">
-                合計
-              </td>
-              <td className="pt-6 text-right">
-                {row.total_amount.toLocaleString()}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-[24px] border border-[#2d2a20] bg-[#15130f]">
+          <div className="border-b border-[#2d2a20] px-5 py-4">
+            <h2 className="text-lg font-black text-[#f6f0dc]">
+              申し込んだカードの内訳
+            </h2>
+          </div>
+          <div className="overflow-hidden">
+            <table className="w-full table-fixed text-[10px] text-[#ede8d5] sm:text-sm">
+              <colgroup>
+                <col className="w-[32%]" />
+                <col className="w-[16%]" />
+                <col className="w-[12%]" />
+                <col className="w-[20%]" />
+                <col className="w-[20%]" />
+              </colgroup>
+              <thead className="bg-[#0f0e0b] text-left text-[10px] font-black uppercase tracking-[0.08em] text-[#c9a52e] sm:text-xs sm:tracking-[0.14em]">
+                <tr>
+                  <th className="px-2 py-3 sm:px-5">カード名</th>
+                  <th className="px-1 py-3 sm:px-5">グレード</th>
+                  <th className="px-1 py-3 text-right sm:px-5">数量</th>
+                  <th className="px-1 py-3 text-right sm:px-5">
+                    <span className="inline-block leading-tight">
+                      買取<br className="sm:hidden" />申込額
+                    </span>
+                  </th>
+                  <th className="px-2 py-3 text-right sm:px-5">小計</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#2d2a20]">
+                {items.map((item) => (
+                  <tr key={item.id}>
+                    <td className="break-words px-2 py-4 font-black leading-tight text-[#f6f0dc] sm:px-5">
+                      {item.card_name}
+                      {item.item_type === 'unlisted' && item.requested_note && (
+                        <span className="mt-1 block text-xs font-semibold text-[#8f8369]">
+                          {item.requested_note}
+                        </span>
+                      )}
+                    </td>
+                    <td className="break-words px-1 py-4 font-semibold text-[#8f8369] sm:px-5">
+                      {item.grade}
+                    </td>
+                    <td className="px-1 py-4 text-right font-black text-[#f6f0dc] sm:px-5">
+                      {item.quantity}
+                    </td>
+                    <td className="whitespace-nowrap px-1 py-4 text-right font-semibold text-[#ede8d5] sm:px-5">
+                      {currency(item.unit_price)}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-4 text-right font-black text-red-300 sm:px-5">
+                      {currency(item.unit_price * item.quantity)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t border-[#c9a52e]/40 bg-[#0f0e0b]">
+                <tr>
+                  <td colSpan={4} className="px-2 py-4 text-right font-black text-[#f6f0dc] sm:px-5">
+                    合計
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-4 text-right text-sm font-black text-red-300 sm:px-5 sm:text-lg">
+                    {currency(row.total_amount)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
       </section>
     </div>
   )

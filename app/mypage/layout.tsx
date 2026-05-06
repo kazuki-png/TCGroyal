@@ -5,6 +5,12 @@ import { LogoutButton } from '@/app/components/LogoutButton'
 import { SiteFooter } from '@/app/components/SiteFooter'
 import { SiteHeader } from '@/app/components/SiteHeader'
 
+const navItems = [
+  { href: '/mypage', label: 'マイページ' },
+  { href: '/mypage/orders', label: '郵送買取一覧' },
+  { href: '/mypage/profile', label: '会員情報' },
+]
+
 export default async function MypageLayout({
   children,
 }: {
@@ -18,33 +24,26 @@ export default async function MypageLayout({
   if (!user) redirect('/login')
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50">
+    <div className="flex min-h-screen flex-col bg-[#0b0a08] text-[#ede8d5]">
       <SiteHeader
         isAuthenticated
         priorityLogo
+        borderClassName="border-b border-[#2d2a20]"
+        maxWidthClassName="max-w-6xl"
         nav={
           <nav className="hidden items-center gap-5 md:flex">
-            <Link
-              href="/mypage"
-              className="text-sm text-zinc-600 hover:text-zinc-900"
-            >
-              マイページ
-            </Link>
-            <Link
-              href="/mypage/orders"
-              className="text-sm text-zinc-600 hover:text-zinc-900"
-            >
-              郵送買取一覧
-            </Link>
-            <Link
-              href="/mypage/profile"
-              className="text-sm text-zinc-600 hover:text-zinc-900"
-            >
-              会員情報
-            </Link>
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="text-sm font-semibold text-[#8f8369] transition-colors hover:text-[#d7b865]"
+              >
+                {item.label}
+              </Link>
+            ))}
             <Link
               href="/cart"
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+              className="rounded-full border border-[#c9a52e]/40 bg-[#171511] px-4 py-2 text-sm font-black text-[#c9a52e] transition-colors hover:border-[#d7b865] hover:bg-[#211f18]"
             >
               買取申込
             </Link>
@@ -52,7 +51,9 @@ export default async function MypageLayout({
           </nav>
         }
       />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 lg:py-10">
+        {children}
+      </main>
       <SiteFooter />
     </div>
   )

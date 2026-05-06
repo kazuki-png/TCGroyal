@@ -24,7 +24,7 @@ export function CartHeaderLink() {
       type="button"
       onClick={() => window.dispatchEvent(new Event(CART_OPEN_REQUEST_EVENT))}
       aria-label={`カート ${quantity}点`}
-      className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-zinc-200 bg-white text-zinc-950 shadow-sm transition-colors hover:bg-zinc-100"
+      className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#3a3528] bg-[#1c1b18] text-[#c9a52e] shadow-sm transition-colors hover:bg-[#252420]"
     >
       <svg
         aria-hidden="true"
@@ -44,7 +44,7 @@ export function CartHeaderLink() {
         <circle cx="25" cy="26" r="1.8" fill="currentColor" stroke="none" />
       </svg>
       {quantity > 0 && (
-        <span className="absolute -bottom-1 -right-1 min-w-5 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-[10px] font-black leading-none text-white ring-2 ring-white">
+        <span className="absolute -bottom-1 -right-1 min-w-5 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-[10px] font-black leading-none text-white ring-2 ring-[#111110]">
           {quantity}
         </span>
       )}

@@ -433,10 +433,10 @@ export function RegisterForm() {
       ref={formRef}
       onSubmit={handleSubmit}
       noValidate
-      className="mx-auto w-full max-w-md bg-white px-3 pb-5 pt-2 text-zinc-950 md:max-w-5xl md:px-6 md:pb-8 md:pt-4"
+      className="mx-auto w-full max-w-md border-y border-[#2d2a20] bg-[#12100c] px-4 pb-6 pt-4 text-[#ede8d5] shadow-[0_24px_80px_rgba(0,0,0,0.35)] md:max-w-5xl md:rounded-[28px] md:border md:px-6 md:pb-8 md:pt-6"
     >
       {serverState?.error && (
-        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+        <div className="mb-4 rounded-[16px] border border-red-300/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
           {serverState.error}
         </div>
       )}
@@ -485,7 +485,7 @@ export function RegisterForm() {
         />
 
         <div>
-          <label className="mb-1 block text-xs font-black">
+          <label className="mb-1 block text-xs font-black text-[#d7ceb8]">
             ご職業 <Required />
           </label>
           <SelectInput
@@ -498,7 +498,7 @@ export function RegisterForm() {
             }))}
           />
           {allErrors.occupation && (
-            <p className="mt-1 text-[11px] font-semibold text-red-600">
+            <p className="mt-1 text-[11px] font-semibold text-red-300">
               {allErrors.occupation}
             </p>
           )}
@@ -507,7 +507,7 @@ export function RegisterForm() {
 
       <Section title="身分証">
         <div>
-          <label className="mb-1 block text-xs font-black">
+          <label className="mb-1 block text-xs font-black text-[#d7ceb8]">
             身分証 <Required />
           </label>
           <SelectInput
@@ -517,24 +517,24 @@ export function RegisterForm() {
             options={ID_TYPES.map((type) => ({ value: type, label: type }))}
           />
           {allErrors.id_type && (
-            <p className="mt-1 text-[11px] font-semibold text-red-600">
+            <p className="mt-1 text-[11px] font-semibold text-red-300">
               {allErrors.id_type}
             </p>
           )}
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-black">
+          <label className="mb-1 block text-xs font-black text-[#d7ceb8]">
             身分証画像アップロード <Required />
           </label>
           {idImagePreviewUrl && (
             <div
-              className="mb-2 h-40 w-full rounded-[14px] border border-zinc-300 bg-contain bg-center bg-no-repeat"
+              className="mb-2 h-40 w-full rounded-[14px] border border-[#3a3528] bg-[#0f0e0b] bg-contain bg-center bg-no-repeat"
               style={{ backgroundImage: `url("${idImagePreviewUrl}")` }}
               aria-label="選択した身分証画像のプレビュー"
             />
           )}
-          <label className="flex h-10 cursor-pointer items-center justify-center rounded-[14px] border border-zinc-300 bg-white px-3 text-xs font-black">
+          <label className="flex h-10 cursor-pointer items-center justify-center rounded-[14px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-xs font-black text-[#d7ceb8] transition-colors hover:border-[#c9a52e]/60 hover:text-[#c9a52e]">
             {fileName ? fileName : '画像を選択'}
             <input
               type="file"
@@ -552,7 +552,7 @@ export function RegisterForm() {
             />
           </label>
           {allErrors.id_image && (
-            <p className="mt-1 text-[11px] font-semibold text-red-600">
+            <p className="mt-1 text-[11px] font-semibold text-red-300">
               {allErrors.id_image}
             </p>
           )}
@@ -621,7 +621,7 @@ export function RegisterForm() {
             ]}
           />
           {allErrors.account_type && (
-            <p className="mt-1 text-[11px] font-semibold text-red-600">
+            <p className="mt-1 text-[11px] font-semibold text-red-300">
               {allErrors.account_type}
             </p>
           )}
@@ -633,29 +633,29 @@ export function RegisterForm() {
       </div>
 
       <div className="mx-auto mt-6 max-w-xl">
-        <label className="flex items-start gap-2 text-xs font-black">
-          <input type="checkbox" name="agree" className="mt-0.5 h-4 w-4 accent-zinc-950" />
+        <label className="flex items-start gap-2 text-xs font-black text-[#d7ceb8]">
+          <input type="checkbox" name="agree" className="mt-0.5 h-4 w-4 accent-[#c9a52e]" />
           <span>
             申し込みには、
-            <Link href="/terms" className="text-sky-700 underline underline-offset-2">
+            <Link href="/terms" className="text-[#c9a52e] underline underline-offset-2">
               利用規約
             </Link>
             および
-            <Link href="/privacy" className="text-sky-700 underline underline-offset-2">
+            <Link href="/privacy" className="text-[#c9a52e] underline underline-offset-2">
               プライバシーポリシー
             </Link>
             への同意が必要です。
           </span>
         </label>
         {allErrors.agree && (
-          <p className="mt-1 text-[11px] font-semibold text-red-600">{allErrors.agree}</p>
+          <p className="mt-1 text-[11px] font-semibold text-red-300">{allErrors.agree}</p>
         )}
       </div>
 
       <button
         type="submit"
         disabled={pending}
-        className="mx-auto mt-4 block h-11 w-full max-w-xl rounded-[14px] bg-black text-base font-black text-[#d4c400] disabled:opacity-50"
+        className="mx-auto mt-4 block h-12 w-full max-w-xl rounded-[18px] bg-[#c9a52e] text-base font-black text-[#0e0c09] shadow-[0_14px_40px_rgba(201,165,46,0.18)] transition-colors hover:bg-[#d7b865] disabled:opacity-50"
       >
         {pending ? '登録中...' : '同意して登録'}
       </button>
@@ -664,7 +664,7 @@ export function RegisterForm() {
 }
 
 function Required() {
-  return <span className="text-red-600">*</span>
+  return <span className="text-red-300">*</span>
 }
 
 function Section({
@@ -679,8 +679,15 @@ function Section({
   className?: string
 }) {
   return (
-    <section className={['mt-4 md:mt-0', className].filter(Boolean).join(' ')}>
-      <h3 className="mb-2 text-sm font-black">
+    <section
+      className={[
+        'mt-4 rounded-[22px] border border-[#2d2a20] bg-[#171511] p-4 shadow-[0_12px_34px_rgba(0,0,0,0.2)] md:mt-0',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <h3 className="mb-3 text-sm font-black text-[#c9a52e]">
         {icon && <span className="mr-1">{icon}</span>}
         {title}
       </h3>
@@ -713,7 +720,7 @@ function Field({
   const error = errors?.[name]
   return (
     <div>
-      <label htmlFor={name} className="mb-1 block text-xs font-black">
+      <label htmlFor={name} className="mb-1 block text-xs font-black text-[#d7ceb8]">
         {label} {required && <Required />}
       </label>
       <input
@@ -725,9 +732,9 @@ function Field({
         autoComplete={autoComplete}
         inputMode={inputMode}
         maxLength={maxLength}
-        className="h-10 w-full rounded-[14px] border border-zinc-300 bg-white px-3 text-sm font-semibold outline-none placeholder:text-zinc-400"
+        className="h-10 w-full rounded-[14px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-sm font-semibold text-[#f6f0dc] outline-none transition-colors placeholder:text-[#5f5748] focus:border-[#c9a52e] focus:ring-2 focus:ring-[#c9a52e]/15"
       />
-      {error && <p className="mt-1 text-[11px] font-semibold text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-[11px] font-semibold text-red-300">{error}</p>}
     </div>
   )
 }
@@ -748,7 +755,7 @@ function SelectInput({
       name={name}
       required={required}
       defaultValue=""
-      className="h-10 w-full rounded-[14px] border border-zinc-300 bg-white px-3 text-sm font-semibold outline-none"
+      className="h-10 w-full rounded-[14px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-sm font-semibold text-[#f6f0dc] outline-none transition-colors focus:border-[#c9a52e] focus:ring-2 focus:ring-[#c9a52e]/15"
     >
       {placeholder && (
         <option value="" disabled>
@@ -783,28 +790,28 @@ function RadioGroup({
 
   return (
     <div>
-      <p className="mb-1 text-xs font-black">
+      <p className="mb-1 text-xs font-black text-[#d7ceb8]">
         {label} {required && <Required />}
       </p>
       <div className="flex flex-wrap gap-2">
         {options.map(({ value, label }) => (
           <label
             key={value}
-            className="flex h-10 min-w-[94px] cursor-pointer items-center gap-2 rounded-[14px] border border-zinc-300 bg-white px-3 text-sm font-black"
+            className="flex h-10 min-w-[94px] cursor-pointer items-center gap-2 rounded-[14px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-sm font-black text-[#f6f0dc] transition-colors hover:border-[#c9a52e]/60"
           >
             <input
               type="radio"
               name={name}
               value={value}
               required={required}
-              className="h-4 w-4 accent-zinc-950"
+              className="h-4 w-4 accent-[#c9a52e]"
             />
             <span>{label}</span>
           </label>
         ))}
       </div>
-      {note && <p className="mt-1 text-[11px] font-black leading-relaxed">{note}</p>}
-      {error && <p className="mt-1 text-[11px] font-semibold text-red-600">{error}</p>}
+      {note && <p className="mt-1 text-[11px] font-black leading-relaxed text-[#8f8369]">{note}</p>}
+      {error && <p className="mt-1 text-[11px] font-semibold text-red-300">{error}</p>}
     </div>
   )
 }
@@ -842,7 +849,7 @@ function BankSearch({
         }
       }}
     >
-      <label className="mb-1 block text-xs font-black">
+      <label className="mb-1 block text-xs font-black text-[#d7ceb8]">
         {label} <Required />
       </label>
       <input
@@ -857,10 +864,10 @@ function BankSearch({
           setQuery(event.target.value)
         }}
         placeholder="銀行名 / 銀行コードで検索"
-        className="h-10 w-full rounded-[14px] border border-zinc-300 bg-white px-3 text-sm font-semibold outline-none placeholder:text-zinc-400"
+        className="h-10 w-full rounded-[14px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-sm font-semibold text-[#f6f0dc] outline-none transition-colors placeholder:text-[#5f5748] focus:border-[#c9a52e] focus:ring-2 focus:ring-[#c9a52e]/15"
       />
       {selectedBank && (
-        <p className="mt-1 text-[11px] font-black text-zinc-600">
+        <p className="mt-1 text-[11px] font-black text-[#8f8369]">
           選択中：{selectedBank.name}（{selectedBank.code}）
         </p>
       )}
@@ -878,7 +885,7 @@ function BankSearch({
           }))}
         />
       )}
-      {error && <p className="mt-1 text-[11px] font-semibold text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-[11px] font-semibold text-red-300">{error}</p>}
     </div>
   )
 }
@@ -918,7 +925,7 @@ function BranchSearch({
         }
       }}
     >
-      <label className="mb-1 block text-xs font-black">
+      <label className="mb-1 block text-xs font-black text-[#d7ceb8]">
         {label} <Required />
       </label>
       <input
@@ -936,10 +943,10 @@ function BranchSearch({
         }}
         disabled={!selectedBank}
         placeholder={selectedBank ? '支店名 / 支店コードで検索' : '銀行を先に選択してください'}
-        className="h-10 w-full rounded-[14px] border border-zinc-300 bg-white px-3 text-sm font-semibold outline-none placeholder:text-zinc-400 disabled:bg-zinc-100"
+        className="h-10 w-full rounded-[14px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-sm font-semibold text-[#f6f0dc] outline-none transition-colors placeholder:text-[#5f5748] focus:border-[#c9a52e] focus:ring-2 focus:ring-[#c9a52e]/15 disabled:bg-[#252420] disabled:text-[#5a5243]"
       />
       {selectedBranch && (
-        <p className="mt-1 text-[11px] font-black text-zinc-600">
+        <p className="mt-1 text-[11px] font-black text-[#8f8369]">
           選択中：{selectedBranch.name}（{selectedBranch.code}）
         </p>
       )}
@@ -957,7 +964,7 @@ function BranchSearch({
           }))}
         />
       )}
-      {error && <p className="mt-1 text-[11px] font-semibold text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-[11px] font-semibold text-red-300">{error}</p>}
     </div>
   )
 }
@@ -975,10 +982,10 @@ function CandidateList({
     <div
       id={id}
       role="listbox"
-      className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-zinc-300 bg-white"
+      className="mt-1 max-h-40 overflow-y-auto rounded-[14px] border border-[#3a3528] bg-[#0f0e0b] shadow-[0_18px_40px_rgba(0,0,0,0.35)]"
     >
       {items.length === 0 ? (
-        <p className="px-3 py-2 text-xs font-semibold text-zinc-500">{emptyText}</p>
+        <p className="px-3 py-2 text-xs font-semibold text-[#8f8369]">{emptyText}</p>
       ) : (
         items.map((item) => (
           <button
@@ -992,7 +999,7 @@ function CandidateList({
             onClick={() => {
               item.onClick()
             }}
-            className="block w-full border-b border-zinc-100 px-3 py-2 text-left text-xs font-black last:border-b-0 hover:bg-zinc-100"
+            className="block w-full border-b border-[#2d2a20] px-3 py-2 text-left text-xs font-black text-[#d7ceb8] transition-colors last:border-b-0 hover:bg-[#252420] hover:text-[#c9a52e]"
           >
             {item.label}
           </button>

@@ -2,9 +2,9 @@
 
 import Image, { type StaticImageData } from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import {
   type FormEvent,
+  type HTMLAttributes,
   useEffect,
   useMemo,
   useRef,
@@ -14,6 +14,7 @@ import {
 import { createOrder } from '@/app/actions/orders'
 import kangaskhanImage from '@/app/assets/kangaskhan.png'
 import { HomeBannerCarousel } from '@/app/components/HomeBannerCarousel'
+import { updateCheckoutProfileAction } from './actions'
 import {
   CART_OPEN_REQUEST_EVENT,
   CART_TOTAL_QUANTITY_EVENT,
@@ -22,11 +23,51 @@ import type { Card, CartItem, HomepageBanner, Profile } from '@/lib/types'
 
 type Category = 'pokemon' | 'onepiece'
 type SortKey = 'price-desc' | 'price-asc' | 'name'
-type ViewMode = 'catalog' | 'cart'
+type ViewMode = 'catalog' | 'cart' | 'confirm' | 'complete'
+type CheckoutInfo = {
+  lastName: string
+  lastNameKana: string
+  email: string
+  idType: string
+  postalCode: string
+  address: string
+  phone: string
+  bankName: string
+  branchName: string
+  accountType: '' | 'ordinary' | 'current'
+  accountNumber: string
+  accountHolderKana: string
+}
 
 const FLOW_URL = 'https://www.notion.so/'
 const CART_STORAGE_KEY = 'tcg_royal_purchase_cart'
 const CARDS_PER_PAGE = 12
+
+const ID_TYPES = [
+  '運転免許証',
+  '各種健康保険証',
+  'パスポート',
+  '住民基本台帳カード',
+  'マイナンバーカード',
+  '在留カード',
+  '特別永住者証明書',
+  'その他',
+]
+
+const CHECKOUT_FIELD_LABELS: Record<keyof CheckoutInfo, string> = {
+  lastName: '氏名',
+  lastNameKana: '氏名（カナ）',
+  email: 'メールアドレス',
+  idType: '身分証',
+  postalCode: '郵便番号',
+  address: '住所',
+  phone: '電話番号',
+  bankName: '銀行名',
+  branchName: '支店名',
+  accountType: '口座種別',
+  accountNumber: '口座番号',
+  accountHolderKana: '口座名義',
+}
 
 const CATEGORY_LABEL: Record<Category, string> = {
   pokemon: 'ポケモン',
@@ -227,8 +268,8 @@ function CartIcon() {
 
 function CardPlaceholder() {
   return (
-    <div className="flex h-full w-full items-center justify-center rounded-lg bg-zinc-100 dark:bg-[#1e1c17]">
-      <span className="text-[10px] font-black tracking-[0.22em] text-zinc-300 dark:text-[#4a4233]">
+    <div className="flex h-full w-full items-center justify-center rounded-lg bg-[#1e1c17]">
+      <span className="text-[10px] font-black tracking-[0.22em] text-[#4a4233]">
         NO IMAGE
       </span>
     </div>
@@ -249,7 +290,7 @@ function CardImage({
       type="button"
       onClick={onClick}
       disabled={!src}
-      className="relative h-[178px] w-[124px] shrink-0 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 shadow-sm dark:border-[#2d2a20] dark:bg-[#1e1c17] sm:h-[210px] sm:w-[146px]"
+      className="relative h-[178px] w-[124px] shrink-0 overflow-hidden rounded-lg border border-[#2d2a20] bg-[#1e1c17] shadow-[0_12px_28px_rgba(0,0,0,0.28)] sm:h-[210px] sm:w-[146px]"
       aria-label={`${alt}を拡大表示`}
     >
       {src ? (
@@ -277,7 +318,7 @@ function QuantityControl({
   onIncrement: () => void
 }) {
   return (
-    <div className="flex h-10 w-[124px] items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 text-sm font-semibold shadow-sm dark:border-[#2d2a20] dark:bg-[#1c1b18] dark:text-[#ede8d5]">
+    <div className="flex h-10 w-[124px] items-center justify-between rounded-xl border border-[#2d2a20] bg-[#1c1b18] px-3 text-sm font-semibold text-[#ede8d5] shadow-sm">
       <button
         type="button"
         onClick={onDecrement}
@@ -317,12 +358,12 @@ function Pagination({
       aria-label="ページネーション"
       className="mt-8 flex justify-center"
     >
-      <div className="inline-flex overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-[#2d2a20] dark:bg-[#1c1b18]">
+      <div className="inline-flex overflow-hidden rounded-lg border border-[#2d2a20] bg-[#1c1b18] shadow-[0_12px_34px_rgba(0,0,0,0.32)]">
         <button
           type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1}
-          className="flex h-12 items-center gap-1 border-r border-zinc-200 px-5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:text-zinc-300 dark:border-[#2d2a20] dark:text-[#7a6e55] dark:hover:bg-[#252420] dark:disabled:text-[#3a3628]"
+          className="flex h-12 items-center gap-1 border-r border-[#2d2a20] px-5 text-sm font-semibold text-[#7a6e55] transition-colors hover:bg-[#252420] disabled:cursor-not-allowed disabled:text-[#3a3628]"
         >
           <span aria-hidden="true">‹</span>
           前へ
@@ -331,7 +372,7 @@ function Pagination({
           item === 'ellipsis' ? (
             <span
               key={`ellipsis-${index}`}
-              className="flex h-12 min-w-12 items-center justify-center px-3 text-sm text-zinc-500 dark:text-[#5a5243]"
+              className="flex h-12 min-w-12 items-center justify-center px-3 text-sm text-[#5a5243]"
             >
               ...
             </span>
@@ -344,8 +385,8 @@ function Pagination({
               className={[
                 'h-12 min-w-12 px-4 text-sm transition-colors',
                 item === page
-                  ? 'border-x border-zinc-950 bg-white font-black text-zinc-950 dark:border-[#c9a52e] dark:bg-[#0e0c09] dark:text-[#c9a52e]'
-                  : 'font-medium text-zinc-700 hover:bg-zinc-50 dark:text-[#7a6e55] dark:hover:bg-[#252420]',
+                  ? 'border-x border-[#c9a52e] bg-[#0e0c09] font-black text-[#c9a52e]'
+                  : 'font-medium text-[#7a6e55] hover:bg-[#252420]',
               ].join(' ')}
             >
               {item}
@@ -356,7 +397,7 @@ function Pagination({
           type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={page === totalPages}
-          className="flex h-12 items-center gap-1 border-l border-zinc-200 px-5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:text-zinc-300 dark:border-[#2d2a20] dark:text-[#7a6e55] dark:hover:bg-[#252420] dark:disabled:text-[#3a3628]"
+          className="flex h-12 items-center gap-1 border-l border-[#2d2a20] px-5 text-sm font-semibold text-[#7a6e55] transition-colors hover:bg-[#252420] disabled:cursor-not-allowed disabled:text-[#3a3628]"
         >
           次へ
           <span aria-hidden="true">›</span>
@@ -391,102 +432,197 @@ function ScrollToTopButton() {
   )
 }
 
-function present(value: string | null | undefined) {
-  const trimmed = value?.trim()
-  return trimmed ? trimmed : '未登録'
-}
-
-function accountTypeLabel(value: Profile['account_type']) {
+function accountTypeLabel(value: Profile['account_type'] | '') {
   if (value === 'ordinary') return '普通'
   if (value === 'current') return '当座'
   return null
 }
 
-function fullName(profile: Profile | null) {
-  if (!profile) return '未登録'
-  return present([profile.last_name, profile.first_name].filter(Boolean).join(' '))
-}
-
-function addressLine(profile: Profile | null) {
-  if (!profile) return '未登録'
-  const postalCode = profile.postal_code ? `〒${profile.postal_code}` : ''
-  return present([postalCode, profile.address].filter(Boolean).join(' '))
-}
-
-function identityUploadInfo(profile: Profile | null) {
-  if (!profile) return '未登録'
-  if (!profile.id_image_url) return '未アップロード'
-
-  const idType = profile.id_type || '身分証'
-  return profile.identity_verified
-    ? `${idType} / アップロード済み / 確認済み`
-    : `${idType} / アップロード済み`
-}
-
-function bankInfo(profile: Profile | null) {
-  if (!profile) return '未登録'
-
-  const values = [
-    profile.bank_name,
-    profile.branch_name,
-    accountTypeLabel(profile.account_type),
-    profile.account_number,
-    profile.account_holder_kana,
-  ].filter(Boolean)
-
-  return values.length > 0 ? values.join(' / ') : '未登録'
-}
-
-function RequesterInfoSummary({
-  profile,
-  userEmail,
-  pending,
-  onSubmit,
-}: {
-  profile: Profile | null
+function checkoutInfoFromProfile(
+  profile: Profile | null,
   userEmail: string | null
-  pending: boolean
-  onSubmit: () => void
-}) {
-  const fields = [
-    { label: '氏名', value: fullName(profile) },
-    { label: 'メールアドレス', value: present(userEmail) },
-    { label: '身分証のアップロード情報', value: identityUploadInfo(profile) },
-    { label: '住所', value: addressLine(profile) },
-    { label: '電話番号', value: present(profile?.phone) },
-    { label: '振込先', value: bankInfo(profile) },
+): CheckoutInfo {
+  return {
+    lastName: [profile?.last_name, profile?.first_name].filter(Boolean).join(' '),
+    lastNameKana: [profile?.last_name_kana, profile?.first_name_kana]
+      .filter(Boolean)
+      .join(' '),
+    email: profile?.email ?? userEmail ?? '',
+    idType: profile?.id_type ?? '',
+    postalCode: profile?.postal_code ?? '',
+    address: profile?.address ?? '',
+    phone: profile?.phone ?? '',
+    bankName: profile?.bank_name ?? '',
+    branchName: profile?.branch_name ?? '',
+    accountType: profile?.account_type ?? '',
+    accountNumber: profile?.account_number ?? '',
+    accountHolderKana: profile?.account_holder_kana ?? '',
+  }
+}
+
+function normalizeField(value: string) {
+  return value.normalize('NFKC').trim()
+}
+
+function changedCheckoutLabels(
+  saved: CheckoutInfo,
+  current: CheckoutInfo,
+  idImageFile: File | null
+) {
+  const changed = (Object.keys(CHECKOUT_FIELD_LABELS) as (keyof CheckoutInfo)[])
+    .filter((key) => normalizeField(saved[key]) !== normalizeField(current[key]))
+    .map((key) => CHECKOUT_FIELD_LABELS[key])
+
+  if (idImageFile) changed.push('身分証画像')
+
+  return changed
+}
+
+function checkoutProfileFormData(info: CheckoutInfo, idImageFile: File | null) {
+  const formData = new FormData()
+  formData.set('last_name', info.lastName)
+  formData.set('last_name_kana', info.lastNameKana)
+  formData.set('email', info.email)
+  formData.set('id_type', info.idType)
+  formData.set('postal_code', info.postalCode)
+  formData.set('address', info.address)
+  formData.set('phone', info.phone)
+  formData.set('bank_name', info.bankName)
+  formData.set('branch_name', info.branchName)
+  formData.set('account_type', info.accountType)
+  formData.set('account_number', info.accountNumber)
+  formData.set('account_holder_kana', info.accountHolderKana)
+  if (idImageFile) formData.set('id_image', idImageFile)
+  return formData
+}
+
+function validateCheckoutInfo(
+  info: CheckoutInfo,
+  hasIdentityImage: boolean,
+  idImageFile: File | null
+) {
+  const required: [keyof CheckoutInfo, string][] = [
+    ['lastName', '氏名を入力してください'],
+    ['lastNameKana', '氏名（カナ）を入力してください'],
+    ['email', 'メールアドレスを入力してください'],
+    ['idType', '身分証を選択してください'],
+    ['postalCode', '郵便番号を入力してください'],
+    ['address', '住所を入力してください'],
+    ['phone', '電話番号を入力してください'],
+    ['bankName', '銀行名を入力してください'],
+    ['branchName', '支店名を入力してください'],
+    ['accountType', '口座種別を選択してください'],
+    ['accountNumber', '口座番号を入力してください'],
+    ['accountHolderKana', '口座名義を入力してください'],
   ]
 
+  const missing = required.find(([key]) => !info[key].trim())
+  if (missing) return missing[1]
+
+  if (!hasIdentityImage && !idImageFile) {
+    return '身分証画像をアップロードしてください'
+  }
+
+  if (!/^\d{7}$/.test(info.accountNumber.trim())) {
+    return '口座番号は7桁の数字で入力してください'
+  }
+
+  return null
+}
+
+function orderItemsTotal(cart: CartItem[]) {
+  return cart.reduce(
+    (sum, item) => sum + item.card.buy_price * item.quantity,
+    0
+  )
+}
+
+function checkoutSnapshotNote(info: CheckoutInfo) {
+  return [
+    '買取申込時の依頼者情報',
+    `氏名: ${info.lastName}`,
+    `氏名（カナ）: ${info.lastNameKana}`,
+    `メールアドレス: ${info.email}`,
+    `身分証: ${info.idType}`,
+    `住所: 〒${info.postalCode} ${info.address}`,
+    `電話番号: ${info.phone}`,
+    `振込先: ${info.bankName} / ${info.branchName} / ${accountTypeLabel(info.accountType) ?? '-'} / ${info.accountNumber} / ${info.accountHolderKana}`,
+    '発送先: 【ダミー】後日共有される正式な発送先へ差し替え予定',
+    '注意事項: 【ダミー】後日共有される正式な注意事項へ差し替え予定',
+  ].join('\n')
+}
+
+function CheckoutField({
+  label,
+  value,
+  onChange,
+  required,
+  type = 'text',
+  placeholder,
+  inputMode,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  required?: boolean
+  type?: string
+  placeholder?: string
+  inputMode?: HTMLAttributes<HTMLInputElement>['inputMode']
+}) {
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault()
-        onSubmit()
-      }}
-      className="space-y-3 pt-5"
-    >
-      <h2 className="text-lg font-semibold">依頼者情報</h2>
-      <dl className="space-y-2">
-        {fields.map((field) => (
-          <div
-            key={field.label}
-            className="rounded-[14px] border border-zinc-200 bg-white px-3 py-2 shadow-sm dark:border-[#2d2a20] dark:bg-[#1c1b18]"
-          >
-            <dt className="text-xs font-black text-zinc-600">{field.label}</dt>
-            <dd className="mt-1 break-words text-sm font-semibold text-zinc-950 dark:text-[#ede8d5]">
-              {field.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <button
-        type="submit"
-        disabled={pending}
-        className="h-12 w-full rounded-[14px] bg-black text-base font-black text-[#d4c400] disabled:opacity-50"
+    <label className="block">
+      <span className="mb-1 block text-xs font-black text-[#d7ceb8]">
+        {label} {required && <span className="text-red-300">*</span>}
+      </span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required={required}
+        type={type}
+        placeholder={placeholder}
+        inputMode={inputMode}
+        className="h-11 w-full rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-sm font-semibold text-[#f6f0dc] outline-none transition-colors placeholder:text-[#5f5748] focus:border-[#c9a52e] focus:ring-2 focus:ring-[#c9a52e]/15"
+      />
+    </label>
+  )
+}
+
+function CheckoutSelect({
+  label,
+  value,
+  onChange,
+  options,
+  required,
+  placeholder = '選択してください',
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: { value: string; label: string }[]
+  required?: boolean
+  placeholder?: string
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-black text-[#d7ceb8]">
+        {label} {required && <span className="text-red-300">*</span>}
+      </span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required={required}
+        className="h-11 w-full rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-sm font-semibold text-[#f6f0dc] outline-none transition-colors focus:border-[#c9a52e] focus:ring-2 focus:ring-[#c9a52e]/15"
       >
-        {pending ? '申込中...' : '申込へ進む'}
-      </button>
-    </form>
+        <option value="" disabled>
+          {placeholder}
+        </option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }
 
@@ -501,11 +637,30 @@ export function CartForm({
   profile: Profile | null
   userEmail: string | null
 }) {
-  const router = useRouter()
   const availableCards = cards.length > 0 ? cards : SAMPLE_CARDS
+  const initialCheckoutInfo = useMemo(
+    () => checkoutInfoFromProfile(profile, userEmail),
+    [profile, userEmail]
+  )
   const [viewMode, setViewMode] = useState<ViewMode>('catalog')
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartLoaded, setCartLoaded] = useState(false)
+  const [checkoutInfo, setCheckoutInfo] = useState<CheckoutInfo>(
+    () => initialCheckoutInfo
+  )
+  const [savedCheckoutInfo, setSavedCheckoutInfo] = useState<CheckoutInfo>(
+    () => initialCheckoutInfo
+  )
+  const [hasIdentityImage, setHasIdentityImage] = useState(
+    Boolean(profile?.id_image_url)
+  )
+  const [idImageFile, setIdImageFile] = useState<File | null>(null)
+  const [idImageFileName, setIdImageFileName] = useState('')
+  const [profileUpdateModal, setProfileUpdateModal] = useState<{
+    changes: string[]
+  }>()
+  const [agreementChecked, setAgreementChecked] = useState(false)
+  const [completedOrderNumber, setCompletedOrderNumber] = useState<string>()
   const [enabledCategories, setEnabledCategories] = useState<Record<Category, boolean>>({
     pokemon: true,
     onepiece: true,
@@ -582,9 +737,14 @@ export function CartForm({
     sort !== 'price-desc'
 
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0)
+  const totalAmount = orderItemsTotal(cart)
   const unlistedInCart = cart.some((item) => item.card.id === UNLISTED_CARD.id)
 
   const getSelectedQuantity = (cardId: string) => selectedQuantities[cardId] ?? 1
+
+  const updateCheckoutInfo = (key: keyof CheckoutInfo, value: string) => {
+    setCheckoutInfo((current) => ({ ...current, [key]: value }))
+  }
 
   const setSelectedQuantity = (cardId: string, quantity: number) => {
     setSelectedQuantities((prev) => ({
@@ -734,19 +894,108 @@ export function CartForm({
     })
   }
 
-  const handleSubmit = () => {
+  const showCartTop = () => {
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    })
+  }
+
+  const handleProceedToConfirm = () => {
     setError(undefined)
     if (cart.length === 0) {
       setError('カードを追加してください')
       return
     }
 
+    const validationError = validateCheckoutInfo(
+      checkoutInfo,
+      hasIdentityImage,
+      idImageFile
+    )
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
+    const changes = changedCheckoutLabels(
+      savedCheckoutInfo,
+      checkoutInfo,
+      idImageFile
+    )
+    if (changes.length > 0) {
+      setProfileUpdateModal({ changes })
+      return
+    }
+
+    setAgreementChecked(false)
+    setViewMode('confirm')
+    showCartTop()
+  }
+
+  const handleProfileUpdateChoice = (choice: 'yes' | 'no' | 'cancel') => {
+    setError(undefined)
+
+    if (choice === 'cancel') {
+      setProfileUpdateModal(undefined)
+      setViewMode('cart')
+      showCartTop()
+      return
+    }
+
+    if (choice === 'no') {
+      setProfileUpdateModal(undefined)
+      setAgreementChecked(false)
+      setViewMode('confirm')
+      showCartTop()
+      return
+    }
+
+    startTransition(async () => {
+      const res = await updateCheckoutProfileAction(
+        checkoutProfileFormData(checkoutInfo, idImageFile)
+      )
+
+      if (res?.error || res?.errors) {
+        const firstFieldError = res.errors
+          ? Object.values(res.errors)[0]
+          : undefined
+        setError(res.error ?? firstFieldError ?? '保存済みデータの更新に失敗しました')
+        setProfileUpdateModal(undefined)
+        setViewMode('cart')
+        showCartTop()
+        return
+      }
+
+      setSavedCheckoutInfo(checkoutInfo)
+      if (idImageFile) setHasIdentityImage(true)
+      setIdImageFile(null)
+      setIdImageFileName('')
+      setProfileUpdateModal(undefined)
+      setAgreementChecked(false)
+      setViewMode('confirm')
+      showCartTop()
+    })
+  }
+
+  const handleFinalSubmit = () => {
+    setError(undefined)
+    if (!agreementChecked) {
+      setError('注意事項への同意が必要です')
+      return
+    }
+    if (cart.length === 0) {
+      setError('カードを追加してください')
+      setViewMode('cart')
+      return
+    }
+
     startTransition(async () => {
       const res = await createOrder(cart, {
-        bank_name: profile?.bank_name ?? '',
-        bank_branch: profile?.branch_name ?? '',
-        bank_account_no: profile?.account_number ?? '',
-        bank_holder: profile?.account_holder_kana ?? '',
+        bank_name: checkoutInfo.bankName,
+        bank_branch: checkoutInfo.branchName,
+        bank_account_no: checkoutInfo.accountNumber,
+        bank_holder: checkoutInfo.accountHolderKana,
+        note: checkoutSnapshotNote(checkoutInfo),
       })
       if (res?.error) {
         setError(res.error)
@@ -756,8 +1005,9 @@ export function CartForm({
       clearStoredCart()
       setCart([])
       setSelectedQuantities({})
-      setViewMode('catalog')
-      router.push(res?.redirectTo ?? '/mypage/orders')
+      setCompletedOrderNumber(res?.orderNumber)
+      setViewMode('complete')
+      showCartTop()
     })
   }
 
@@ -769,7 +1019,7 @@ export function CartForm({
         <button
           type="button"
           onClick={() => setViewMode('catalog')}
-          className="rounded-full border border-zinc-300 px-3 py-1 text-xs font-black text-zinc-700 dark:border-[#2d2a20] dark:text-[#c9a52e]"
+          className="rounded-full border border-[#2d2a20] px-3 py-1 text-xs font-black text-[#c9a52e] transition-colors hover:bg-[#1c1b18]"
         >
           商品を探す
         </button>
@@ -777,7 +1027,7 @@ export function CartForm({
 
       <div className="mt-8 grid gap-4 lg:grid-cols-2">
         {cart.length === 0 ? (
-          <p className="rounded-2xl border border-zinc-200 bg-white p-8 text-center text-sm font-semibold text-zinc-500 shadow-sm dark:border-[#2d2a20] dark:bg-[#1c1b18] dark:text-[#7a6e55] lg:col-span-2">
+          <p className="rounded-2xl border border-[#2d2a20] bg-[#15130f] p-8 text-center text-sm font-semibold text-[#7a6e55] shadow-[0_14px_38px_rgba(0,0,0,0.28)] lg:col-span-2">
             カートに商品がありません
           </p>
         ) : (
@@ -786,10 +1036,10 @@ export function CartForm({
               return (
                 <div
                   key={item.card.id}
-                  className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_12px_34px_rgba(24,24,27,0.08)] dark:border-[#2d2a20] dark:bg-[#1c1b18] dark:shadow-[0_12px_34px_rgba(0,0,0,0.5)]"
+                  className="rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-4 shadow-[0_18px_46px_rgba(0,0,0,0.38)]"
                 >
                   <div className="flex gap-3">
-                    <div className="h-[178px] w-[124px] shrink-0 rounded-lg bg-zinc-100 dark:bg-[#1e1c17] sm:h-[210px] sm:w-[146px]" />
+                    <div className="h-[178px] w-[124px] shrink-0 rounded-lg bg-[#1e1c17] sm:h-[210px] sm:w-[146px]" />
                     <div className="flex min-w-0 flex-1 flex-col">
                       <h3 className="text-center text-xl font-black leading-tight">
                         リストにない商品は
@@ -819,7 +1069,7 @@ export function CartForm({
             return (
               <div
                 key={item.card.id}
-                className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_12px_34px_rgba(24,24,27,0.08)] dark:border-[#2d2a20] dark:bg-[#1c1b18] dark:shadow-[0_12px_34px_rgba(0,0,0,0.5)]"
+                className="rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-4 shadow-[0_18px_46px_rgba(0,0,0,0.38)]"
               >
                 <div className="flex gap-3">
                   <CardImage
@@ -834,21 +1084,21 @@ export function CartForm({
                   <div className="min-w-0 flex-1">
                     <div className="grid grid-cols-[1fr_auto] items-start gap-x-2">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-zinc-950 dark:text-[#ede8d5]">
+                        <p className="truncate text-sm font-black text-[#ede8d5]">
                           {item.card.name}
                         </p>
-                        <span className="mt-1 inline-flex rounded-full bg-black px-4 py-2 text-xs font-black text-[#d4c400] dark:bg-[#2d2a20] dark:text-[#c9a52e]">
+                        <span className="mt-1 inline-flex rounded-full bg-[#2d2a20] px-4 py-2 text-xs font-black text-[#c9a52e]">
                           {item.card.grade}
                         </span>
                       </div>
-                      <div className="pt-6 text-sm font-medium text-zinc-800 dark:text-[#7a6e55]">
+                      <div className="pt-6 text-sm font-medium text-[#7a6e55]">
                         <p>型番</p>
-                        <p className="max-w-[72px] truncate text-xs text-zinc-500 dark:text-[#5a5243]">
+                        <p className="max-w-[72px] truncate text-xs text-[#5a5243]">
                           {item.card.card_number ?? '-'}
                         </p>
                       </div>
                     </div>
-                    <p className="mt-2 whitespace-nowrap text-2xl font-black leading-none text-red-600 sm:text-3xl">
+                    <p className="mt-2 whitespace-nowrap text-2xl font-black leading-none text-red-400 sm:text-3xl">
                       ¥{item.card.buy_price.toLocaleString()}
                     </p>
                     <div className="mt-3 flex items-center gap-2">
@@ -884,13 +1134,360 @@ export function CartForm({
       )}
 
       {cart.length > 0 && (
-        <RequesterInfoSummary
-          profile={profile}
-          userEmail={userEmail}
-          pending={pending}
-          onSubmit={handleSubmit}
-        />
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            handleProceedToConfirm()
+          }}
+          className="mt-8 space-y-5"
+        >
+          <section className="rounded-[24px] border border-[#2d2a20] bg-[#15130f] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.28)]">
+            <div className="mb-4">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8f8369]">
+                Requester
+              </p>
+              <h2 className="mt-1 text-xl font-black text-[#f6f0dc]">
+                依頼者情報
+              </h2>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <CheckoutField
+                label="氏名"
+                value={checkoutInfo.lastName}
+                onChange={(value) => updateCheckoutInfo('lastName', value)}
+                required
+                placeholder="山田太郎"
+              />
+              <CheckoutField
+                label="氏名（カナ）"
+                value={checkoutInfo.lastNameKana}
+                onChange={(value) => updateCheckoutInfo('lastNameKana', value)}
+                required
+                placeholder="ヤマダタロウ"
+              />
+              <CheckoutField
+                label="メールアドレス"
+                value={checkoutInfo.email}
+                onChange={(value) => updateCheckoutInfo('email', value)}
+                required
+                type="email"
+                placeholder="example@tcg-royal.jp"
+              />
+              <CheckoutSelect
+                label="身分証"
+                value={checkoutInfo.idType}
+                onChange={(value) => updateCheckoutInfo('idType', value)}
+                required
+                options={ID_TYPES.map((type) => ({ value: type, label: type }))}
+              />
+              <div className="md:col-span-2">
+                <span className="mb-1 block text-xs font-black text-[#d7ceb8]">
+                  身分証画像アップロード <span className="text-red-300">*</span>
+                </span>
+                <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] px-3 text-center text-xs font-black text-[#d7ceb8] transition-colors hover:border-[#c9a52e]/60 hover:text-[#c9a52e]">
+                  {idImageFileName ||
+                    (hasIdentityImage
+                      ? 'アップロード済み。変更する場合は画像を選択'
+                      : '画像を選択')}
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.heic,.heif"
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] ?? null
+                      setIdImageFile(file)
+                      setIdImageFileName(file?.name ?? '')
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[24px] border border-[#2d2a20] bg-[#15130f] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.28)]">
+            <h2 className="mb-4 text-xl font-black text-[#f6f0dc]">
+              ご連絡先
+            </h2>
+            <div className="grid gap-4 md:grid-cols-3">
+              <CheckoutField
+                label="郵便番号"
+                value={checkoutInfo.postalCode}
+                onChange={(value) => updateCheckoutInfo('postalCode', value)}
+                required
+                placeholder="1060032"
+                inputMode="numeric"
+              />
+              <div className="md:col-span-2">
+                <CheckoutField
+                  label="住所"
+                  value={checkoutInfo.address}
+                  onChange={(value) => updateCheckoutInfo('address', value)}
+                  required
+                  placeholder="東京都中央区..."
+                />
+              </div>
+              <CheckoutField
+                label="電話番号"
+                value={checkoutInfo.phone}
+                onChange={(value) => updateCheckoutInfo('phone', value)}
+                required
+                placeholder="09012345678"
+                inputMode="numeric"
+              />
+            </div>
+          </section>
+
+          <section className="rounded-[24px] border border-[#2d2a20] bg-[#15130f] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.28)]">
+            <h2 className="mb-4 text-xl font-black text-[#f6f0dc]">
+              振込先情報
+            </h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              <CheckoutField
+                label="銀行名"
+                value={checkoutInfo.bankName}
+                onChange={(value) => updateCheckoutInfo('bankName', value)}
+                required
+                placeholder="銀行名"
+              />
+              <CheckoutField
+                label="支店名"
+                value={checkoutInfo.branchName}
+                onChange={(value) => updateCheckoutInfo('branchName', value)}
+                required
+                placeholder="支店名"
+              />
+              <CheckoutSelect
+                label="口座種別"
+                value={checkoutInfo.accountType}
+                onChange={(value) =>
+                  updateCheckoutInfo('accountType', value)
+                }
+                required
+                options={[
+                  { value: 'ordinary', label: '普通' },
+                  { value: 'current', label: '当座' },
+                ]}
+              />
+              <CheckoutField
+                label="口座番号"
+                value={checkoutInfo.accountNumber}
+                onChange={(value) => updateCheckoutInfo('accountNumber', value)}
+                required
+                placeholder="7桁の口座番号"
+                inputMode="numeric"
+              />
+              <div className="md:col-span-2">
+                <CheckoutField
+                  label="口座名義（カタカナ）"
+                  value={checkoutInfo.accountHolderKana}
+                  onChange={(value) =>
+                    updateCheckoutInfo('accountHolderKana', value)
+                  }
+                  required
+                  placeholder="ヤマダタロウ"
+                />
+              </div>
+            </div>
+          </section>
+
+          <button
+            type="submit"
+            disabled={pending}
+            className="mx-auto block h-12 w-full max-w-sm rounded-[18px] bg-[#c9a52e] text-base font-black text-[#0e0c09] shadow-[0_14px_40px_rgba(201,165,46,0.18)] transition-colors hover:bg-[#d7b865] disabled:opacity-50"
+          >
+            {pending ? '確認中...' : '次へ'}
+          </button>
+        </form>
       )}
+    </div>
+  )
+
+  const renderConfirmView = () => (
+    <div className="mx-auto max-w-4xl py-5">
+      <button
+        type="button"
+        onClick={() => {
+          setViewMode('cart')
+          showCartTop()
+        }}
+        className="mb-4 rounded-full border border-[#2d2a20] px-4 py-2 text-xs font-black text-[#c9a52e] transition-colors hover:bg-[#1c1b18]"
+      >
+        カートに戻る
+      </button>
+
+      <div className="rounded-[28px] border border-[#2d2a20] bg-[#12100c] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-6">
+        <p className="text-center text-xs font-black uppercase tracking-[0.22em] text-[#c9a52e]">
+          Final Check
+        </p>
+        <h1 className="mt-2 text-center text-2xl font-black text-[#f6f0dc]">
+          最終確認
+        </h1>
+
+        <section className="mt-6 overflow-hidden rounded-[20px] border border-[#2d2a20] bg-[#171511]">
+          <div className="overflow-hidden">
+            <table className="w-full table-fixed text-left text-[10px] text-[#ede8d5] sm:text-sm">
+              <colgroup>
+                <col className="w-[38%]" />
+                <col className="w-[13%]" />
+                <col className="w-[24%]" />
+                <col className="w-[25%]" />
+              </colgroup>
+              <thead className="bg-[#211f18] text-[10px] font-black text-[#c9a52e] sm:text-xs">
+                <tr>
+                  <th className="px-2 py-3 sm:px-4">カード名</th>
+                  <th className="px-1 py-3 text-center sm:px-4">数量</th>
+                  <th className="px-1 py-3 text-right sm:px-4">
+                    <span className="inline-block leading-tight">
+                      買取<br className="sm:hidden" />申込額
+                    </span>
+                  </th>
+                  <th className="px-2 py-3 text-right sm:px-4">小計</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cart.map((item) => (
+                  <tr key={item.card.id} className="border-t border-[#2d2a20]">
+                    <td className="break-words px-2 py-3 font-black leading-tight text-[#f6f0dc] sm:px-4">
+                      {item.card.name}
+                      <span className="mt-1 block text-[10px] text-[#8f8369] sm:text-xs">
+                        {item.card.grade}
+                      </span>
+                    </td>
+                    <td className="px-1 py-3 text-center font-black text-[#f6f0dc] sm:px-4">
+                      {item.quantity}
+                    </td>
+                    <td className="whitespace-nowrap px-1 py-3 text-right font-semibold text-[#ede8d5] sm:px-4">
+                      ¥{item.card.buy_price.toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-3 text-right font-black text-[#c9a52e] sm:px-4">
+                      ¥{(item.card.buy_price * item.quantity).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t border-[#2d2a20] bg-[#211f18]">
+                <tr>
+                  <td className="px-2 py-3 text-right text-xs font-black text-[#8f8369] sm:px-4" colSpan={3}>
+                    合計
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-3 text-right text-sm font-black text-[#f6f0dc] sm:px-4 sm:text-base">
+                    ¥{totalAmount.toLocaleString()}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <section className="rounded-[20px] border border-[#2d2a20] bg-[#171511] p-4">
+            <h2 className="text-base font-black text-[#f6f0dc]">
+              依頼者情報
+            </h2>
+            <dl className="mt-3 space-y-2 text-sm">
+              {[
+                ['氏名', checkoutInfo.lastName],
+                ['メールアドレス', checkoutInfo.email],
+                ['住所', `〒${checkoutInfo.postalCode} ${checkoutInfo.address}`],
+                ['電話番号', checkoutInfo.phone],
+                [
+                  '振込先',
+                  `${checkoutInfo.bankName} / ${checkoutInfo.branchName} / ${accountTypeLabel(checkoutInfo.accountType) ?? '-'} / ${checkoutInfo.accountNumber} / ${checkoutInfo.accountHolderKana}`,
+                ],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-[14px] bg-[#0f0e0b] px-3 py-2">
+                  <dt className="text-xs font-black text-[#8f8369]">{label}</dt>
+                  <dd className="mt-1 break-words font-semibold text-[#ede8d5]">
+                    {value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <div className="space-y-4">
+            <section className="rounded-[20px] border border-[#2d2a20] bg-[#171511] p-4">
+              <h2 className="text-base font-black text-[#f6f0dc]">
+                発送先
+              </h2>
+              <p className="mt-3 text-sm font-semibold leading-relaxed text-[#d7ceb8]">
+                【ダミー】発送先情報は後日共有予定です。現在は確認用の仮文言です。
+              </p>
+            </section>
+            <section className="rounded-[20px] border border-[#2d2a20] bg-[#171511] p-4">
+              <h2 className="text-base font-black text-[#f6f0dc]">
+                注意事項
+              </h2>
+              <p className="mt-3 text-sm font-semibold leading-relaxed text-[#d7ceb8]">
+                【ダミー】注意事項は後日共有予定です。正式な運用文言に差し替える前提の仮表示です。
+              </p>
+            </section>
+          </div>
+        </div>
+
+        <label className="mt-6 flex items-start gap-3 rounded-[18px] border border-[#2d2a20] bg-[#0f0e0b] p-4 text-sm font-black leading-relaxed text-[#d7ceb8]">
+          <input
+            type="checkbox"
+            checked={agreementChecked}
+            onChange={(event) => setAgreementChecked(event.target.checked)}
+            className="mt-1 h-4 w-4 accent-[#c9a52e]"
+          />
+          <span>
+            上記の発送先・注意事項の内容を理解し、すべての条件に同意のうえ、買取申込みを行います。
+          </span>
+        </label>
+
+        {error && (
+          <p className="mt-4 rounded-[16px] border border-red-300/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={handleFinalSubmit}
+          disabled={pending}
+          className="mt-5 h-12 w-full rounded-[18px] bg-[#16a9f2] text-base font-black text-white shadow-[0_14px_40px_rgba(22,169,242,0.2)] transition-colors hover:bg-[#34b6f5] disabled:opacity-50"
+        >
+          {pending ? '送信中...' : '買取申込を依頼する'}
+        </button>
+      </div>
+    </div>
+  )
+
+  const renderCompleteView = () => (
+    <div className="mx-auto max-w-2xl py-8">
+      <section className="rounded-[28px] border border-[#2d2a20] bg-[#12100c] px-5 py-12 text-center shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:px-8">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#c9a52e]">
+          Accepted
+        </p>
+        <h1 className="mt-3 text-2xl font-black leading-snug text-[#f6f0dc]">
+          買取申込を受け付けました。
+        </h1>
+        {completedOrderNumber && (
+          <p className="mt-4 inline-flex rounded-full border border-[#2d2a20] bg-[#0f0e0b] px-4 py-2 text-sm font-black text-[#c9a52e]">
+            注文番号：{completedOrderNumber}
+          </p>
+        )}
+        <p className="mx-auto mt-6 max-w-md text-sm font-semibold leading-relaxed text-[#d7ceb8]">
+          弊社スタッフにて内容を確認いたしますので、必ず弊社からの買取申込承認メールをご確認のうえ、商品を発送してください。
+        </p>
+        <div className="mt-8 grid gap-3 sm:grid-cols-2">
+          <Link
+            href="/mypage/orders"
+            className="flex h-12 items-center justify-center rounded-[18px] bg-[#c9a52e] text-sm font-black text-[#0e0c09] transition-colors hover:bg-[#d7b865]"
+          >
+            郵送買取一覧へ
+          </Link>
+          <Link
+            href="/"
+            className="flex h-12 items-center justify-center rounded-[18px] border border-[#3a3528] bg-[#0f0e0b] text-sm font-black text-[#d7ceb8] transition-colors hover:border-[#c9a52e]/60 hover:text-[#c9a52e]"
+          >
+            トップへ戻る
+          </Link>
+        </div>
+      </section>
     </div>
   )
 
@@ -898,7 +1495,7 @@ export function CartForm({
     <>
       <div
         className={[
-          'sticky top-[69px] z-30 border-b border-zinc-200 bg-white/95 py-3 backdrop-blur transition-all duration-200 dark:border-[#2d2a20] dark:bg-[#111110]/95',
+          'sticky top-[69px] z-30 border-b border-[#2d2a20] bg-[#111110]/95 py-3 backdrop-blur transition-all duration-200',
           categoryControlsVisible
             ? 'translate-y-0 opacity-100'
             : 'pointer-events-none -translate-y-full opacity-0',
@@ -913,8 +1510,8 @@ export function CartForm({
               onClick={() => toggleCategory(item)}
               className={`h-10 rounded-full text-sm font-black transition-colors ${
                 enabledCategories[item]
-                  ? 'bg-[#c6b600] text-zinc-950 dark:bg-[#c9a52e] dark:text-[#0e0c09]'
-                  : 'bg-zinc-200 text-zinc-400 dark:bg-[#252420] dark:text-[#5a5243]'
+                  ? 'bg-[#c9a52e] text-[#0e0c09] shadow-[0_8px_20px_rgba(201,165,46,0.18)]'
+                  : 'bg-[#252420] text-[#8f8369] hover:bg-[#2e2b25] hover:text-[#d7ceb8]'
               }`}
             >
               {CATEGORY_LABEL[item]}
@@ -931,14 +1528,14 @@ export function CartForm({
             href={FLOW_URL}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-10 items-center rounded-full border border-sky-200 bg-sky-50 px-4 text-sm font-black text-sky-700 underline underline-offset-2 dark:border-[#2d2a20] dark:bg-[#1c1b18] dark:text-[#c9a52e]"
+            className="inline-flex h-10 items-center rounded-full border border-[#2d2a20] bg-[#1c1b18] px-4 text-sm font-black text-[#c9a52e] underline underline-offset-2 transition-colors hover:border-[#c9a52e]/50 hover:bg-[#252420]"
           >
             ? 買取の流れについて
           </Link>
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value as SortKey)}
-            className="h-10 flex-1 rounded-full border border-zinc-200 bg-white px-3 text-sm font-black outline-none dark:border-[#2d2a20] dark:bg-[#1c1b18] dark:text-[#ede8d5]"
+            className="h-10 flex-1 rounded-full border border-[#2d2a20] bg-[#1c1b18] px-3 text-sm font-black text-[#ede8d5] outline-none transition-colors focus:border-[#c9a52e]"
             aria-label="並び替え"
           >
             <option value="price-desc">価格が高い順</option>
@@ -952,11 +1549,11 @@ export function CartForm({
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
             placeholder="名前・番号で検索"
-            className="h-11 min-w-0 flex-1 rounded-[14px] border border-zinc-200 bg-white px-3 text-sm font-semibold outline-none placeholder:text-zinc-400 dark:border-[#2d2a20] dark:bg-[#1c1b18] dark:text-[#ede8d5] dark:placeholder:text-[#5a5243]"
+            className="h-11 min-w-0 flex-1 rounded-[14px] border border-[#2d2a20] bg-[#1c1b18] px-3 text-sm font-semibold text-[#ede8d5] outline-none placeholder:text-[#5a5243] transition-colors focus:border-[#c9a52e]"
           />
           <button
             type="submit"
-            className="h-11 w-20 rounded-[14px] bg-black text-sm font-black text-[#d4c400]"
+            className="h-11 w-20 rounded-[14px] bg-[#c9a52e] text-sm font-black text-[#0e0c09] transition-colors hover:bg-[#d7b865]"
           >
             検索
           </button>
@@ -964,31 +1561,31 @@ export function CartForm({
 
         <div
           aria-live="polite"
-          className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm shadow-sm dark:border-[#2d2a20] dark:bg-[#1c1b18]"
+          className="rounded-2xl border border-[#2d2a20] bg-[#15130f] px-4 py-3 text-sm shadow-[0_14px_38px_rgba(0,0,0,0.28)]"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="font-black text-zinc-950 dark:text-[#ede8d5]">
+            <p className="font-black text-[#ede8d5]">
               検索結果 {filteredCards.length.toLocaleString('ja-JP')}件 / 全{availableCards.length.toLocaleString('ja-JP')}件
             </p>
             {hasSearchConditions && (
               <button
                 type="button"
                 onClick={clearSearchConditions}
-                className="rounded-full border border-zinc-300 px-3 py-1 text-xs font-black text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-[#4a4233] dark:text-[#c9a52e] dark:hover:bg-[#252420]"
+                className="rounded-full border border-[#4a4233] px-3 py-1 text-xs font-black text-[#c9a52e] transition-colors hover:bg-[#252420]"
               >
                 条件クリア
               </button>
             )}
           </div>
-          <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-zinc-600 dark:text-[#7a6e55]">
-            <span className="rounded-full bg-zinc-100 px-3 py-1 dark:bg-[#252420]">
+          <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-[#7a6e55]">
+            <span className="rounded-full bg-[#252420] px-3 py-1">
               カテゴリ: {activeCategoryText}
             </span>
-            <span className="rounded-full bg-zinc-100 px-3 py-1 dark:bg-[#252420]">
+            <span className="rounded-full bg-[#252420] px-3 py-1">
               並び順: {SORT_LABEL[sort]}
             </span>
             {appliedKeyword && (
-              <span className="rounded-full bg-zinc-100 px-3 py-1 dark:bg-[#252420]">
+              <span className="rounded-full bg-[#252420] px-3 py-1">
                 検索語: {appliedKeyword}
               </span>
             )}
@@ -1014,14 +1611,14 @@ export function CartForm({
               'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
           }}
         >
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_12px_34px_rgba(24,24,27,0.08)] dark:border-[#2d2a20] dark:bg-[#1c1b18] dark:shadow-[0_12px_34px_rgba(0,0,0,0.5)]">
+        <div className="rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-4 shadow-[0_18px_46px_rgba(0,0,0,0.38)] transition-colors hover:border-[#4a4233]">
           <div className="flex gap-3">
-            <div className="h-[178px] w-[124px] shrink-0 rounded-lg bg-zinc-100 sm:h-[210px] sm:w-[146px] dark:bg-[#1e1c17]" />
+            <div className="h-[178px] w-[124px] shrink-0 rounded-lg bg-[#1e1c17] sm:h-[210px] sm:w-[146px]" />
             <div className="flex min-w-0 flex-1 flex-col">
-              <h2 className="text-center text-xl font-black leading-tight text-zinc-950 dark:text-[#ede8d5]">
+              <h2 className="text-center text-xl font-black leading-tight text-[#ede8d5]">
                 リストにない商品はこちら
               </h2>
-              <p className="mt-3 text-xs font-medium leading-relaxed text-zinc-700 dark:text-[#7a6e55]">
+              <p className="mt-3 text-xs font-medium leading-relaxed text-[#7a6e55]">
                 リストにない商品や商品名が分からない場合は、この項目を1点カートに追加するだけでまとめてお申し込みいただけます。
               </p>
               <button
@@ -1045,7 +1642,7 @@ export function CartForm({
           return (
             <div
               key={card.id}
-              className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_12px_34px_rgba(24,24,27,0.08)] dark:border-[#2d2a20] dark:bg-[#1c1b18] dark:shadow-[0_12px_34px_rgba(0,0,0,0.5)]"
+              className="rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-4 shadow-[0_18px_46px_rgba(0,0,0,0.38)] transition-colors hover:border-[#4a4233]"
             >
               <div className="flex gap-3">
                 <CardImage
@@ -1060,21 +1657,21 @@ export function CartForm({
                 <div className="min-w-0 flex-1">
                   <div className="grid grid-cols-[1fr_auto] items-start gap-x-2">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-zinc-950 dark:text-[#ede8d5]">
+                      <p className="truncate text-sm font-black text-[#ede8d5]">
                         {card.name}
                       </p>
-                      <span className="mt-1 inline-flex rounded-full bg-black px-4 py-2 text-xs font-black text-[#d4c400] dark:bg-[#2d2a20] dark:text-[#c9a52e]">
+                      <span className="mt-1 inline-flex rounded-full bg-[#2d2a20] px-4 py-2 text-xs font-black text-[#c9a52e]">
                         {card.grade}
                       </span>
                     </div>
-                    <div className="pt-6 text-sm font-medium text-zinc-800 dark:text-[#7a6e55]">
+                    <div className="pt-6 text-sm font-medium text-[#7a6e55]">
                       <p>型番</p>
-                      <p className="max-w-[72px] truncate text-xs text-zinc-500 dark:text-[#5a5243]">
+                      <p className="max-w-[72px] truncate text-xs text-[#5a5243]">
                         {card.card_number ?? '-'}
                       </p>
                     </div>
                   </div>
-                  <p className="mt-2 whitespace-nowrap text-2xl font-black leading-none text-red-600 sm:text-3xl">
+                  <p className="mt-2 whitespace-nowrap text-2xl font-black leading-none text-red-400 sm:text-3xl">
                     ¥{card.buy_price.toLocaleString()}
                   </p>
                   <div className="mt-3 flex items-center gap-2">
@@ -1104,8 +1701,8 @@ export function CartForm({
         </div>
 
         {filteredCards.length === 0 && (
-          <div className="py-8 text-center text-sm text-zinc-500 dark:text-[#7a6e55]">
-            <p className="font-black text-zinc-700 dark:text-[#ede8d5]">
+          <div className="py-8 text-center text-sm text-[#7a6e55]">
+            <p className="font-black text-[#ede8d5]">
               該当するカードがありません
             </p>
             <p className="mt-2">
@@ -1124,16 +1721,22 @@ export function CartForm({
   )
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-10 text-zinc-950 dark:text-[#ede8d5] sm:px-6">
-      {viewMode === 'cart' ? renderCartView() : renderCatalogView()}
+    <div className="mx-auto w-full max-w-6xl px-4 pb-10 text-[#ede8d5] sm:px-6">
+      {viewMode === 'cart'
+        ? renderCartView()
+        : viewMode === 'confirm'
+          ? renderConfirmView()
+          : viewMode === 'complete'
+            ? renderCompleteView()
+            : renderCatalogView()}
 
       {totalQuantity > 0 && viewMode === 'catalog' && (
-        <div className="sticky bottom-4 z-20 mx-auto max-w-xl rounded-2xl border border-zinc-200 bg-white p-3 shadow-[0_18px_50px_rgba(24,24,27,0.16)] dark:border-[#2d2a20] dark:bg-[#1c1b18]">
+        <div className="sticky bottom-4 z-20 mx-auto max-w-xl rounded-2xl border border-[#2d2a20] bg-[#1c1b18] p-3 shadow-[0_18px_50px_rgba(0,0,0,0.42)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 font-black">
               <div className="relative">
                 <CartIcon />
-                <span className="absolute -bottom-1 -right-2 min-w-5 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-[10px] font-black leading-none text-white ring-2 ring-white">
+                <span className="absolute -bottom-1 -right-2 min-w-5 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-[10px] font-black leading-none text-white ring-2 ring-[#1c1b18]">
                   {totalQuantity}
                 </span>
               </div>
@@ -1142,10 +1745,57 @@ export function CartForm({
             <button
               type="button"
               onClick={() => setViewMode('cart')}
-              className="rounded-xl bg-black px-5 py-3 text-sm font-black text-[#d4c400]"
+              className="rounded-xl bg-[#c9a52e] px-5 py-3 text-sm font-black text-[#0e0c09] transition-colors hover:bg-[#d7b865]"
             >
               カートを見る
             </button>
+          </div>
+        </div>
+      )}
+
+      {profileUpdateModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+        >
+          <div className="w-full max-w-md rounded-[28px] border border-[#2d2a20] bg-[#12100c] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#c9a52e]">
+              Profile Update
+            </p>
+            <h2 className="mt-2 text-xl font-black text-[#f6f0dc]">
+              保存済みデータを更新しますか？
+            </h2>
+            <p className="mt-4 text-sm font-semibold leading-relaxed text-[#d7ceb8]">
+              {profileUpdateModal.changes.join('、')}
+              が変更されています。保存済みのデータをアップデートしますか？
+            </p>
+            <div className="mt-6 grid gap-2 sm:grid-cols-3">
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => handleProfileUpdateChoice('yes')}
+                className="h-11 rounded-[16px] bg-[#c9a52e] text-sm font-black text-[#0e0c09] transition-colors hover:bg-[#d7b865] disabled:opacity-50"
+              >
+                はい
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => handleProfileUpdateChoice('no')}
+                className="h-11 rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] text-sm font-black text-[#d7ceb8] transition-colors hover:border-[#c9a52e]/60 hover:text-[#c9a52e] disabled:opacity-50"
+              >
+                いいえ
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => handleProfileUpdateChoice('cancel')}
+                className="h-11 rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] text-sm font-black text-[#8f8369] transition-colors hover:bg-[#1c1b18] disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1159,7 +1809,7 @@ export function CartForm({
         >
           <button
             type="button"
-            className="absolute right-4 top-4 rounded-full bg-white px-3 py-1 text-sm font-black text-zinc-950 dark:bg-[#1c1b18] dark:text-[#c9a52e]"
+            className="absolute right-4 top-4 rounded-full bg-[#1c1b18] px-3 py-1 text-sm font-black text-[#c9a52e]"
             onClick={() => setPreview(undefined)}
           >
             閉じる

@@ -16,23 +16,19 @@ export function customerStatusLabel(status: OrderStatus) {
 
 export function customerStatusClass(status: OrderStatus) {
   return status === 'completed'
-    ? 'bg-[#a7e8ad] text-zinc-950'
-    : 'bg-[#ffb3b8] text-zinc-950'
+    ? 'bg-emerald-400 text-[#06160c] ring-1 ring-emerald-200/40'
+    : 'bg-red-500 text-white ring-1 ring-red-200/30'
 }
 
 export function formatDateTime(value: string) {
-  const parts = new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat('ja-JP', {
     timeZone: 'Asia/Tokyo',
     year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false,
-  }).formatToParts(new Date(value))
-
-  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]))
-  return `${map.month}/${map.day}/${map.year} ${map.hour}:${map.minute}`
+  }).format(new Date(value))
 }
 
 export type OrderItemRow = {

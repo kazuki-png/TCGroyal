@@ -43,8 +43,8 @@ function duplicatedImageUrls(cards: Card[]) {
 
 function CardPlaceholder() {
   return (
-    <div className="flex h-full w-full items-center justify-center rounded-lg bg-zinc-100 dark:bg-[#1e1c17]">
-      <span className="text-xs font-black tracking-[0.25em] text-zinc-300 dark:text-[#4a4233]">
+    <div className="flex h-full w-full items-center justify-center rounded-lg bg-[#1e1c17]">
+      <span className="text-xs font-black tracking-[0.25em] text-[#4a4233]">
         未登録
       </span>
     </div>
@@ -79,11 +79,11 @@ function Pagination({
 
   return (
     <nav aria-label="ページネーション" className="mt-8 flex justify-center">
-      <div className="inline-flex overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-[#2d2a20] dark:bg-[#1c1b18]">
+      <div className="inline-flex overflow-hidden rounded-lg border border-[#2d2a20] bg-[#1c1b18] shadow-[0_12px_34px_rgba(0,0,0,0.32)]">
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1}
-          className="flex h-12 items-center gap-1 border-r border-zinc-200 px-5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:text-zinc-300 dark:border-[#2d2a20] dark:text-[#7a6e55] dark:hover:bg-[#252420] dark:disabled:text-[#3a3628]"
+          className="flex h-12 items-center gap-1 border-r border-[#2d2a20] px-5 text-sm font-semibold text-[#7a6e55] transition-colors hover:bg-[#252420] disabled:cursor-not-allowed disabled:text-[#3a3628]"
         >
           <span aria-hidden="true">‹</span>
           前へ
@@ -93,7 +93,7 @@ function Pagination({
           item === 'ellipsis' ? (
             <span
               key={`ellipsis-${i}`}
-              className="flex h-12 min-w-12 items-center justify-center px-3 text-sm text-zinc-500 dark:text-[#5a5243]"
+              className="flex h-12 min-w-12 items-center justify-center px-3 text-sm text-[#5a5243]"
             >
               ...
             </span>
@@ -104,8 +104,8 @@ function Pagination({
               aria-current={item === page ? 'page' : undefined}
               className={`h-12 min-w-12 px-4 text-sm transition-colors ${
                 item === page
-                  ? 'border-x border-zinc-950 bg-white font-black text-zinc-950 dark:border-[#c9a52e] dark:bg-[#0e0c09] dark:text-[#c9a52e]'
-                  : 'font-medium text-zinc-700 hover:bg-zinc-50 dark:text-[#7a6e55] dark:hover:bg-[#252420]'
+                  ? 'border-x border-[#c9a52e] bg-[#0e0c09] font-black text-[#c9a52e]'
+                  : 'font-medium text-[#7a6e55] hover:bg-[#252420]'
               }`}
             >
               {item}
@@ -116,7 +116,7 @@ function Pagination({
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={page === totalPages}
-          className="flex h-12 items-center gap-1 border-l border-zinc-200 px-5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:text-zinc-300 dark:border-[#2d2a20] dark:text-[#7a6e55] dark:hover:bg-[#252420] dark:disabled:text-[#3a3628]"
+          className="flex h-12 items-center gap-1 border-l border-[#2d2a20] px-5 text-sm font-semibold text-[#7a6e55] transition-colors hover:bg-[#252420] disabled:cursor-not-allowed disabled:text-[#3a3628]"
         >
           次へ
           <span aria-hidden="true">›</span>
@@ -209,15 +209,15 @@ export function HomeCardSection({ cards }: { cards: Card[] }) {
       <section className="mt-8 sm:mt-10">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="text-xl font-black text-zinc-950 dark:font-serif dark:tracking-wide dark:text-[#c9a52e] sm:text-2xl">
+            <h2 className="font-serif text-xl font-black tracking-wide text-[#c9a52e] sm:text-2xl">
               買取カード一覧
             </h2>
-            <p className="mt-1 text-sm font-semibold text-zinc-500 dark:text-[#7a6e55]">
+            <p className="mt-1 text-sm font-semibold text-[#7a6e55]">
               登録済みカードから高価買取カードを表示しています。
             </p>
           </div>
           <div
-            className={`sticky top-[69px] z-30 flex gap-2 rounded-full border border-zinc-200 bg-white/90 p-1 shadow-sm backdrop-blur transition-all duration-200 dark:border-[#2d2a20] dark:bg-[#111110]/90 ${
+            className={`sticky top-[69px] z-30 flex gap-2 rounded-full border border-[#2d2a20] bg-[#0f0e0b]/90 p-1 shadow-[0_14px_40px_rgba(0,0,0,0.34)] backdrop-blur transition-all duration-200 ${
               categoryControlsVisible
                 ? 'translate-y-0 opacity-100'
                 : 'pointer-events-none -translate-y-4 opacity-0'
@@ -230,8 +230,8 @@ export function HomeCardSection({ cards }: { cards: Card[] }) {
                 aria-pressed={enabled.has(cat)}
                 className={`rounded-full px-5 py-2 text-sm font-black transition-colors ${
                   enabled.has(cat)
-                    ? 'bg-zinc-950 text-[#d4c400] dark:bg-[#c9a52e] dark:text-[#0e0c09]'
-                    : 'bg-zinc-200 text-zinc-400 dark:bg-[#252420] dark:text-[#5a5243]'
+                    ? 'bg-[#c9a52e] text-[#0e0c09] shadow-[0_8px_20px_rgba(201,165,46,0.18)]'
+                    : 'bg-[#252420] text-[#8f8369] hover:bg-[#2e2b25] hover:text-[#d7ceb8]'
                 }`}
               >
                 {CATEGORY_LABEL[cat]}
@@ -241,7 +241,7 @@ export function HomeCardSection({ cards }: { cards: Card[] }) {
         </div>
 
         {filtered.length === 0 ? (
-          <div className="rounded-2xl border border-zinc-200 py-16 text-center text-zinc-400 dark:border-[#2d2a20] dark:text-[#5a5243]">
+          <div className="rounded-2xl border border-[#2d2a20] bg-[#15130f] py-16 text-center text-[#5a5243]">
             カテゴリーを選択してください
           </div>
         ) : (
@@ -256,9 +256,9 @@ export function HomeCardSection({ cards }: { cards: Card[] }) {
               {pageCards.map((card) => (
                 <article
                   key={card.id}
-                  className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-[0_12px_34px_rgba(24,24,27,0.08)] sm:p-4 dark:border-[#2d2a20] dark:bg-[#1c1b18] dark:shadow-[0_12px_34px_rgba(0,0,0,0.5)]"
+                  className="rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-3 shadow-[0_18px_46px_rgba(0,0,0,0.38)] transition-colors hover:border-[#4a4233] sm:p-4"
                 >
-                  <div className="relative mx-auto aspect-[5/7] overflow-hidden rounded-lg bg-zinc-100 dark:bg-[#1e1c17]">
+                  <div className="relative mx-auto aspect-[5/7] overflow-hidden rounded-lg bg-[#1e1c17]">
                     {card.image_url && !repeatedImageUrls.has(normalizeImageUrl(card.image_url) ?? '') ? (
                       <Image
                         src={card.image_url}
@@ -272,18 +272,18 @@ export function HomeCardSection({ cards }: { cards: Card[] }) {
                     )}
                   </div>
                   <div className="mt-3">
-                    <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-black leading-snug text-zinc-950 dark:text-[#ede8d5]">
+                    <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-black leading-snug text-[#ede8d5]">
                       {card.name}
                     </h3>
                     <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="rounded-full bg-zinc-950 px-2.5 py-0.5 text-xs font-black text-[#d4c400] dark:bg-[#2d2a20] dark:text-[#c9a52e]">
+                      <span className="rounded-full bg-[#2d2a20] px-2.5 py-0.5 text-xs font-black text-[#c9a52e]">
                         {card.grade}
                       </span>
-                      <span className="truncate text-xs font-semibold text-zinc-400 dark:text-[#5a5243]">
+                      <span className="truncate text-xs font-semibold text-[#5a5243]">
                         {card.card_number ?? '-'}
                       </span>
                     </div>
-                    <p className="mt-2 whitespace-nowrap text-xl font-black text-red-600 dark:text-red-400">
+                    <p className="mt-2 whitespace-nowrap text-xl font-black text-red-400">
                       ¥{card.buy_price.toLocaleString('ja-JP')}
                     </p>
                   </div>

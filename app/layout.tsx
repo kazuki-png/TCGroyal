@@ -1,11 +1,9 @@
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
 import { Noto_Serif_JP } from 'next/font/google'
-import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { PageViewTracker } from '@/app/components/PageViewTracker'
-import { ThemeProvider } from '@/app/components/ThemeProvider'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
@@ -22,8 +20,6 @@ export const metadata: Metadata = {
   description: 'ポケモンカード・ワンピースカードの郵送買取サービス',
 }
 
-const THEME_SCRIPT = `try{var t=localStorage.getItem('theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t}catch{}`
-
 export default function RootLayout({
   children,
 }: {
@@ -32,19 +28,13 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
-      className={`${geist.variable} ${notoSerifJP.variable}`}
+      className={`${geist.variable} ${notoSerifJP.variable} dark`}
+      style={{ colorScheme: 'dark' }}
       suppressHydrationWarning
     >
-      <body className="min-h-screen bg-zinc-50 text-zinc-900 antialiased dark:bg-[#111110] dark:text-[#ede8d5]">
-        <Script
-          id="theme-bootstrap"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }}
-        />
-        <ThemeProvider>
-          <PageViewTracker />
-          {children}
-        </ThemeProvider>
+      <body className="min-h-screen bg-[#111110] text-[#ede8d5] antialiased">
+        <PageViewTracker />
+        {children}
         <Analytics />
         <SpeedInsights />
       </body>

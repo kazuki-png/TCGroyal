@@ -18,15 +18,36 @@ type LegalParagraphKind =
 const numberedParagraphPattern = /^(\d+)\.\s/
 const articleHeadingPattern = /^第\d+条/
 
-function opensNumberedSublist(paragraph: string) {
-  return (
-    paragraph.includes('以下の目的') ||
-    paragraph.includes('以下の行為') ||
-    paragraph.includes('以下のいずれか') ||
-    paragraph.includes('以下の事由') ||
-    paragraph.includes('次の場合') ||
-    paragraph.includes('次に掲げる')
-  )
+function getNumberedSublistLimit(paragraph: string) {
+  if (paragraph.includes('以下の目的')) {
+    return 8
+  }
+
+  if (paragraph.includes('以下の行為')) {
+    return 15
+  }
+
+  if (paragraph.includes('以下のいずれかの事由')) {
+    return 4
+  }
+
+  if (paragraph.includes('以下のいずれかに該当')) {
+    return 6
+  }
+
+  if (paragraph.includes('以下の事由')) {
+    return 3
+  }
+
+  if (paragraph.includes('次の場合')) {
+    return 4
+  }
+
+  if (paragraph.includes('次に掲げる')) {
+    return 3
+  }
+
+  return null
 }
 
 function getLegalParagraphs(paragraphs: readonly string[]) {
@@ -36,6 +57,7 @@ function getLegalParagraphs(paragraphs: readonly string[]) {
   let expectedNumber = 1
   let sublistActive = false
   let sublistLastNumber = 0
+  let sublistLimit: number | null = null
 
   return paragraphs.map((paragraph) => {
     if (paragraph === '以上') {
@@ -46,15 +68,19 @@ function getLegalParagraphs(paragraphs: readonly string[]) {
       expectedNumber = 1
       sublistActive = false
       sublistLastNumber = 0
+      sublistLimit = null
 
       return { kind: 'heading' as const, paragraph }
     }
 
     const numberedMatch = paragraph.match(numberedParagraphPattern)
     if (!numberedMatch) {
-      if (opensNumberedSublist(paragraph)) {
+      const nextSublistLimit = getNumberedSublistLimit(paragraph)
+
+      if (nextSublistLimit) {
         sublistActive = true
         sublistLastNumber = 0
+        sublistLimit = nextSublistLimit
       }
 
       return { kind: 'body' as const, paragraph }
@@ -63,7 +89,10 @@ function getLegalParagraphs(paragraphs: readonly string[]) {
     const currentNumber = Number(numberedMatch[1])
 
     if (sublistActive) {
-      if (currentNumber > sublistLastNumber) {
+      if (
+        currentNumber > sublistLastNumber &&
+        (!sublistLimit || currentNumber <= sublistLimit)
+      ) {
         sublistLastNumber = currentNumber
 
         return { kind: 'subNumber' as const, paragraph }
@@ -71,6 +100,7 @@ function getLegalParagraphs(paragraphs: readonly string[]) {
 
       sublistActive = false
       sublistLastNumber = 0
+      sublistLimit = null
     }
 
     if (!hasArticleHeadings && currentNumber === expectedNumber) {
@@ -82,9 +112,12 @@ function getLegalParagraphs(paragraphs: readonly string[]) {
     if (hasArticleHeadings && currentNumber === expectedNumber) {
       expectedNumber += 1
 
-      if (opensNumberedSublist(paragraph)) {
+      const nextSublistLimit = getNumberedSublistLimit(paragraph)
+
+      if (nextSublistLimit) {
         sublistActive = true
         sublistLastNumber = 0
+        sublistLimit = nextSublistLimit
       }
 
       return { kind: 'number' as const, paragraph }

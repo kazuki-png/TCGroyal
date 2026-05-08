@@ -11,7 +11,6 @@ type LegalSection = {
 type LegalParagraphKind =
   | 'body'
   | 'heading'
-  | 'majorNumber'
   | 'number'
   | 'subNumber'
   | 'closing'
@@ -74,7 +73,7 @@ function getLegalParagraphs(paragraphs: readonly string[]) {
     if (!hasArticleHeadings && currentNumber === expectedNumber) {
       expectedNumber += 1
 
-      return { kind: 'majorNumber' as const, paragraph }
+      return { kind: 'heading' as const, paragraph }
     }
 
     if (hasArticleHeadings && currentNumber === expectedNumber) {
@@ -96,12 +95,10 @@ function getParagraphClassName(kind: LegalParagraphKind) {
   switch (kind) {
     case 'heading':
       return 'pt-3 text-base font-black text-[#ede8d5] first:pt-0'
-    case 'majorNumber':
-      return 'grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1 pt-3 text-base font-black text-[#ede8d5] first:pt-0'
     case 'number':
-      return 'grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1'
+      return 'flex items-start gap-x-1'
     case 'subNumber':
-      return 'grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1 pl-8 sm:pl-10'
+      return 'ml-8 flex items-start gap-x-1 sm:ml-10'
     case 'closing':
       return 'pt-6 text-right font-semibold text-[#ede8d5]'
     default:
@@ -155,9 +152,7 @@ export function LegalPage({
               {getLegalParagraphs(paragraphs).map(
                 ({ kind, paragraph }, index) => {
                   const numberedParts =
-                    kind === 'majorNumber' ||
-                    kind === 'number' ||
-                    kind === 'subNumber'
+                    kind === 'number' || kind === 'subNumber'
                       ? getNumberedParts(paragraph)
                       : null
 
@@ -168,8 +163,12 @@ export function LegalPage({
                     >
                       {numberedParts ? (
                         <>
-                          <span>{numberedParts.marker}</span>
-                          <span>{numberedParts.body}</span>
+                          <span className="w-7 flex-none">
+                            {numberedParts.marker}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            {numberedParts.body}
+                          </span>
                         </>
                       ) : (
                         paragraph

@@ -96,13 +96,26 @@ function getParagraphClassName(kind: LegalParagraphKind) {
     case 'heading':
       return 'pt-3 text-base font-black text-[#ede8d5] first:pt-0'
     case 'number':
-      return 'pl-8 [text-indent:-2rem]'
+      return 'grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1'
     case 'subNumber':
-      return 'pl-16 [text-indent:-3rem]'
+      return 'grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1 pl-6 sm:pl-8'
     case 'closing':
       return 'pt-6 text-right font-semibold text-[#ede8d5]'
     default:
       return undefined
+  }
+}
+
+function getNumberedParts(paragraph: string) {
+  const numberedMatch = paragraph.match(numberedParagraphPattern)
+
+  if (!numberedMatch) {
+    return null
+  }
+
+  return {
+    body: paragraph.slice(numberedMatch[0].length),
+    marker: `${numberedMatch[1]}.`,
   }
 }
 
@@ -137,14 +150,28 @@ export function LegalPage({
           {paragraphs && (
             <div className="mt-8 space-y-3 rounded-[22px] border border-[#2d2a20] bg-[#171511] p-4 text-left text-sm font-semibold leading-8 text-[#ede8d5] sm:p-6">
               {getLegalParagraphs(paragraphs).map(
-                ({ kind, paragraph }, index) => (
-                  <p
-                    key={`${index}-${paragraph.slice(0, 12)}`}
-                    className={getParagraphClassName(kind)}
-                  >
-                    {paragraph}
-                  </p>
-                ),
+                ({ kind, paragraph }, index) => {
+                  const numberedParts =
+                    kind === 'number' || kind === 'subNumber'
+                      ? getNumberedParts(paragraph)
+                      : null
+
+                  return (
+                    <p
+                      key={`${index}-${paragraph.slice(0, 12)}`}
+                      className={getParagraphClassName(kind)}
+                    >
+                      {numberedParts ? (
+                        <>
+                          <span>{numberedParts.marker}</span>
+                          <span>{numberedParts.body}</span>
+                        </>
+                      ) : (
+                        paragraph
+                      )}
+                    </p>
+                  )
+                },
               )}
             </div>
           )}

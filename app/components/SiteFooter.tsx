@@ -11,18 +11,18 @@ export function SiteFooter() {
           <Link href="#" className="transition-colors hover:text-[#c9a52e]">
             通販
           </Link>
-          <Link href="#" className="transition-colors hover:text-[#c9a52e]">
+          <Link href="/terms" className="transition-colors hover:text-[#c9a52e]">
             利用規約
           </Link>
-          <Link href="#" className="transition-colors hover:text-[#c9a52e]">
+          <Link href="/privacy" className="transition-colors hover:text-[#c9a52e]">
             プライバシーポリシー
           </Link>
-          <Link href="#" className="transition-colors hover:text-[#c9a52e]">
+          <Link href="/tokusho" className="transition-colors hover:text-[#c9a52e]">
             特商法
           </Link>
         </nav>
         <div className="mb-3 flex items-center justify-center gap-5 font-semibold">
-          <Link href="#" className="transition-colors hover:text-[#c9a52e]">
+          <Link href="/company" className="transition-colors hover:text-[#c9a52e]">
             会社概要
           </Link>
           <Link

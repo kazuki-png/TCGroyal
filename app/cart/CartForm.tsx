@@ -185,6 +185,30 @@ function imageSourceUrl(src: StaticImageData | string | null) {
   return typeof src === 'string' ? src : src.src
 }
 
+function lowResolutionPreviewUrl(src: StaticImageData | string) {
+  const url = imageSourceUrl(src)
+  if (!url) return ''
+  if (
+    url.startsWith('blob:') ||
+    url.startsWith('data:') ||
+    url.startsWith('/_next/image')
+  ) {
+    return url
+  }
+
+  const params = new URLSearchParams({
+    q: '55',
+    url,
+    w: '384',
+  })
+
+  return `/_next/image?${params.toString()}`
+}
+
+function cssImageUrl(url: string) {
+  return `url(${JSON.stringify(url)})`
+}
+
 function getPaginationItems(current: number, total: number): (number | 'ellipsis')[] {
   if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1)
   if (current <= 3) return [1, 2, 3, 'ellipsis', total]
@@ -282,6 +306,8 @@ function CardImage({
           src={src}
           alt={alt}
           fill
+          decoding="async"
+          loading="lazy"
           sizes="(min-width: 640px) 146px, 124px"
           className="object-contain"
         />
@@ -621,7 +647,10 @@ export function CartForm({
   profile: Profile | null
   userEmail: string | null
 }) {
-  const availableCards = cards
+  const [asyncCards, setAsyncCards] = useState<Card[]>(() => cards)
+  const [cardsLoading, setCardsLoading] = useState(cards.length === 0)
+  const [cardsError, setCardsError] = useState<string>()
+  const availableCards = asyncCards
   const hasRegisteredCards = availableCards.length > 0
   const initialCheckoutInfo = useMemo(
     () => checkoutInfoFromProfile(profile, userEmail),
@@ -665,7 +694,11 @@ export function CartForm({
   const [preview, setPreview] = useState<{
     src: StaticImageData | string
     alt: string
+    thumbnailSrc: string
   }>()
+  const [previewStatus, setPreviewStatus] = useState<
+    'loading' | 'loaded' | 'error'
+  >('loading')
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
   const [pending, startTransition] = useTransition()
@@ -699,17 +732,6 @@ export function CartForm({
       ),
     [currentPage, filteredCards]
   )
-  const displayImageUrls = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          displayCards
-            .map((card) => imageSourceUrl(cardImageSource(card, repeatedImageUrls)))
-            .filter((src): src is string => Boolean(src))
-        )
-      ),
-    [displayCards, repeatedImageUrls]
-  )
   const activeCategoryLabels = (['pokemon', 'onepiece'] as Category[])
     .filter((category) => enabledCategories[category])
     .map((category) => CATEGORY_LABEL[category])
@@ -726,6 +748,15 @@ export function CartForm({
   const unlistedInCart = cart.some((item) => item.card.id === UNLISTED_CARD.id)
 
   const getSelectedQuantity = (cardId: string) => selectedQuantities[cardId] ?? 1
+
+  const openPreview = (src: StaticImageData | string, alt: string) => {
+    setPreview({
+      alt,
+      src,
+      thumbnailSrc: lowResolutionPreviewUrl(src),
+    })
+    setPreviewStatus('loading')
+  }
 
   const updateCheckoutInfo = (key: keyof CheckoutInfo, value: string) => {
     setCheckoutInfo((current) => ({ ...current, [key]: value }))
@@ -810,22 +841,6 @@ export function CartForm({
   }, [keyword])
 
   useEffect(() => {
-    const preloadedImages = displayImageUrls.map((src) => {
-      const image = new window.Image()
-      image.decoding = 'async'
-      image.src = src
-      return image
-    })
-
-    return () => {
-      preloadedImages.forEach((image) => {
-        image.onload = null
-        image.onerror = null
-      })
-    }
-  }, [displayImageUrls])
-
-  useEffect(() => {
     const handleScroll = () => {
       const currentY = window.scrollY
       setCategoryControlsVisible(
@@ -855,6 +870,43 @@ export function CartForm({
     event.preventDefault()
     setSubmittedKeyword(keyword.trim())
   }
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    fetch('/api/cards', {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error('カード一覧の取得に失敗しました')
+        }
+
+        return (await response.json()) as Card[]
+      })
+      .then((nextCards) => {
+        setAsyncCards(Array.isArray(nextCards) ? nextCards : [])
+        setCardsError(undefined)
+      })
+      .catch((fetchError: unknown) => {
+        if (
+          fetchError instanceof DOMException &&
+          fetchError.name === 'AbortError'
+        ) {
+          return
+        }
+
+        setCardsError('カード一覧の読み込みに失敗しました。時間をおいて再読み込みしてください。')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setCardsLoading(false)
+        }
+      })
+
+    return () => controller.abort()
+  }, [])
 
   const toggleCategory = (category: Category) => {
     setEnabledCategories((current) => ({
@@ -1062,7 +1114,7 @@ export function CartForm({
                     alt={item.card.name}
                     onClick={
                       imageSrc
-                        ? () => setPreview({ src: imageSrc, alt: item.card.name })
+                        ? () => openPreview(imageSrc, item.card.name)
                         : undefined
                     }
                   />
@@ -1597,6 +1649,18 @@ export function CartForm({
           </p>
         )}
 
+        {cardsLoading && (
+          <div className="rounded-2xl border border-[#2d2a20] bg-[#15130f] px-4 py-3 text-sm font-black text-[#d7ceb8]">
+            カード一覧を読み込み中...
+          </div>
+        )}
+
+        {cardsError && !cardsLoading && (
+          <p className="rounded-2xl border border-red-500/30 bg-red-950/30 px-4 py-3 text-sm font-black text-red-200">
+            {cardsError}
+          </p>
+        )}
+
         <div
           className="grid gap-4"
           style={{
@@ -1643,7 +1707,7 @@ export function CartForm({
                   alt={card.name}
                   onClick={
                     imageSrc
-                      ? () => setPreview({ src: imageSrc, alt: card.name })
+                      ? () => openPreview(imageSrc, card.name)
                       : undefined
                   }
                 />
@@ -1808,20 +1872,44 @@ export function CartForm({
             閉じる
           </button>
           <div
-            className="relative aspect-[5/7] max-w-sm"
+            className="relative aspect-[5/7] max-w-sm overflow-hidden rounded-2xl border border-[#2d2a20] bg-[#11100d] shadow-[0_24px_80px_rgba(0,0,0,0.65)]"
             style={{
               width: 'min(92vw, calc(86vh * 5 / 7), 420px)',
             }}
             onClick={(event) => event.stopPropagation()}
           >
+            {preview.thumbnailSrc && (
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-contain bg-center bg-no-repeat"
+                style={{
+                  backgroundImage: cssImageUrl(preview.thumbnailSrc),
+                }}
+              />
+            )}
             <Image
+              key={imageSourceUrl(preview.src)}
               src={preview.src}
               alt={preview.alt}
               fill
               unoptimized
               sizes="(max-width: 640px) 92vw, 420px"
-              className="object-contain"
+              onError={() => setPreviewStatus('error')}
+              onLoad={() => setPreviewStatus('loaded')}
+              className={`object-contain transition-opacity duration-200 ${
+                previewStatus === 'loaded' ? 'opacity-100' : 'opacity-0'
+              }`}
             />
+            {previewStatus === 'loading' && (
+              <div className="absolute inset-x-4 bottom-4 rounded-full bg-black/65 px-4 py-2 text-center text-xs font-black text-[#ede8d5]">
+                高画質画像を読み込み中...
+              </div>
+            )}
+            {previewStatus === 'error' && (
+              <div className="absolute inset-x-4 bottom-4 rounded-2xl bg-black/70 px-4 py-3 text-center text-xs font-black leading-relaxed text-[#ede8d5]">
+                高画質画像を読み込めませんでした。プレビュー画像を表示しています。
+              </div>
+            )}
           </div>
         </div>
       )}

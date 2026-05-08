@@ -5,7 +5,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('cards')
-    .select('*')
+    .select('id,name,category,card_number,grade,buy_price,image_url,created_at,updated_at')
     .order('category')
     .order('grade')
     .order('name')

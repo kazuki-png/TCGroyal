@@ -12,12 +12,6 @@ export default async function CartPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { data: cards } = await supabase
-    .from('cards')
-    .select('*')
-    .order('category')
-    .order('name')
-
   const { data: banners } = await supabase
     .from('homepage_banners')
     .select('*')
@@ -44,7 +38,7 @@ export default async function CartPage() {
       />
       <main className="w-full flex-1">
         <CartForm
-          cards={(cards ?? []) as Card[]}
+          cards={[] as Card[]}
           banners={(banners ?? []) as HomepageBanner[]}
           profile={profile as Profile | null}
           userEmail={user?.email ?? null}

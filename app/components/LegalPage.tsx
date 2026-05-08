@@ -20,7 +20,10 @@ const articleHeadingPattern = /^第\d+条/
 
 function opensNumberedSublist(paragraph: string) {
   return (
-    paragraph.includes('以下') ||
+    paragraph.includes('以下の目的') ||
+    paragraph.includes('以下の行為') ||
+    paragraph.includes('以下のいずれか') ||
+    paragraph.includes('以下の事由') ||
     paragraph.includes('次の場合') ||
     paragraph.includes('次に掲げる')
   )
@@ -96,14 +99,22 @@ function getParagraphClassName(kind: LegalParagraphKind) {
     case 'heading':
       return 'pt-3 text-base font-black text-[#ede8d5] first:pt-0'
     case 'number':
-      return 'flex items-start gap-x-1'
+      return 'flex items-start gap-x-2'
     case 'subNumber':
-      return 'ml-8 flex items-start gap-x-1 sm:ml-10'
+      return 'flex items-start gap-x-2'
     case 'closing':
       return 'pt-6 text-right font-semibold text-[#ede8d5]'
     default:
       return undefined
   }
+}
+
+function getParagraphStyle(kind: LegalParagraphKind) {
+  if (kind !== 'subNumber') {
+    return undefined
+  }
+
+  return { marginInlineStart: '3rem' }
 }
 
 function getNumberedParts(paragraph: string) {
@@ -160,10 +171,11 @@ export function LegalPage({
                     <p
                       key={`${index}-${paragraph.slice(0, 12)}`}
                       className={getParagraphClassName(kind)}
+                      style={getParagraphStyle(kind)}
                     >
                       {numberedParts ? (
                         <>
-                          <span className="w-7 flex-none">
+                          <span className="w-8 flex-none">
                             {numberedParts.marker}
                           </span>
                           <span className="min-w-0 flex-1">

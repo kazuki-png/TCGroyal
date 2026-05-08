@@ -47,7 +47,7 @@ export default function TokushoPage() {
         },
         {
           title: '資格・免許',
-          body: '古物商許可証 第301112617464号',
+          body: '古物商許可証　第301112617464号',
         },
       ]}
     />

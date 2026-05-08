@@ -8,7 +8,12 @@ type LegalSection = {
   items?: ReactNode[]
 }
 
-type LegalParagraphKind = 'body' | 'heading' | 'number' | 'subNumber'
+type LegalParagraphKind =
+  | 'body'
+  | 'heading'
+  | 'number'
+  | 'subNumber'
+  | 'closing'
 
 const numberedParagraphPattern = /^(\d+)\.\s/
 const articleHeadingPattern = /^第\d+条/
@@ -28,12 +33,18 @@ function getLegalParagraphs(paragraphs: readonly string[]) {
   let expectedNumber = 1
   let sublistActive = false
   let sublistLastNumber = 0
+  let currentMajorNumber = 0
 
   return paragraphs.map((paragraph) => {
+    if (paragraph === '以上') {
+      return { kind: 'closing' as const, paragraph }
+    }
+
     if (articleHeadingPattern.test(paragraph)) {
       expectedNumber = 1
       sublistActive = false
       sublistLastNumber = 0
+      currentMajorNumber = 0
 
       return { kind: 'heading' as const, paragraph }
     }
@@ -53,8 +64,15 @@ function getLegalParagraphs(paragraphs: readonly string[]) {
     if (sublistActive) {
       if (currentNumber > sublistLastNumber) {
         sublistLastNumber = currentNumber
+        const displayedParagraph =
+          !hasArticleHeadings && currentMajorNumber > 0
+            ? paragraph.replace(
+                numberedParagraphPattern,
+                `${currentMajorNumber}.${currentNumber} `,
+              )
+            : paragraph
 
-        return { kind: 'subNumber' as const, paragraph }
+        return { kind: 'subNumber' as const, paragraph: displayedParagraph }
       }
 
       sublistActive = false
@@ -62,6 +80,7 @@ function getLegalParagraphs(paragraphs: readonly string[]) {
     }
 
     if (!hasArticleHeadings && currentNumber === expectedNumber) {
+      currentMajorNumber = currentNumber
       expectedNumber += 1
 
       return { kind: 'heading' as const, paragraph }
@@ -87,9 +106,11 @@ function getParagraphClassName(kind: LegalParagraphKind) {
     case 'heading':
       return 'pt-3 text-base font-black text-[#ede8d5] first:pt-0'
     case 'number':
-      return 'pl-7 [text-indent:-1.75rem]'
+      return 'pl-8 [text-indent:-2rem]'
     case 'subNumber':
-      return 'pl-12 [text-indent:-1.75rem]'
+      return 'pl-16 [text-indent:-3rem]'
+    case 'closing':
+      return 'pt-6 text-right font-semibold text-[#ede8d5]'
     default:
       return undefined
   }

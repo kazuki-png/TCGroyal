@@ -12,7 +12,6 @@ import {
   useTransition,
 } from 'react'
 import { createOrder } from '@/app/actions/orders'
-import kangaskhanImage from '@/app/assets/kangaskhan.png'
 import { HomeBannerCarousel } from '@/app/components/HomeBannerCarousel'
 import { updateCheckoutProfileAction } from './actions'
 import {
@@ -80,31 +79,6 @@ const SORT_LABEL: Record<SortKey, string> = {
   name: '名前順',
 }
 
-const SAMPLE_CARDS: Card[] = [
-  {
-    id: 'sample-kangaskhan-pokemon',
-    card_number: '109/244',
-    name: 'ガルーラ',
-    category: 'pokemon',
-    grade: 'PSA10',
-    buy_price: 160000,
-    image_url: null,
-    created_at: '',
-    updated_at: '',
-  },
-  {
-    id: 'sample-onepiece-card',
-    card_number: 'OP01-001',
-    name: 'ONE PIECE サンプルカード',
-    category: 'onepiece',
-    grade: 'PSA10',
-    buy_price: 98000,
-    image_url: null,
-    created_at: '',
-    updated_at: '',
-  },
-]
-
 const UNLISTED_CARD: Card = {
   id: 'unlisted-card-request',
   card_number: null,
@@ -117,10 +91,19 @@ const UNLISTED_CARD: Card = {
   updated_at: '',
 }
 
+function toKatakana(value: string) {
+  return value.replace(/[\u3041-\u3096]/g, (char) =>
+    String.fromCharCode(char.charCodeAt(0) + 0x60)
+  )
+}
+
 function normalizeText(value: string | null | undefined) {
   return (value ?? '')
     .normalize('NFKC')
     .toLowerCase()
+    .replace(/[\u3041-\u3096]/g, (char) =>
+      String.fromCharCode(char.charCodeAt(0) + 0x60)
+    )
     .replace(/[\s#\-_/]/g, '')
 }
 
@@ -129,7 +112,7 @@ function matchesKeyword(card: Card, keyword: string) {
     .normalize('NFKC')
     .toLowerCase()
     .split(/\s+/)
-    .map((token) => token.trim())
+    .map((token) => toKatakana(token.trim()))
     .filter(Boolean)
 
   if (tokens.length === 0) return true
@@ -140,7 +123,10 @@ function matchesKeyword(card: Card, keyword: string) {
   const numberParts = (card.card_number ?? '')
     .normalize('NFKC')
     .toLowerCase()
-    .split(/[^\dA-Za-z]+/)
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .flatMap((part) => part.split(/[^\dA-Za-z]+/))
     .filter(Boolean)
 
   return tokens.every((token) => {
@@ -190,8 +176,6 @@ function cardImageSource(
   if (card.image_url && normalizedUrl && !repeatedImageUrls.has(normalizedUrl)) {
     return card.image_url
   }
-
-  if (card.id.startsWith('sample-')) return kangaskhanImage
 
   return null
 }
@@ -637,7 +621,8 @@ export function CartForm({
   profile: Profile | null
   userEmail: string | null
 }) {
-  const availableCards = cards.length > 0 ? cards : SAMPLE_CARDS
+  const availableCards = cards
+  const hasRegisteredCards = availableCards.length > 0
   const initialCheckoutInfo = useMemo(
     () => checkoutInfoFromProfile(profile, userEmail),
     [profile, userEmail]
@@ -1493,104 +1478,112 @@ export function CartForm({
 
   const renderCatalogView = () => (
     <>
-      <div
-        className={[
-          'sticky top-[69px] z-30 border-b border-[#2d2a20] bg-[#111110]/95 py-3 backdrop-blur transition-all duration-200',
-          categoryControlsVisible
-            ? 'translate-y-0 opacity-100'
-            : 'pointer-events-none -translate-y-full opacity-0',
-        ].join(' ')}
-      >
-        <div className="grid grid-cols-2 gap-2">
-          {(['pokemon', 'onepiece'] as Category[]).map((item) => (
-            <button
-              key={item}
-              type="button"
-              aria-pressed={enabledCategories[item]}
-              onClick={() => toggleCategory(item)}
-              className={`h-10 rounded-full text-sm font-black transition-colors ${
-                enabledCategories[item]
-                  ? 'bg-[#c9a52e] text-[#0e0c09] shadow-[0_8px_20px_rgba(201,165,46,0.18)]'
-                  : 'bg-[#252420] text-[#8f8369] hover:bg-[#2e2b25] hover:text-[#d7ceb8]'
-              }`}
-            >
-              {CATEGORY_LABEL[item]}
-            </button>
-          ))}
+      {hasRegisteredCards && (
+        <div
+          className={[
+            'sticky top-[69px] z-30 border-b border-[#2d2a20] bg-[#111110]/95 py-3 backdrop-blur transition-all duration-200',
+            categoryControlsVisible
+              ? 'translate-y-0 opacity-100'
+              : 'pointer-events-none -translate-y-full opacity-0',
+          ].join(' ')}
+        >
+          <div className="grid grid-cols-2 gap-2">
+            {(['pokemon', 'onepiece'] as Category[]).map((item) => (
+              <button
+                key={item}
+                type="button"
+                aria-pressed={enabledCategories[item]}
+                onClick={() => toggleCategory(item)}
+                className={`h-10 rounded-full text-sm font-black transition-colors ${
+                  enabledCategories[item]
+                    ? 'bg-[#c9a52e] text-[#0e0c09] shadow-[0_8px_20px_rgba(201,165,46,0.18)]'
+                    : 'bg-[#252420] text-[#8f8369] hover:bg-[#2e2b25] hover:text-[#d7ceb8]'
+                }`}
+              >
+                {CATEGORY_LABEL[item]}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <HomeBannerCarousel banners={banners} fallback="cart-message" />
 
       <div className="space-y-5 py-5" ref={listTopRef}>
-        <div className="grid gap-3 md:grid-cols-[auto_1fr] md:items-center">
-          <Link
-            href={FLOW_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-10 items-center rounded-full border border-[#2d2a20] bg-[#1c1b18] px-4 text-sm font-black text-[#c9a52e] underline underline-offset-2 transition-colors hover:border-[#c9a52e]/50 hover:bg-[#252420]"
-          >
-            ? 買取の流れについて
-          </Link>
-          <select
-            value={sort}
-            onChange={(event) => setSort(event.target.value as SortKey)}
-            className="h-10 flex-1 rounded-full border border-[#2d2a20] bg-[#1c1b18] px-3 text-sm font-black text-[#ede8d5] outline-none transition-colors focus:border-[#c9a52e]"
-            aria-label="並び替え"
-          >
-            <option value="price-desc">価格が高い順</option>
-            <option value="price-asc">価格が低い順</option>
-            <option value="name">名前順</option>
-          </select>
-        </div>
-
-        <form onSubmit={handleSearch} className="flex gap-2">
-          <input
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-            placeholder="名前・番号で検索"
-            className="h-11 min-w-0 flex-1 rounded-[14px] border border-[#2d2a20] bg-[#1c1b18] px-3 text-sm font-semibold text-[#ede8d5] outline-none placeholder:text-[#5a5243] transition-colors focus:border-[#c9a52e]"
-          />
-          <button
-            type="submit"
-            className="h-11 w-20 rounded-[14px] bg-[#c9a52e] text-sm font-black text-[#0e0c09] transition-colors hover:bg-[#d7b865]"
-          >
-            検索
-          </button>
-        </form>
-
-        <div
-          aria-live="polite"
-          className="rounded-2xl border border-[#2d2a20] bg-[#15130f] px-4 py-3 text-sm shadow-[0_14px_38px_rgba(0,0,0,0.28)]"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="font-black text-[#ede8d5]">
-              検索結果 {filteredCards.length.toLocaleString('ja-JP')}件 / 全{availableCards.length.toLocaleString('ja-JP')}件
-            </p>
-            {hasSearchConditions && (
-              <button
-                type="button"
-                onClick={clearSearchConditions}
-                className="rounded-full border border-[#4a4233] px-3 py-1 text-xs font-black text-[#c9a52e] transition-colors hover:bg-[#252420]"
+        {hasRegisteredCards && (
+          <>
+            <div className="grid gap-3 md:grid-cols-[auto_1fr] md:items-center">
+              <Link
+                href={FLOW_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-10 items-center rounded-full border border-[#2d2a20] bg-[#1c1b18] px-4 text-sm font-black text-[#c9a52e] underline underline-offset-2 transition-colors hover:border-[#c9a52e]/50 hover:bg-[#252420]"
               >
-                条件クリア
+                ? 買取の流れについて
+              </Link>
+              <select
+                value={sort}
+                onChange={(event) => setSort(event.target.value as SortKey)}
+                className="h-10 flex-1 rounded-full border border-[#2d2a20] bg-[#1c1b18] px-3 text-sm font-black text-[#ede8d5] outline-none transition-colors focus:border-[#c9a52e]"
+                aria-label="並び替え"
+              >
+                <option value="price-desc">価格が高い順</option>
+                <option value="price-asc">価格が低い順</option>
+                <option value="name">名前順</option>
+              </select>
+            </div>
+
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <input
+                value={keyword}
+                onChange={(event) => setKeyword(event.target.value)}
+                placeholder="名前・番号で検索"
+                className="h-11 min-w-0 flex-1 rounded-[14px] border border-[#2d2a20] bg-[#1c1b18] px-3 text-sm font-semibold text-[#ede8d5] outline-none placeholder:text-[#5a5243] transition-colors focus:border-[#c9a52e]"
+              />
+              <button
+                type="submit"
+                className="h-11 w-20 rounded-[14px] bg-[#c9a52e] text-sm font-black text-[#0e0c09] transition-colors hover:bg-[#d7b865]"
+              >
+                検索
               </button>
-            )}
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-[#7a6e55]">
-            <span className="rounded-full bg-[#252420] px-3 py-1">
-              カテゴリ: {activeCategoryText}
-            </span>
-            <span className="rounded-full bg-[#252420] px-3 py-1">
-              並び順: {SORT_LABEL[sort]}
-            </span>
-            {appliedKeyword && (
+            </form>
+          </>
+        )}
+
+        {hasRegisteredCards && (
+          <div
+            aria-live="polite"
+            className="rounded-2xl border border-[#2d2a20] bg-[#15130f] px-4 py-3 text-sm shadow-[0_14px_38px_rgba(0,0,0,0.28)]"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="font-black text-[#ede8d5]">
+                検索結果 {filteredCards.length.toLocaleString('ja-JP')}件 / 全{availableCards.length.toLocaleString('ja-JP')}件
+              </p>
+              {hasSearchConditions && (
+                <button
+                  type="button"
+                  onClick={clearSearchConditions}
+                  className="rounded-full border border-[#4a4233] px-3 py-1 text-xs font-black text-[#c9a52e] transition-colors hover:bg-[#252420]"
+                >
+                  条件クリア
+                </button>
+              )}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-[#7a6e55]">
               <span className="rounded-full bg-[#252420] px-3 py-1">
-                検索語: {appliedKeyword}
+                カテゴリ: {activeCategoryText}
               </span>
-            )}
+              <span className="rounded-full bg-[#252420] px-3 py-1">
+                並び順: {SORT_LABEL[sort]}
+              </span>
+              {appliedKeyword && (
+                <span className="rounded-full bg-[#252420] px-3 py-1">
+                  検索語: {appliedKeyword}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {error && (
           <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
@@ -1700,7 +1693,7 @@ export function CartForm({
 
         </div>
 
-        {filteredCards.length === 0 && (
+        {hasRegisteredCards && filteredCards.length === 0 && (
           <div className="py-8 text-center text-sm text-[#7a6e55]">
             <p className="font-black text-[#ede8d5]">
               該当するカードがありません

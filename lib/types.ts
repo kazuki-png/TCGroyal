@@ -148,3 +148,24 @@ export interface CartItem {
   card: Card
   quantity: number
 }
+
+export interface IdentityDocument {
+  id: string
+  user_id: string
+  storage_path: string
+  document_type: string | null
+  status: 'pending' | 'verified' | 'rejected'
+  uploaded_at: string
+  reviewed_at: string | null
+  reviewed_by: string | null
+  deleted_at: string | null
+}
+
+export interface IdentityDocumentAccessLog {
+  id: string
+  document_id: string
+  accessed_by: string
+  accessed_at: string
+  action: 'view' | 'delete' | 'verify' | 'reject'
+  reason: string | null
+}

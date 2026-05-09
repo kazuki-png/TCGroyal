@@ -113,11 +113,17 @@ export async function updateCheckoutProfileAction(
 
   if (file && file.size > 0) {
     const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-    const path = `${user.id}/id_image.${ext}`
+    const newPath = `${user.id}/id_image.${ext}`
     const admin = createAdminClient()
+
+    // 拡張子が変わった場合、古いファイルを削除してストレージを清潔に保つ
+    if (idImageUrl && idImageUrl !== newPath) {
+      await admin.storage.from('identity-images').remove([idImageUrl])
+    }
+
     const { error: uploadError } = await admin.storage
       .from('identity-images')
-      .upload(path, Buffer.from(await file.arrayBuffer()), {
+      .upload(newPath, Buffer.from(await file.arrayBuffer()), {
         contentType: file.type || 'image/jpeg',
         upsert: true,
       })
@@ -130,7 +136,22 @@ export async function updateCheckoutProfileAction(
       }
     }
 
-    idImageUrl = path
+    // identity_documents にアップサート（1ユーザー1レコード、再アップロードでリセット）
+    await admin.from('identity_documents').upsert(
+      {
+        user_id: user.id,
+        storage_path: newPath,
+        document_type: value(formData, 'id_type') || null,
+        status: 'pending',
+        uploaded_at: new Date().toISOString(),
+        reviewed_at: null,
+        reviewed_by: null,
+        deleted_at: null,
+      },
+      { onConflict: 'user_id' }
+    )
+
+    idImageUrl = newPath
     identityVerified = false
   }
 

@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { ORDER_STATUS_LABELS, type OrderStatus } from '@/lib/types'
+import { KycDocumentActions } from './KycDocumentActions'
 import { UserIdentitySelect } from './UserIdentitySelect'
 
 type IdentityFilter = 'all' | 'verified' | 'unverified'
@@ -31,6 +33,13 @@ type OrderRow = {
   status: OrderStatus
   total_amount: number | null
   created_at: string
+}
+
+type DocRow = {
+  id: string
+  user_id: string
+  status: string
+  deleted_at: string | null
 }
 
 const PAGE_SIZE = 30
@@ -90,6 +99,20 @@ export default async function AdminUsersPage({
   const to = from + PAGE_SIZE - 1
   const admin = createAdminClient()
 
+  // 現在ログイン中の管理者の role を確認する
+  const supabase = await createClient()
+  const {
+    data: { user: currentUser },
+  } = await supabase.auth.getUser()
+  const { data: adminRow } = currentUser
+    ? await supabase
+        .from('admin_users')
+        .select('role')
+        .eq('id', currentUser.id)
+        .single()
+    : { data: null }
+  const isKycReviewer = adminRow?.role === 'kyc_reviewer'
+
   let profileQuery = admin
     .from('profiles')
     .select('*', { count: 'exact' })
@@ -108,19 +131,35 @@ export default async function AdminUsersPage({
   if (requestedPage > totalPages && total > 0) {
     redirect(`/admin/users?status=${filter}&page=${totalPages}`)
   }
-  const { data: orders } = userIds.length > 0
-    ? await admin
-        .from('orders')
-        .select('id, order_number, user_id, status, total_amount, created_at')
-        .in('user_id', userIds)
-        .order('created_at', { ascending: false })
-    : { data: [] }
+
+  const [{ data: orders }, { data: docs }] = await Promise.all([
+    userIds.length > 0
+      ? admin
+          .from('orders')
+          .select('id, order_number, user_id, status, total_amount, created_at')
+          .in('user_id', userIds)
+          .order('created_at', { ascending: false })
+      : Promise.resolve({ data: [] }),
+    // kyc_reviewer のみ書類メタデータを取得する
+    isKycReviewer && userIds.length > 0
+      ? admin
+          .from('identity_documents')
+          .select('id, user_id, status, deleted_at')
+          .in('user_id', userIds)
+      : Promise.resolve({ data: [] }),
+  ])
 
   const ordersByUser = new Map<string, OrderRow[]>()
   ;((orders ?? []) as OrderRow[]).forEach((order) => {
     const current = ordersByUser.get(order.user_id) ?? []
     current.push(order)
     ordersByUser.set(order.user_id, current)
+  })
+
+  // 削除済みでない書類のみ表示
+  const docByUser = new Map<string, DocRow>()
+  ;((docs ?? []) as DocRow[]).forEach((doc) => {
+    if (!doc.deleted_at) docByUser.set(doc.user_id, doc)
   })
 
   return (
@@ -141,6 +180,12 @@ export default async function AdminUsersPage({
           </Link>
         ))}
       </div>
+
+      {isKycReviewer && (
+        <p className="rounded-lg border border-yellow-800 bg-yellow-900/20 px-3 py-2 text-xs font-black text-yellow-400">
+          KYC審査者として閲覧しています。書類の確認・削除が可能です。閲覧ログが記録されます。
+        </p>
+      )}
 
       <div className="overflow-x-auto bg-zinc-950 text-white">
         {rows.length === 0 ? (
@@ -166,7 +211,8 @@ export default async function AdminUsersPage({
               {rows.map((profile) => {
                 const userOrders = ordersByUser.get(profile.id) ?? []
                 const latest = userOrders[0]
-                const total = userOrders.reduce((sum, order) => sum + (order.total_amount ?? 0), 0)
+                const totalAmount = userOrders.reduce((sum, order) => sum + (order.total_amount ?? 0), 0)
+                const doc = docByUser.get(profile.id)
                 return (
                   <tr key={profile.id} className="border-t border-zinc-800 align-top">
                     <td className="px-4 py-3 text-sm font-black">
@@ -191,7 +237,7 @@ export default async function AdminUsersPage({
                       {userOrders.length.toLocaleString('ja-JP')}
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-black">
-                      {currency(total)}
+                      {currency(totalAmount)}
                     </td>
                     <td className="px-4 py-3 text-sm text-zinc-300">
                       {latest ? (
@@ -210,6 +256,12 @@ export default async function AdminUsersPage({
                         userId={profile.id}
                         verified={Boolean(profile.identity_verified)}
                       />
+                      {isKycReviewer && doc && (
+                        <KycDocumentActions documentId={doc.id} />
+                      )}
+                      {isKycReviewer && !doc && (
+                        <p className="mt-1 text-[11px] text-zinc-600">書類未提出</p>
+                      )}
                     </td>
                   </tr>
                 )

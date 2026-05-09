@@ -111,7 +111,11 @@ export async function updateCheckoutProfileAction(
   )
   const file = formData.get('id_image') as File | null
 
+  console.log('[KYC] file check — name:', file?.name ?? 'null', 'size:', file?.size ?? 'null', 'type:', file?.type ?? 'null')
+  console.log('[KYC] env check — supabaseUrl set:', Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL), 'serviceRoleKey set:', Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY))
+
   if (file && file.size > 0) {
+    console.log('[KYC] entering upload block')
     const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
     const newPath = `${user.id}/id_image.${ext}`
     const admin = createAdminClient()
@@ -128,6 +132,8 @@ export async function updateCheckoutProfileAction(
         upsert: true,
       })
 
+    console.log('[KYC] storage upload —', uploadError ? `error: ${uploadError.message}` : 'ok', 'path:', newPath)
+
     if (uploadError) {
       return {
         errors: {
@@ -136,14 +142,17 @@ export async function updateCheckoutProfileAction(
       }
     }
 
-    // identity_documents を更新（upsert の onConflict は信頼性に欠けるため、select → insert/update で確実に処理する）
+    // identity_documents を更新（select → insert/update）
     const { data: existingDoc, error: selectError } = await admin
       .from('identity_documents')
       .select('id')
       .eq('user_id', user.id)
       .maybeSingle()
 
+    console.log('[KYC] select existingDoc — id:', existingDoc?.id ?? 'none', 'selectError:', selectError?.message ?? 'none')
+
     if (selectError) {
+      console.error('[KYC] select failed:', selectError)
       return {
         errors: {
           id_image: `書類の記録に失敗しました: ${selectError.message}`,
@@ -162,11 +171,16 @@ export async function updateCheckoutProfileAction(
       deleted_at: null,
     }
 
+    console.log('[KYC] doc payload:', JSON.stringify(docPayload))
+
     const { error: docError } = existingDoc
       ? await admin.from('identity_documents').update(docPayload).eq('id', existingDoc.id)
       : await admin.from('identity_documents').insert(docPayload)
 
+    console.log('[KYC] doc write (' + (existingDoc ? 'update' : 'insert') + ') —', docError ? `error: ${docError.message}` : 'ok')
+
     if (docError) {
+      console.error('[KYC] doc write failed:', docError)
       return {
         errors: {
           id_image: `書類の記録に失敗しました: ${docError.message}`,
@@ -176,6 +190,9 @@ export async function updateCheckoutProfileAction(
 
     idImageUrl = newPath
     identityVerified = false
+    console.log('[KYC] done — identity_documents record written')
+  } else {
+    console.log('[KYC] skipping upload block — file is null or size is 0')
   }
 
   const { error: profileError } = await supabase.from('profiles').upsert({

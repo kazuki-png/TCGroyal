@@ -91,55 +91,6 @@ const UNLISTED_CARD: Card = {
   updated_at: '',
 }
 
-function toKatakana(value: string) {
-  return value.replace(/[\u3041-\u3096]/g, (char) =>
-    String.fromCharCode(char.charCodeAt(0) + 0x60)
-  )
-}
-
-function normalizeText(value: string | null | undefined) {
-  return (value ?? '')
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[\u3041-\u3096]/g, (char) =>
-      String.fromCharCode(char.charCodeAt(0) + 0x60)
-    )
-    .replace(/[\s#\-_/]/g, '')
-}
-
-function matchesKeyword(card: Card, keyword: string) {
-  const tokens = keyword
-    .normalize('NFKC')
-    .toLowerCase()
-    .split(/\s+/)
-    .map((token) => toKatakana(token.trim()))
-    .filter(Boolean)
-
-  if (tokens.length === 0) return true
-
-  const name = normalizeText(card.name)
-  const number = normalizeText(card.card_number)
-  const combined = normalizeText(`${card.name}${card.card_number ?? ''}`)
-  const numberParts = (card.card_number ?? '')
-    .normalize('NFKC')
-    .toLowerCase()
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter(Boolean)
-    .flatMap((part) => part.split(/[^\dA-Za-z]+/))
-    .filter(Boolean)
-
-  return tokens.every((token) => {
-    const normalizedToken = normalizeText(token)
-    return (
-      name.includes(normalizedToken) ||
-      number.includes(normalizedToken) ||
-      combined.includes(normalizedToken) ||
-      numberParts.some((part) => part.includes(normalizedToken))
-    )
-  })
-}
-
 function normalizeImageUrl(value: string | null | undefined) {
   const trimmed = value?.trim()
   if (!trimmed) return null
@@ -713,7 +664,6 @@ function CheckoutSelect({
 }
 
 export function CartForm({
-  cards,
   banners,
   profile,
   userEmail,
@@ -723,11 +673,12 @@ export function CartForm({
   profile: Profile | null
   userEmail: string | null
 }) {
-  const [asyncCards, setAsyncCards] = useState<Card[]>(() => cards)
-  const [cardsLoading, setCardsLoading] = useState(cards.length === 0)
+  const [displayCards, setDisplayCards] = useState<Card[]>([])
+  const [totalCards, setTotalCards] = useState(0)
+  const [hasEverFoundCards, setHasEverFoundCards] = useState(false)
+  const [cardsLoading, setCardsLoading] = useState(true)
   const [cardsError, setCardsError] = useState<string>()
-  const availableCards = asyncCards
-  const hasRegisteredCards = availableCards.length > 0
+  const hasRegisteredCards = hasEverFoundCards
   const initialCheckoutInfo = useMemo(
     () => checkoutInfoFromProfile(profile, userEmail),
     [profile, userEmail]
@@ -758,11 +709,7 @@ export function CartForm({
   const [sort, setSort] = useState<SortKey>('price-desc')
   const [keyword, setKeyword] = useState('')
   const [submittedKeyword, setSubmittedKeyword] = useState('')
-  const pageSignature = `${enabledCategories.pokemon ? 'pokemon' : ''}:${enabledCategories.onepiece ? 'onepiece' : ''}:${sort}:${submittedKeyword}`
-  const [pagination, setPagination] = useState(() => ({
-    page: 1,
-    signature: pageSignature,
-  }))
+  const [currentPage, setCurrentPage] = useState(1)
   const [categoryControlsVisible, setCategoryControlsVisible] = useState(true)
   const [selectedQuantities, setSelectedQuantities] = useState<
     Record<string, number>
@@ -782,33 +729,8 @@ export function CartForm({
   const lastScrollYRef = useRef(0)
   const listTopRef = useRef<HTMLDivElement>(null)
 
-  const repeatedImageUrls = useMemo(() => duplicatedImageUrls(availableCards), [availableCards])
-
-  const filteredCards = useMemo(() => {
-    const result = availableCards
-      .filter((card) => enabledCategories[card.category as Category])
-      .filter((card) => matchesKeyword(card, submittedKeyword))
-
-    return [...result].sort((a, b) => {
-      if (sort === 'price-desc') return b.buy_price - a.buy_price
-      if (sort === 'price-asc') return a.buy_price - b.buy_price
-      return a.name.localeCompare(b.name, 'ja')
-    })
-  }, [availableCards, enabledCategories, sort, submittedKeyword])
-
-  const totalPages = Math.max(1, Math.ceil(filteredCards.length / CARDS_PER_PAGE))
-  const currentPage =
-    pagination.signature === pageSignature
-      ? Math.min(pagination.page, totalPages)
-      : 1
-  const displayCards = useMemo(
-    () =>
-      filteredCards.slice(
-        (currentPage - 1) * CARDS_PER_PAGE,
-        currentPage * CARDS_PER_PAGE
-      ),
-    [currentPage, filteredCards]
-  )
+  const repeatedImageUrls = useMemo(() => duplicatedImageUrls(displayCards), [displayCards])
+  const totalPages = Math.max(1, Math.ceil(totalCards / CARDS_PER_PAGE))
   const activeCategoryLabels = (['pokemon', 'onepiece'] as Category[])
     .filter((category) => enabledCategories[category])
     .map((category) => CATEGORY_LABEL[category])
@@ -912,6 +834,7 @@ export function CartForm({
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      setCurrentPage(1)
       setSubmittedKeyword(keyword.trim())
     }, 180)
 
@@ -946,25 +869,44 @@ export function CartForm({
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setCurrentPage(1)
     setSubmittedKeyword(keyword.trim())
   }
 
   useEffect(() => {
-    const controller = new AbortController()
+    const cats = (['pokemon', 'onepiece'] as Category[]).filter(
+      (c) => enabledCategories[c]
+    )
+    if (cats.length === 0) {
+      setDisplayCards([])
+      setTotalCards(0)
+      setCardsLoading(false)
+      return
+    }
 
-    fetch('/api/cards', {
+    const controller = new AbortController()
+    setCardsLoading(true)
+
+    const params = new URLSearchParams({
+      page: String(currentPage),
+      limit: String(CARDS_PER_PAGE),
+      sort,
+    })
+    if (cats.length === 1) params.set('category', cats[0])
+    if (submittedKeyword) params.set('q', submittedKeyword)
+
+    fetch(`/api/cards?${params}`, {
       headers: { Accept: 'application/json' },
       signal: controller.signal,
     })
       .then(async (response) => {
-        if (!response.ok) {
-          throw new Error('カード一覧の取得に失敗しました')
-        }
-
-        return (await response.json()) as Card[]
+        if (!response.ok) throw new Error('カード一覧の取得に失敗しました')
+        return (await response.json()) as { data: Card[]; total: number }
       })
-      .then((nextCards) => {
-        setAsyncCards(Array.isArray(nextCards) ? nextCards : [])
+      .then(({ data, total }) => {
+        setDisplayCards(Array.isArray(data) ? data : [])
+        setTotalCards(typeof total === 'number' ? total : 0)
+        if (total > 0) setHasEverFoundCards(true)
         setCardsError(undefined)
       })
       .catch((fetchError: unknown) => {
@@ -974,19 +916,18 @@ export function CartForm({
         ) {
           return
         }
-
         setCardsError('カード一覧の読み込みに失敗しました。時間をおいて再読み込みしてください。')
       })
       .finally(() => {
-        if (!controller.signal.aborted) {
-          setCardsLoading(false)
-        }
+        if (!controller.signal.aborted) setCardsLoading(false)
       })
 
     return () => controller.abort()
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, sort, submittedKeyword, enabledCategories.pokemon, enabledCategories.onepiece])
 
   const toggleCategory = (category: Category) => {
+    setCurrentPage(1)
     setEnabledCategories((current) => ({
       ...current,
       [category]: !current[category],
@@ -998,12 +939,12 @@ export function CartForm({
     setSubmittedKeyword('')
     setEnabledCategories({ pokemon: true, onepiece: true })
     setSort('price-desc')
-    setPagination({ page: 1, signature: '' })
+    setCurrentPage(1)
   }
 
   const handlePageChange = (nextPage: number) => {
     const safePage = Math.min(totalPages, Math.max(1, nextPage))
-    setPagination({ page: safePage, signature: pageSignature })
+    setCurrentPage(safePage)
     window.requestAnimationFrame(() => {
       listTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
@@ -1653,7 +1594,10 @@ export function CartForm({
               </Link>
               <select
                 value={sort}
-                onChange={(event) => setSort(event.target.value as SortKey)}
+                onChange={(event) => {
+                  setSort(event.target.value as SortKey)
+                  setCurrentPage(1)
+                }}
                 className="h-10 flex-1 rounded-full border border-[#2d2a20] bg-[#1c1b18] px-3 text-sm font-black text-[#ede8d5] outline-none transition-colors focus:border-[#c9a52e]"
                 aria-label="並び替え"
               >
@@ -1687,7 +1631,7 @@ export function CartForm({
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="font-black text-[#ede8d5]">
-                検索結果 {filteredCards.length.toLocaleString('ja-JP')}件 / 全{availableCards.length.toLocaleString('ja-JP')}件
+                検索結果 {totalCards.toLocaleString('ja-JP')}件
               </p>
               {hasSearchConditions && (
                 <button
@@ -1835,7 +1779,7 @@ export function CartForm({
 
         </div>
 
-        {hasRegisteredCards && filteredCards.length === 0 && (
+        {hasRegisteredCards && !cardsLoading && totalCards === 0 && (
           <div className="py-8 text-center text-sm text-[#7a6e55]">
             <p className="font-black text-[#ede8d5]">
               該当するカードがありません

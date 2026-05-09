@@ -15,16 +15,15 @@ export default async function CartPage() {
 
   if (!user) redirect('/login?next=/cart')
 
-  const { data: banners } = await supabase
-    .from('homepage_banners')
-    .select('*')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: false })
-
-  const { data: profile } = user
-    ? await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
-    : { data: null }
+  const [{ data: banners }, { data: profile }] = await Promise.all([
+    supabase
+      .from('homepage_banners')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false }),
+    supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+  ])
 
   return (
     <div className="flex min-h-screen flex-col bg-[#111110] text-[#ede8d5]">

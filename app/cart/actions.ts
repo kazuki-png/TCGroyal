@@ -136,20 +136,35 @@ export async function updateCheckoutProfileAction(
       }
     }
 
-    // identity_documents にアップサート（1ユーザー1レコード、再アップロードでリセット）
-    const { error: docError } = await admin.from('identity_documents').upsert(
-      {
-        user_id: user.id,
-        storage_path: newPath,
-        document_type: value(formData, 'id_type') || null,
-        status: 'pending',
-        uploaded_at: new Date().toISOString(),
-        reviewed_at: null,
-        reviewed_by: null,
-        deleted_at: null,
-      },
-      { onConflict: 'user_id' }
-    )
+    // identity_documents を更新（upsert の onConflict は信頼性に欠けるため、select → insert/update で確実に処理する）
+    const { data: existingDoc, error: selectError } = await admin
+      .from('identity_documents')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (selectError) {
+      return {
+        errors: {
+          id_image: `書類の記録に失敗しました: ${selectError.message}`,
+        },
+      }
+    }
+
+    const docPayload = {
+      user_id: user.id,
+      storage_path: newPath,
+      document_type: value(formData, 'id_type') || null,
+      status: 'pending',
+      uploaded_at: new Date().toISOString(),
+      reviewed_at: null,
+      reviewed_by: null,
+      deleted_at: null,
+    }
+
+    const { error: docError } = existingDoc
+      ? await admin.from('identity_documents').update(docPayload).eq('id', existingDoc.id)
+      : await admin.from('identity_documents').insert(docPayload)
 
     if (docError) {
       return {

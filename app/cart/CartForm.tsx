@@ -359,59 +359,128 @@ function Pagination({
   totalPages: number
   onPageChange: (page: number) => void
 }) {
+  const [inputValue, setInputValue] = useState(String(page))
+
+  useEffect(() => {
+    setInputValue(String(page))
+  }, [page])
+
   if (totalPages <= 1) return null
 
   const items = getPaginationItems(page, totalPages)
+  const navBtn = 'flex h-12 items-center gap-1 border-[#2d2a20] px-5 text-sm font-semibold text-[#7a6e55] transition-colors hover:bg-[#252420] disabled:cursor-not-allowed disabled:text-[#3a3628]'
+
+  const commitInput = () => {
+    const n = parseInt(inputValue, 10)
+    if (!Number.isNaN(n) && n >= 1 && n <= totalPages) {
+      onPageChange(n)
+    } else {
+      setInputValue(String(page))
+    }
+  }
 
   return (
-    <nav
-      aria-label="ページネーション"
-      className="mt-8 flex justify-center"
-    >
-      <div className="inline-flex overflow-hidden rounded-lg border border-[#2d2a20] bg-[#1c1b18] shadow-[0_12px_34px_rgba(0,0,0,0.32)]">
+    <nav aria-label="ページネーション" className="mt-8 flex flex-col items-center gap-3">
+      {/* Mobile compact: prev | input/total | next */}
+      <div className="inline-flex overflow-hidden rounded-lg border border-[#2d2a20] bg-[#1c1b18] shadow-[0_12px_34px_rgba(0,0,0,0.32)] sm:hidden">
         <button
           type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1}
-          className="flex h-12 items-center gap-1 border-r border-[#2d2a20] px-5 text-sm font-semibold text-[#7a6e55] transition-colors hover:bg-[#252420] disabled:cursor-not-allowed disabled:text-[#3a3628]"
+          className={`${navBtn} border-r`}
         >
           <span aria-hidden="true">‹</span>
           前へ
         </button>
-        {items.map((item, index) =>
-          item === 'ellipsis' ? (
-            <span
-              key={`ellipsis-${index}`}
-              className="flex h-12 min-w-12 items-center justify-center px-3 text-sm text-[#5a5243]"
-            >
-              ...
-            </span>
-          ) : (
-            <button
-              key={item}
-              type="button"
-              onClick={() => onPageChange(item)}
-              aria-current={item === page ? 'page' : undefined}
-              className={[
-                'h-12 min-w-12 px-4 text-sm transition-colors',
-                item === page
-                  ? 'border-x border-[#c9a52e] bg-[#0e0c09] font-black text-[#c9a52e]'
-                  : 'font-medium text-[#7a6e55] hover:bg-[#252420]',
-              ].join(' ')}
-            >
-              {item}
-            </button>
-          )
-        )}
+        <form
+          onSubmit={(e) => { e.preventDefault(); commitInput() }}
+          className="flex h-12 items-center gap-1.5 px-3"
+        >
+          <input
+            type="text"
+            inputMode="numeric"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onBlur={commitInput}
+            className="h-8 w-10 rounded border border-[#3a3528] bg-[#0f0e0b] text-center text-sm font-black text-[#c9a52e] outline-none focus:border-[#c9a52e]"
+            aria-label="ページ番号"
+          />
+          <span className="text-sm text-[#5a5243]">/ {totalPages}</span>
+        </form>
         <button
           type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={page === totalPages}
-          className="flex h-12 items-center gap-1 border-l border-[#2d2a20] px-5 text-sm font-semibold text-[#7a6e55] transition-colors hover:bg-[#252420] disabled:cursor-not-allowed disabled:text-[#3a3628]"
+          className={`${navBtn} border-l`}
         >
           次へ
           <span aria-hidden="true">›</span>
         </button>
+      </div>
+
+      {/* Desktop full pagination + page jump */}
+      <div className="hidden items-center gap-3 sm:flex">
+        <div className="inline-flex overflow-hidden rounded-lg border border-[#2d2a20] bg-[#1c1b18] shadow-[0_12px_34px_rgba(0,0,0,0.32)]">
+          <button
+            type="button"
+            onClick={() => onPageChange(page - 1)}
+            disabled={page === 1}
+            className={`${navBtn} border-r`}
+          >
+            <span aria-hidden="true">‹</span>
+            前へ
+          </button>
+          {items.map((item, index) =>
+            item === 'ellipsis' ? (
+              <span
+                key={`ellipsis-${index}`}
+                className="flex h-12 min-w-12 items-center justify-center px-3 text-sm text-[#5a5243]"
+              >
+                ...
+              </span>
+            ) : (
+              <button
+                key={item}
+                type="button"
+                onClick={() => onPageChange(item)}
+                aria-current={item === page ? 'page' : undefined}
+                className={[
+                  'h-12 min-w-12 px-4 text-sm transition-colors',
+                  item === page
+                    ? 'border-x border-[#c9a52e] bg-[#0e0c09] font-black text-[#c9a52e]'
+                    : 'font-medium text-[#7a6e55] hover:bg-[#252420]',
+                ].join(' ')}
+              >
+                {item}
+              </button>
+            )
+          )}
+          <button
+            type="button"
+            onClick={() => onPageChange(page + 1)}
+            disabled={page === totalPages}
+            className={`${navBtn} border-l`}
+          >
+            次へ
+            <span aria-hidden="true">›</span>
+          </button>
+        </div>
+
+        <form
+          onSubmit={(e) => { e.preventDefault(); commitInput() }}
+          className="flex items-center gap-1.5"
+        >
+          <input
+            type="text"
+            inputMode="numeric"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onBlur={commitInput}
+            className="h-9 w-12 rounded-lg border border-[#3a3528] bg-[#1c1b18] text-center text-sm font-black text-[#c9a52e] outline-none focus:border-[#c9a52e]"
+            aria-label="ページ番号"
+          />
+          <span className="text-sm text-[#5a5243]">/ {totalPages}</span>
+        </form>
       </div>
     </nav>
   )

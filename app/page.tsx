@@ -8,7 +8,6 @@ import { SiteHeader } from './components/SiteHeader'
 import type { Card, HomepageBanner } from '@/lib/types'
 
 const LINE_ASSESSMENT_URL = '#'
-const ONLINE_STORE_URL = '#'
 
 function LineIcon() {
   return (
@@ -52,29 +51,6 @@ function CartPurchaseIcon() {
   )
 }
 
-function StoreIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 48 48"
-      className="h-12 w-12"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="3"
-    >
-      <path d="M9 19h30" />
-      <path d="M11 19l2-10h22l2 10" />
-      <path d="M13 19v20h22V19" />
-      <path d="M19 39V27h10v12" />
-      <path d="M15 9v10" />
-      <path d="M21 9v10" />
-      <path d="M27 9v10" />
-      <path d="M33 9v10" />
-    </svg>
-  )
-}
 
 function ActionLink({
   href,
@@ -145,7 +121,7 @@ export default async function HomePage() {
       <HomeBannerCarousel banners={banners} />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-9">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           <ActionLink
             href="/cart"
             className="border-[#a99512] bg-[linear-gradient(135deg,#e3cf42_0%,#c2aa10_58%,#a48906_100%)] text-zinc-950 shadow-[0_12px_26px_rgba(142,119,12,0.2)]"
@@ -159,13 +135,6 @@ export default async function HomePage() {
             icon={<LineIcon />}
           >
             LINE査定
-          </ActionLink>
-          <ActionLink
-            href={ONLINE_STORE_URL}
-            className="border-[#b7141a] bg-[linear-gradient(135deg,#ff5a52_0%,#e51f27_55%,#a80f17_100%)] text-white shadow-[0_12px_26px_rgba(172,24,28,0.2)]"
-            icon={<StoreIcon />}
-          >
-            オンラインストア
           </ActionLink>
         </div>
         <HomeCardSection cards={cards} />

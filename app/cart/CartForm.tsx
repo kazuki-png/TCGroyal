@@ -893,7 +893,14 @@ export function CartForm({
       sort,
     })
     if (cats.length === 1) params.set('category', cats[0])
-    if (submittedKeyword) params.set('q', submittedKeyword)
+    if (submittedKeyword) {
+      const normalizedQ = submittedKeyword
+        .normalize('NFKC')
+        .toLowerCase()
+        .replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60))
+        .trim()
+      if (normalizedQ) params.set('q', normalizedQ)
+    }
 
     fetch(`/api/cards?${params}`, {
       headers: { Accept: 'application/json' },

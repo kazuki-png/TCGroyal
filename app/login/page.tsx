@@ -27,6 +27,13 @@ function ErrorBanner() {
   )
 }
 
+function NextInput() {
+  const searchParams = useSearchParams()
+  const next = searchParams.get('next') ?? ''
+  if (!next) return null
+  return <input type="hidden" name="next" value={next} />
+}
+
 export default function LoginPage() {
   const [state, action, pending] = useActionState(loginAction, undefined)
 
@@ -48,6 +55,7 @@ export default function LoginPage() {
             <Suspense>
               <RegisteredBanner />
               <ErrorBanner />
+              <NextInput />
             </Suspense>
 
             {state?.error && (

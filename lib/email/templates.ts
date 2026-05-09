@@ -57,7 +57,7 @@ export function acceptedEmailHtml(order: OrderWithItems): string {
     <p><span class="badge badge-accepted">受付済み</span></p>
 
     <h3>申込内容</h3>
-    <p><strong>申込番号：</strong> ${order.id.slice(0, 8).toUpperCase()}</p>
+    <p><strong>申込番号：</strong> ${order.order_number}</p>
     <table>
       <thead>
         <tr><th>カード名</th><th>グレード</th><th>枚数</th><th>買取価格</th></tr>
@@ -79,28 +79,21 @@ export function acceptedEmailHtml(order: OrderWithItems): string {
   return baseLayout('買取申込受付のお知らせ - TCG Royal', body)
 }
 
-export function waitingArrivalEmailHtml(order: OrderWithItems): string {
+export function inspectingEmailHtml(order: OrderWithItems): string {
   const body = `
     <p>TCG Royalをご利用いただきありがとうございます。</p>
-    <p>カードの発送準備ができましたら、以下の住所にお送りください。</p>
+    <p>お客様からお送りいただいたカードを受け取りました。これより査定を開始いたします。</p>
 
-    <p><span class="badge badge-waiting">到着待ち</span></p>
+    <p><span class="badge badge-waiting">査定中</span></p>
 
     <h3>申込番号</h3>
-    <p>${order.id.slice(0, 8).toUpperCase()}</p>
+    <p>${order.order_number}</p>
 
-    <h3>送付先</h3>
-    <p>
-      〒XXX-XXXX<br />
-      東京都XX区XX 1-1-1<br />
-      TCG Royal 買取担当宛
-    </p>
-
-    <p>カードが届き次第、査定を開始いたします。査定完了後にメールにてご連絡いたします。</p>
-    <p>※追跡番号をお控えいただくことをお勧めします。</p>
+    <p>査定結果が出次第、改めてご連絡いたします。今しばらくお待ちください。</p>
+    <p>※査定内容にご不明な点がございましたら、お気軽にお問い合わせください。</p>
   `
 
-  return baseLayout('発送のお願い - TCG Royal', body)
+  return baseLayout('カード受取のお知らせ - TCG Royal', body)
 }
 
 export function completedEmailHtml(order: OrderWithItems): string {
@@ -111,7 +104,7 @@ export function completedEmailHtml(order: OrderWithItems): string {
     <p><span class="badge badge-completed">完了</span></p>
 
     <h3>申込番号</h3>
-    <p>${order.id.slice(0, 8).toUpperCase()}</p>
+    <p>${order.order_number}</p>
 
     <h3>振込金額</h3>
     <p class="amount">¥${order.total_amount.toLocaleString()}</p>

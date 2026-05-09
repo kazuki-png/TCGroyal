@@ -17,5 +17,10 @@ export async function loginAction(
     return { error: 'メールアドレスまたはパスワードが正しくありません' }
   }
 
-  redirect('/mypage')
+  const next = (formData.get('next') as string | null)?.trim() ?? ''
+  const destination =
+    next.startsWith('/') && !next.startsWith('//') && next !== '/login' && next !== '/register'
+      ? next
+      : '/mypage'
+  redirect(destination)
 }

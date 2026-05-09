@@ -3,7 +3,6 @@ import { Geist } from 'next/font/google'
 import { Noto_Serif_JP } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
-import { PageViewTracker } from '@/app/components/PageViewTracker'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
@@ -33,7 +32,6 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-screen bg-[#111110] text-[#ede8d5] antialiased">
-        <PageViewTracker />
         {children}
         <Analytics />
         <SpeedInsights />

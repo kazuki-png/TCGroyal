@@ -21,11 +21,6 @@ type Summary = {
   totalAmount: number
   averageUnitPrice: number
   totalQuantity: number
-  pvCount: number
-}
-
-type DailyPvRow = {
-  view_count: number | null
 }
 
 type Comparison = {
@@ -155,33 +150,21 @@ async function loadSummary(
   admin: ReturnType<typeof createAdminClient>,
   period: { start: Date; end: Date }
 ): Promise<Summary> {
-  const [{ data: orders }, { data: pvRows, error: pvError }] = await Promise.all([
-    admin
-      .from('orders')
-      .select('id, status, total_amount, created_at, order_items(quantity)')
-      .gte('created_at', period.start.toISOString())
-      .lt('created_at', period.end.toISOString()),
-    admin
-      .from('page_view_daily_counts')
-      .select('view_count')
-      .gte('day', tokyoDayKey(period.start))
-      .lte('day', tokyoDayKey(period.end)),
-  ])
+  const { data: orders } = await admin
+    .from('orders')
+    .select('id, status, total_amount, created_at, order_items(quantity)')
+    .gte('created_at', period.start.toISOString())
+    .lt('created_at', period.end.toISOString())
 
   const rows = (orders ?? []) as DashboardOrder[]
-  const dailyPvRows = (pvRows ?? []) as DailyPvRow[]
   const totalAmount = rows.reduce((sum, order) => sum + (order.total_amount ?? 0), 0)
   const totalQuantity = quantityTotal(rows)
-  const pvCount = pvError
-    ? 0
-    : dailyPvRows.reduce((sum, row) => sum + (row.view_count ?? 0), 0)
 
   return {
     orderCount: rows.length,
     totalAmount,
     averageUnitPrice: totalQuantity > 0 ? Math.round(totalAmount / totalQuantity) : 0,
     totalQuantity,
-    pvCount,
   }
 }
 
@@ -410,18 +393,6 @@ export default async function AdminDashboardPage({
             previousMonth.averageUnitPrice
           )}
         />
-        <MetricCard
-          label="Total PV"
-          value={current.pvCount.toLocaleString('ja-JP')}
-          description="自前PV計測。Vercel Analyticsも併用中"
-          accentClassName="bg-sky-400"
-          comparisons={comparisonRows(
-            current.pvCount,
-            previousDay.pvCount,
-            previousWeek.pvCount,
-            previousMonth.pvCount
-          )}
-        />
       </section>
 
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -454,11 +425,6 @@ export default async function AdminDashboardPage({
             ))}
           </div>
 
-          <div className="mt-4 rounded-lg border border-zinc-800 bg-black p-3">
-            <p className="text-xs font-black leading-relaxed text-zinc-400">
-              PVは自前のpage_viewsテーブルにも保存しつつ、Vercel Web AnalyticsとSpeed Insightsも併用しています。管理画面の総PVは自前計測値です。
-            </p>
-          </div>
         </section>
 
         <StatusPanel statusCounts={statusCounts} />

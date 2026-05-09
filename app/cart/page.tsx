@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { SiteFooter } from '@/app/components/SiteFooter'
 import { SiteHeader } from '@/app/components/SiteHeader'
@@ -11,6 +12,8 @@ export default async function CartPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  if (!user) redirect('/login?next=/cart')
 
   const { data: banners } = await supabase
     .from('homepage_banners')

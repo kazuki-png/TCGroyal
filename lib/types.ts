@@ -29,7 +29,7 @@ export const ORDER_STATUS_FLOW: OrderStatus[] = [
 
 export const EMAIL_TRIGGER_STATUSES: OrderStatus[] = [
   'accepted',
-  'waiting_arrival',
+  'inspecting',
   'completed',
 ]
 

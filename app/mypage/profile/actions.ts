@@ -153,11 +153,16 @@ export async function updateProfileAction(
 
   if (file && file.size > 0) {
     const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-    const path = `${user.id}/id_image.${ext}`
+    const newPath = `${user.id}/id_image.${ext}`
     const admin = createAdminClient()
+
+    if (idImageUrl && idImageUrl !== newPath) {
+      await admin.storage.from('identity-images').remove([idImageUrl])
+    }
+
     const { error: uploadError } = await admin.storage
       .from('identity-images')
-      .upload(path, Buffer.from(await file.arrayBuffer()), {
+      .upload(newPath, Buffer.from(await file.arrayBuffer()), {
         contentType: file.type || 'image/jpeg',
         upsert: true,
       })
@@ -170,7 +175,44 @@ export async function updateProfileAction(
       }
     }
 
-    idImageUrl = path
+    const { data: existingDoc, error: selectError } = await admin
+      .from('identity_documents')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (selectError) {
+      return {
+        errors: {
+          id_image: `書類の記録に失敗しました: ${selectError.message}`,
+        },
+      }
+    }
+
+    const docPayload = {
+      user_id: user.id,
+      storage_path: newPath,
+      document_type: value(formData, 'id_type') || null,
+      status: 'pending',
+      uploaded_at: new Date().toISOString(),
+      reviewed_at: null,
+      reviewed_by: null,
+      deleted_at: null,
+    }
+
+    const { error: docError } = existingDoc
+      ? await admin.from('identity_documents').update(docPayload).eq('id', existingDoc.id)
+      : await admin.from('identity_documents').insert(docPayload)
+
+    if (docError) {
+      return {
+        errors: {
+          id_image: `書類の記録に失敗しました: ${docError.message}`,
+        },
+      }
+    }
+
+    idImageUrl = newPath
     identityVerified = false
   }
 

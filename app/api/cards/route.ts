@@ -24,7 +24,10 @@ export async function GET(request: Request) {
   }
 
   if (q) {
-    query = query.or(`name.ilike.%${q}%,card_number.ilike.%${q}%`)
+    const tokens = q.split(/\s+/).filter(Boolean)
+    for (const token of tokens) {
+      query = query.or(`name.ilike.%${token}%,card_number.ilike.%${token}%`)
+    }
   }
 
   if (sort === 'price-asc') {

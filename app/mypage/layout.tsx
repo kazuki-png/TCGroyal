@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { LogoutButton } from '@/app/components/LogoutButton'
@@ -21,7 +22,11 @@ export default async function MypageLayout({
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) redirect('/login')
+  if (!user) {
+    const headersList = await headers()
+    const pathname = headersList.get('x-pathname') ?? '/mypage'
+    redirect(`/login?next=${encodeURIComponent(pathname)}`)
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0b0a08] text-[#ede8d5]">

@@ -1,12 +1,12 @@
 import { resend } from './resend'
 import {
   acceptedEmailHtml,
-  waitingArrivalEmailHtml,
+  inspectingEmailHtml,
   completedEmailHtml,
 } from './templates'
 import type { OrderStatus, OrderWithItems } from '@/lib/types'
 
-const FROM = 'TCG Royal <noreply@tcg-royal.com>'
+const FROM = 'TCG Royal <onboarding@resend.dev>'
 
 export async function sendStatusEmail(
   toEmail: string,
@@ -20,12 +20,12 @@ export async function sendStatusEmail(
       subject: '【TCG Royal】買取申込を受け付けました',
       html: acceptedEmailHtml(order),
     })
-  } else if (status === 'waiting_arrival') {
+  } else if (status === 'inspecting') {
     await resend.emails.send({
       from: FROM,
       to: toEmail,
-      subject: '【TCG Royal】カードの発送をお願いいたします',
-      html: waitingArrivalEmailHtml(order),
+      subject: '【TCG Royal】カードを受け取りました',
+      html: inspectingEmailHtml(order),
     })
   } else if (status === 'completed') {
     await resend.emails.send({

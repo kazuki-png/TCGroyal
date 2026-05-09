@@ -49,13 +49,16 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isUserProtectedRoute && !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('next', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
   if (isAuthPage && user) {
     return NextResponse.redirect(new URL('/mypage', request.url))
   }
 
+  supabaseResponse.headers.set('x-pathname', pathname)
   return supabaseResponse
 }
 

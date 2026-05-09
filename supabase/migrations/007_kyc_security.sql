@@ -65,3 +65,17 @@ create policy "identity-images: ユーザーは自分のフォルダにのみア
 
 -- SELECT / UPDATE / DELETE ポリシーは意図的に設定しない
 -- ファイルへのアクセスは service_role を使うサーバー側 API のみが signed URL を発行する
+
+-- =============================================
+-- 既存アップロード済みデータのバックフィル
+-- このマイグレーション適用前に提出した書類を identity_documents に移行する
+-- =============================================
+insert into public.identity_documents (user_id, storage_path, document_type, status)
+select
+  p.id,
+  p.id_image_url,
+  p.id_type,
+  case when p.identity_verified then 'verified' else 'pending' end
+from public.profiles p
+where p.id_image_url is not null
+on conflict (user_id) do nothing;

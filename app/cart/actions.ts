@@ -137,7 +137,7 @@ export async function updateCheckoutProfileAction(
     }
 
     // identity_documents にアップサート（1ユーザー1レコード、再アップロードでリセット）
-    await admin.from('identity_documents').upsert(
+    const { error: docError } = await admin.from('identity_documents').upsert(
       {
         user_id: user.id,
         storage_path: newPath,
@@ -150,6 +150,14 @@ export async function updateCheckoutProfileAction(
       },
       { onConflict: 'user_id' }
     )
+
+    if (docError) {
+      return {
+        errors: {
+          id_image: `書類の記録に失敗しました: ${docError.message}`,
+        },
+      }
+    }
 
     idImageUrl = newPath
     identityVerified = false

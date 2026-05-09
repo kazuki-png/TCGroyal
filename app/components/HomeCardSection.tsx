@@ -342,7 +342,7 @@ export function HomeCardSection({ cards }: { cards: Card[] }) {
                     )}
                   </div>
                   <div className="mt-3">
-                    <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-black leading-snug text-[#ede8d5]">
+                    <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-black leading-snug text-[#ede8d5]" title={card.name}>
                       {card.name}
                     </h3>
                     <div className="mt-2 flex items-center justify-between gap-2">
@@ -354,7 +354,7 @@ export function HomeCardSection({ cards }: { cards: Card[] }) {
                       </span>
                     </div>
                     <p className="mt-2 whitespace-nowrap text-xl font-black text-red-400">
-                      ¥{card.buy_price.toLocaleString('ja-JP')}
+                      <span className="text-sm">¥</span>{card.buy_price.toLocaleString('ja-JP')}
                     </p>
                   </div>
                 </article>

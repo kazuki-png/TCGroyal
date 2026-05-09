@@ -771,6 +771,7 @@ export function CartForm({
     src: StaticImageData | string
     alt: string
     thumbnailSrc: string
+    price: number
   }>()
   const [previewStatus, setPreviewStatus] = useState<
     'loading' | 'loaded' | 'error'
@@ -825,11 +826,12 @@ export function CartForm({
 
   const getSelectedQuantity = (cardId: string) => selectedQuantities[cardId] ?? 1
 
-  const openPreview = (src: StaticImageData | string, alt: string, cachedSrc = '') => {
+  const openPreview = (src: StaticImageData | string, alt: string, cachedSrc = '', price = 0) => {
     setPreview({
       alt,
       src,
       thumbnailSrc: cachedSrc || lowResolutionPreviewUrl(src),
+      price,
     })
     setPreviewStatus('loading')
   }
@@ -1190,14 +1192,14 @@ export function CartForm({
                     alt={item.card.name}
                     onClick={
                       imageSrc
-                        ? (cachedSrc) => openPreview(imageSrc, item.card.name, cachedSrc)
+                        ? (cachedSrc) => openPreview(imageSrc, item.card.name, cachedSrc, item.card.buy_price)
                         : undefined
                     }
                   />
                   <div className="min-w-0 flex-1">
                     <div className="grid grid-cols-[1fr_auto] items-start gap-x-2">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-[#ede8d5]">
+                        <p className="truncate text-sm font-black text-[#ede8d5]" title={item.card.name}>
                           {item.card.name}
                         </p>
                         <span className="mt-1 inline-flex rounded-full bg-[#2d2a20] px-4 py-2 text-xs font-black text-[#c9a52e]">
@@ -1212,7 +1214,7 @@ export function CartForm({
                       </div>
                     </div>
                     <p className="mt-2 whitespace-nowrap text-2xl font-black leading-none text-red-400 sm:text-3xl">
-                      ¥{item.card.buy_price.toLocaleString()}
+                      <span className="text-base sm:text-lg">¥</span>{item.card.buy_price.toLocaleString()}
                     </p>
                     <div className="mt-3 flex items-center gap-2">
                       <QuantityControl
@@ -1471,10 +1473,10 @@ export function CartForm({
                       {item.quantity}
                     </td>
                     <td className="whitespace-nowrap px-1 py-3 text-right font-semibold text-[#ede8d5] sm:px-4">
-                      ¥{item.card.buy_price.toLocaleString()}
+                      <span className="text-[0.8em]">¥</span>{item.card.buy_price.toLocaleString()}
                     </td>
                     <td className="whitespace-nowrap px-2 py-3 text-right font-black text-[#c9a52e] sm:px-4">
-                      ¥{(item.card.buy_price * item.quantity).toLocaleString()}
+                      <span className="text-[0.8em]">¥</span>{(item.card.buy_price * item.quantity).toLocaleString()}
                     </td>
                   </tr>
                 ))}
@@ -1485,7 +1487,7 @@ export function CartForm({
                     合計
                   </td>
                   <td className="whitespace-nowrap px-2 py-3 text-right text-sm font-black text-[#f6f0dc] sm:px-4 sm:text-base">
-                    ¥{totalAmount.toLocaleString()}
+                    <span className="text-[0.8em]">¥</span>{totalAmount.toLocaleString()}
                   </td>
                 </tr>
               </tfoot>
@@ -1783,14 +1785,14 @@ export function CartForm({
                   alt={card.name}
                   onClick={
                     imageSrc
-                      ? (cachedSrc) => openPreview(imageSrc, card.name, cachedSrc)
+                      ? (cachedSrc) => openPreview(imageSrc, card.name, cachedSrc, card.buy_price)
                       : undefined
                   }
                 />
                 <div className="min-w-0 flex-1">
                   <div className="grid grid-cols-[1fr_auto] items-start gap-x-2">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-[#ede8d5]">
+                      <p className="truncate text-sm font-black text-[#ede8d5]" title={card.name}>
                         {card.name}
                       </p>
                       <span className="mt-1 inline-flex rounded-full bg-[#2d2a20] px-4 py-2 text-xs font-black text-[#c9a52e]">
@@ -1805,7 +1807,7 @@ export function CartForm({
                     </div>
                   </div>
                   <p className="mt-2 whitespace-nowrap text-2xl font-black leading-none text-red-400 sm:text-3xl">
-                    ¥{card.buy_price.toLocaleString()}
+                    <span className="text-base sm:text-lg">¥</span>{card.buy_price.toLocaleString()}
                   </p>
                   <div className="mt-3 flex items-center gap-2">
                     <QuantityControl
@@ -1948,44 +1950,50 @@ export function CartForm({
             閉じる
           </button>
           <div
-            className="relative aspect-[5/7] max-w-sm overflow-hidden rounded-2xl border border-[#2d2a20] bg-[#11100d] shadow-[0_24px_80px_rgba(0,0,0,0.65)]"
-            style={{
-              width: 'min(92vw, calc(86vh * 5 / 7), 420px)',
-            }}
+            className="overflow-hidden rounded-2xl border border-[#2d2a20] bg-[#11100d] shadow-[0_24px_80px_rgba(0,0,0,0.65)]"
+            style={{ width: 'min(92vw, calc(86vh * 5 / 7), 420px)' }}
             onClick={(event) => event.stopPropagation()}
           >
-            {preview.thumbnailSrc && (
-              <div
-                aria-hidden="true"
-                className="absolute inset-0 bg-contain bg-center bg-no-repeat"
-                style={{
-                  backgroundImage: cssImageUrl(preview.thumbnailSrc),
-                }}
+            <div className="relative aspect-[5/7]">
+              {preview.thumbnailSrc && (
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 bg-contain bg-center bg-no-repeat"
+                  style={{ backgroundImage: cssImageUrl(preview.thumbnailSrc) }}
+                />
+              )}
+              <Image
+                key={imageSourceUrl(preview.src)}
+                src={preview.src}
+                alt={preview.alt}
+                fill
+                unoptimized
+                sizes="(max-width: 640px) 92vw, 420px"
+                onError={() => setPreviewStatus('error')}
+                onLoad={() => setPreviewStatus('loaded')}
+                className={`object-contain transition-opacity duration-200 ${
+                  previewStatus === 'loaded' ? 'opacity-100' : 'opacity-0'
+                }`}
               />
-            )}
-            <Image
-              key={imageSourceUrl(preview.src)}
-              src={preview.src}
-              alt={preview.alt}
-              fill
-              unoptimized
-              sizes="(max-width: 640px) 92vw, 420px"
-              onError={() => setPreviewStatus('error')}
-              onLoad={() => setPreviewStatus('loaded')}
-              className={`object-contain transition-opacity duration-200 ${
-                previewStatus === 'loaded' ? 'opacity-100' : 'opacity-0'
-              }`}
-            />
-            {previewStatus === 'loading' && (
-              <div className="absolute inset-x-4 bottom-4 rounded-full bg-black/65 px-4 py-2 text-center text-xs font-black text-[#ede8d5]">
-                高画質画像を読み込み中...
-              </div>
-            )}
-            {previewStatus === 'error' && (
-              <div className="absolute inset-x-4 bottom-4 rounded-2xl bg-black/70 px-4 py-3 text-center text-xs font-black leading-relaxed text-[#ede8d5]">
-                高画質画像を読み込めませんでした。プレビュー画像を表示しています。
-              </div>
-            )}
+              {previewStatus === 'loading' && (
+                <div className="absolute inset-x-4 bottom-4 rounded-full bg-black/65 px-4 py-2 text-center text-xs font-black text-[#ede8d5]">
+                  高画質画像を読み込み中...
+                </div>
+              )}
+              {previewStatus === 'error' && (
+                <div className="absolute inset-x-4 bottom-4 rounded-2xl bg-black/70 px-4 py-3 text-center text-xs font-black leading-relaxed text-[#ede8d5]">
+                  高画質画像を読み込めませんでした。プレビュー画像を表示しています。
+                </div>
+              )}
+            </div>
+            <div className="border-t border-[#2d2a20] px-4 py-3">
+              <p className="text-sm font-black leading-snug text-[#ede8d5]">{preview.alt}</p>
+              {preview.price > 0 && (
+                <p className="mt-1 text-xl font-black leading-none text-red-400">
+                  <span className="text-sm">¥</span>{preview.price.toLocaleString('ja-JP')}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}

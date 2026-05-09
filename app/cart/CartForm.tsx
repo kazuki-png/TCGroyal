@@ -291,12 +291,19 @@ function CardImage({
 }: {
   src: StaticImageData | string | null
   alt: string
-  onClick?: () => void
+  onClick?: (cachedSrc: string) => void
 }) {
+  const btnRef = useRef<HTMLButtonElement>(null)
+
   return (
     <button
       type="button"
-      onClick={onClick}
+      ref={btnRef}
+      onClick={() => {
+        if (!onClick) return
+        const img = btnRef.current?.querySelector('img')
+        onClick(img?.currentSrc ?? '')
+      }}
       disabled={!src}
       className="relative h-[178px] w-[124px] shrink-0 overflow-hidden rounded-lg border border-[#2d2a20] bg-[#1e1c17] shadow-[0_12px_28px_rgba(0,0,0,0.28)] sm:h-[210px] sm:w-[146px]"
       aria-label={`${alt}を拡大表示`}
@@ -818,11 +825,11 @@ export function CartForm({
 
   const getSelectedQuantity = (cardId: string) => selectedQuantities[cardId] ?? 1
 
-  const openPreview = (src: StaticImageData | string, alt: string) => {
+  const openPreview = (src: StaticImageData | string, alt: string, cachedSrc = '') => {
     setPreview({
       alt,
       src,
-      thumbnailSrc: lowResolutionPreviewUrl(src),
+      thumbnailSrc: cachedSrc || lowResolutionPreviewUrl(src),
     })
     setPreviewStatus('loading')
   }
@@ -1183,7 +1190,7 @@ export function CartForm({
                     alt={item.card.name}
                     onClick={
                       imageSrc
-                        ? () => openPreview(imageSrc, item.card.name)
+                        ? (cachedSrc) => openPreview(imageSrc, item.card.name, cachedSrc)
                         : undefined
                     }
                   />
@@ -1776,7 +1783,7 @@ export function CartForm({
                   alt={card.name}
                   onClick={
                     imageSrc
-                      ? () => openPreview(imageSrc, card.name)
+                      ? (cachedSrc) => openPreview(imageSrc, card.name, cachedSrc)
                       : undefined
                   }
                 />

@@ -46,23 +46,33 @@ export async function GET(request: Request) {
   const grade = searchParams.get('grade') || ''
 
   const admin = createAdminClient()
-  let query = admin
-    .from('reference_prices_deduped')
-    .select('category, card_name, card_number, grade, price, site_name, fetched_date')
-    .eq('fetched_date', date)
-    .order('price', { ascending: false })
-    .range(0, 99999)
 
-  if (category) query = query.eq('category', category)
-  if (site) query = query.eq('site_name', site)
-  if (card_name) query = query.ilike('card_name', `%${card_name}%`)
-  if (card_number) query = query.ilike('card_number', `%${card_number}%`)
-  if (grade) query = query.eq('grade', grade)
+  // db.max-rows の上限を回避するため 1000 件ずつページネーションして全件取得
+  const PAGE = 1000
+  const rows: Row[] = []
+  let from = 0
 
-  const { data, error } = await query
-  if (error) return Response.json({ error: error.message }, { status: 500 })
+  while (true) {
+    let q = admin
+      .from('reference_prices_deduped')
+      .select('category, card_name, card_number, grade, price, site_name, fetched_date')
+      .eq('fetched_date', date)
+      .order('price', { ascending: false })
+      .range(from, from + PAGE - 1)
 
-  const rows = (data ?? []) as Row[]
+    if (category) q = q.eq('category', category)
+    if (site) q = q.eq('site_name', site)
+    if (card_name) q = q.ilike('card_name', `%${card_name}%`)
+    if (card_number) q = q.ilike('card_number', `%${card_number}%`)
+    if (grade) q = q.eq('grade', grade)
+
+    const { data, error } = await q
+    if (error) return Response.json({ error: error.message }, { status: 500 })
+    if (!data || data.length === 0) break
+    rows.push(...(data as Row[]))
+    if (data.length < PAGE) break
+    from += PAGE
+  }
 
   const header = 'name,category,card_number,grade,buy_price,image_url'
   const lines = rows.map((r) =>

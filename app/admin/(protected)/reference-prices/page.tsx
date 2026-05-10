@@ -66,23 +66,33 @@ export default async function ReferencePricesPage({
   const grades = (gradeRows ?? []).map((r: { grade: string }) => r.grade).filter(Boolean)
   const sites = (siteRows ?? []).map((r: { site_name: string }) => r.site_name).filter(Boolean)
 
-  let query = admin
-    .from('reference_prices_deduped')
-    .select('id, category, card_name, card_number, grade, price, site_name, fetched_date', {
-      count: 'exact',
-    })
-    .eq('fetched_date', date)
-    .order('price', { ascending: false })
-    .range(0, 99999)
+  // db.max-rows の上限を回避するため 1000 件ずつページネーションして全件取得
+  const PAGE = 1000
+  const rows: ReferencePriceRow[] = []
+  let from = 0
 
-  if (category) query = query.eq('category', category)
-  if (site) query = query.eq('site_name', site)
-  if (card_name) query = query.ilike('card_name', `%${card_name}%`)
-  if (card_number) query = query.ilike('card_number', `%${card_number}%`)
-  if (grade) query = query.eq('grade', grade)
+  while (true) {
+    let q = admin
+      .from('reference_prices_deduped')
+      .select('id, category, card_name, card_number, grade, price, site_name, fetched_date')
+      .eq('fetched_date', date)
+      .order('price', { ascending: false })
+      .range(from, from + PAGE - 1)
 
-  const { data: records, count } = await query
-  const rows = (records ?? []) as ReferencePriceRow[]
+    if (category) q = q.eq('category', category)
+    if (site) q = q.eq('site_name', site)
+    if (card_name) q = q.ilike('card_name', `%${card_name}%`)
+    if (card_number) q = q.ilike('card_number', `%${card_number}%`)
+    if (grade) q = q.eq('grade', grade)
+
+    const { data } = await q
+    if (!data || data.length === 0) break
+    rows.push(...(data as ReferencePriceRow[]))
+    if (data.length < PAGE) break
+    from += PAGE
+  }
+
+  const count = rows.length
 
   const exportParams = new URLSearchParams({ date })
   if (category) exportParams.set('category', category)

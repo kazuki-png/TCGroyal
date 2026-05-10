@@ -109,13 +109,6 @@ async function fetchTorecabank(
     let foundAny = false
 
     for (const liMatch of liMatches) {
-      // PC用・モバイル用で同一アイテムが2回出力されるため data-id で重複排除
-      const dataIdMatch = liMatch[0].match(/data-id="(\d+)"/)
-      if (dataIdMatch) {
-        if (seenIds.has(dataIdMatch[1])) continue
-        seenIds.add(dataIdMatch[1])
-      }
-
       const block = liMatch[1]
 
       // カード名＋カード番号 (p.name の中の空白区切り: token[0]=card_name, token[2]=card_number)
@@ -140,6 +133,13 @@ async function fetchTorecabank(
       if (!price || price <= 0) continue
 
       if (!card_name) continue
+
+      // PC用・モバイル用で同一アイテムが2回出力されるため重複排除
+      // data-id があればそれを使い、なければカード名+価格をフォールバックキーとして使う
+      const dataIdMatch = liMatch[0].match(/data-id="(\d+)"/)
+      const dedupKey = dataIdMatch ? dataIdMatch[1] : `name::${card_name}::${price}`
+      if (seenIds.has(dedupKey)) continue
+      seenIds.add(dedupKey)
 
       records.push({
         category,

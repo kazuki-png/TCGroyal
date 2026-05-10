@@ -388,16 +388,36 @@ export async function importCardsCsvContent({
 
   // 型番+グレード+名前の3つが一致すれば価格のみ更新・なければ新規挿入
   const cardNumbers = [...new Set(rows.map((r) => r.card_number).filter(Boolean))] as string[]
+  const noNumberNames = [...new Set(rows.filter((r) => !r.card_number).map((r) => r.name))]
 
   let existingCards: { id: string; card_number: string | null; grade: string; name: string }[] = []
+  const PAGE = 1000
+
+  // 型番ありカードを型番で一括取得
   if (cardNumbers.length > 0) {
-    const PAGE = 1000
     let from = 0
     while (true) {
       const { data } = await admin
         .from('cards')
         .select('id, card_number, grade, name')
         .in('card_number', cardNumbers)
+        .range(from, from + PAGE - 1)
+      if (!data || data.length === 0) break
+      existingCards.push(...data)
+      if (data.length < PAGE) break
+      from += PAGE
+    }
+  }
+
+  // 型番なしカードを名前で一括取得（card_number IS NULL のもの）
+  if (noNumberNames.length > 0) {
+    let from = 0
+    while (true) {
+      const { data } = await admin
+        .from('cards')
+        .select('id, card_number, grade, name')
+        .is('card_number', null)
+        .in('name', noNumberNames)
         .range(from, from + PAGE - 1)
       if (!data || data.length === 0) break
       existingCards.push(...data)

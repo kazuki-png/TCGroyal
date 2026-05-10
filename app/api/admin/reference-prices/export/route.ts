@@ -44,6 +44,7 @@ export async function GET(request: Request) {
   const card_name = searchParams.get('card_name') || ''
   const card_number = searchParams.get('card_number') || ''
   const grade = searchParams.get('grade') || ''
+  const has_number = searchParams.get('has_number') || ''
 
   const admin = createAdminClient()
 
@@ -65,6 +66,7 @@ export async function GET(request: Request) {
     if (card_name) q = q.ilike('card_name', `%${card_name}%`)
     if (card_number) q = q.ilike('card_number', `%${card_number}%`)
     if (grade) q = q.eq('grade', grade)
+    if (has_number === '1') q = q.not('card_number', 'is', null)
 
     const { data, error } = await q
     if (error) return Response.json({ error: error.message }, { status: 500 })

@@ -55,6 +55,7 @@ export default async function ReferencePricesPage({
   const card_name = normalize(params.card_name)
   const card_number = normalize(params.card_number)
   const grade = normalize(params.grade)
+  const has_number = normalize(params.has_number) // '1' = 型番ありのみ
 
   const admin = createAdminClient()
 
@@ -84,6 +85,7 @@ export default async function ReferencePricesPage({
     if (card_name) q = q.ilike('card_name', `%${card_name}%`)
     if (card_number) q = q.ilike('card_number', `%${card_number}%`)
     if (grade) q = q.eq('grade', grade)
+    if (has_number === '1') q = q.not('card_number', 'is', null)
 
     const { data } = await q
     if (!data || data.length === 0) break
@@ -100,6 +102,7 @@ export default async function ReferencePricesPage({
   if (card_name) exportParams.set('card_name', card_name)
   if (card_number) exportParams.set('card_number', card_number)
   if (grade) exportParams.set('grade', grade)
+  if (has_number) exportParams.set('has_number', has_number)
 
   const inputClass =
     'rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500'
@@ -136,6 +139,14 @@ export default async function ReferencePricesPage({
             <option value="">すべて</option>
             <option value="pokemon">ポケモン</option>
             <option value="onepiece">ワンピース</option>
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-black text-zinc-400">型番</label>
+          <select name="has_number" defaultValue={has_number} className={selectClass}>
+            <option value="">すべて</option>
+            <option value="1">型番ありのみ</option>
           </select>
         </div>
 

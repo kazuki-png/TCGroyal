@@ -391,11 +391,19 @@ export async function importCardsCsvContent({
 
   let existingCards: { id: string; card_number: string | null; grade: string; name: string }[] = []
   if (cardNumbers.length > 0) {
-    const { data } = await admin
-      .from('cards')
-      .select('id, card_number, grade, name')
-      .in('card_number', cardNumbers)
-    existingCards = data ?? []
+    const PAGE = 1000
+    let from = 0
+    while (true) {
+      const { data } = await admin
+        .from('cards')
+        .select('id, card_number, grade, name')
+        .in('card_number', cardNumbers)
+        .range(from, from + PAGE - 1)
+      if (!data || data.length === 0) break
+      existingCards.push(...data)
+      if (data.length < PAGE) break
+      from += PAGE
+    }
   }
 
   const existingMap = new Map(

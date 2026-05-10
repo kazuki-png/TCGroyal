@@ -42,7 +42,9 @@ async function fetchShinsoku(
     if (!res.ok) break
 
     const json = await res.json()
-    const items: unknown[] = Array.isArray(json.items) ? json.items : []
+    // レスポンス構造: { ok, data: { items, has_more } }
+    const payload = json.data ?? json
+    const items: unknown[] = Array.isArray(payload.items) ? payload.items : []
 
     for (const item of items) {
       const i = item as Record<string, unknown>
@@ -65,7 +67,7 @@ async function fetchShinsoku(
       })
     }
 
-    if (!json.has_more) break
+    if (!payload.has_more) break
     page++
     await randomDelay()
   }

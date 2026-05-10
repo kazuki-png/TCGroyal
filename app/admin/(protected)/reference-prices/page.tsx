@@ -58,13 +58,13 @@ export default async function ReferencePricesPage({
 
   const admin = createAdminClient()
 
-  // フィルター選択肢を実データから取得
+  // フィルター選択肢を DISTINCT ビューから取得（行制限を回避）
   const [{ data: gradeRows }, { data: siteRows }] = await Promise.all([
-    admin.from('reference_prices').select('grade').order('grade'),
-    admin.from('reference_prices').select('site_name').order('site_name'),
+    admin.from('reference_price_distinct_grades').select('grade'),
+    admin.from('reference_price_distinct_sites').select('site_name'),
   ])
-  const grades = [...new Set((gradeRows ?? []).map((r: { grade: string }) => r.grade))].filter(Boolean).sort()
-  const sites = [...new Set((siteRows ?? []).map((r: { site_name: string }) => r.site_name))].filter(Boolean).sort()
+  const grades = (gradeRows ?? []).map((r: { grade: string }) => r.grade).filter(Boolean)
+  const sites = (siteRows ?? []).map((r: { site_name: string }) => r.site_name).filter(Boolean)
 
   let query = admin
     .from('reference_prices_deduped')

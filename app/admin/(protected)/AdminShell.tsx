@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: '/admin/cards', label: 'カード管理', match: 'prefix' },
   { href: '/admin/banners', label: 'バナー管理', match: 'prefix' },
   { href: '/admin/users', label: 'ユーザー', match: 'prefix' },
+  { href: '/admin/reference-prices', label: '参考価格', match: 'prefix' },
 ] as const
 
 function isActive(pathname: string, href: string, match: 'exact' | 'prefix') {

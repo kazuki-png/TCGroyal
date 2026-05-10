@@ -386,17 +386,48 @@ export async function importCardsCsvContent({
     message: 'CSVを登録しています...',
   })
 
-  const { error } = await admin.from('cards').insert(rows)
-  if (error) throw new Error(`CSV取込に失敗しました: ${error.message}`)
+  // 型番+グレードで既存カードを検索し、一致すれば価格のみ更新・なければ新規挿入
+  const cardNumbers = [...new Set(rows.map((r) => r.card_number).filter(Boolean))] as string[]
+
+  let existingCards: { id: string; card_number: string | null; grade: string }[] = []
+  if (cardNumbers.length > 0) {
+    const { data } = await admin
+      .from('cards')
+      .select('id, card_number, grade')
+      .in('card_number', cardNumbers)
+    existingCards = data ?? []
+  }
+
+  const existingMap = new Map(
+    existingCards.map((c) => [`${c.card_number}::${c.grade}`, c.id])
+  )
+
+  const toInsert = rows.filter((r) => !existingMap.has(`${r.card_number}::${r.grade}`))
+  const toUpdate = rows
+    .filter((r) => existingMap.has(`${r.card_number}::${r.grade}`))
+    .map((r) => ({ id: existingMap.get(`${r.card_number}::${r.grade}`)!, buy_price: r.buy_price }))
+
+  if (toInsert.length > 0) {
+    const { error } = await admin.from('cards').insert(toInsert)
+    if (error) throw new Error(`CSV取込（新規）に失敗しました: ${error.message}`)
+  }
+
+  for (const { id, buy_price } of toUpdate) {
+    const { error } = await admin.from('cards').update({ buy_price }).eq('id', id)
+    if (error) throw new Error(`価格更新に失敗しました: ${error.message}`)
+  }
+
+  const inserted = toInsert.length
+  const updated = toUpdate.length
 
   await onProgress({
     type: 'complete',
-    inserted: rows.length,
+    inserted: inserted + updated,
     warnings,
     percent: 100,
     message:
       warnings.length > 0
-        ? `取込が完了しました（警告 ${warnings.length}件）`
-        : '取込が完了しました',
+        ? `取込が完了しました（新規 ${inserted}件・更新 ${updated}件・警告 ${warnings.length}件）`
+        : `取込が完了しました（新規 ${inserted}件・更新 ${updated}件）`,
   })
 }

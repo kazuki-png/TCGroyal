@@ -5,7 +5,7 @@ export async function GET(request: Request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  fetch(`${process.env.SUPABASE_URL}/functions/v1/fetch-reference-prices`, {
+  fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/fetch-reference-prices`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,

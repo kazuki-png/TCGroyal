@@ -84,6 +84,7 @@ async function fetchTorecabank(
   fetched_at: string
 ): Promise<PriceRecord[]> {
   const records: PriceRecord[] = []
+  const seenIds = new Set<string>()
   let page = 1
 
   while (true) {
@@ -108,6 +109,13 @@ async function fetchTorecabank(
     let foundAny = false
 
     for (const liMatch of liMatches) {
+      // PC用・モバイル用で同一アイテムが2回出力されるため data-id で重複排除
+      const dataIdMatch = liMatch[0].match(/data-id="(\d+)"/)
+      if (dataIdMatch) {
+        if (seenIds.has(dataIdMatch[1])) continue
+        seenIds.add(dataIdMatch[1])
+      }
+
       const block = liMatch[1]
 
       // カード名＋カード番号 (p.name の中の空白区切り: token[0]=card_name, token[2]=card_number)
@@ -160,50 +168,84 @@ async function fetchTorecabank(
 // メインハンドラ
 // =============================================
 Deno.serve(async (_req) => {
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+  const fetched_at = new Date().toISOString()
+  const allRecords: PriceRecord[] = []
+  const errors: string[] = []
+
+  console.log('[start] fetched_at:', fetched_at)
+  console.log('[env] SUPABASE_URL:', SUPABASE_URL ? 'set' : 'MISSING')
+  console.log('[env] SERVICE_ROLE_KEY:', SUPABASE_SERVICE_ROLE_KEY ? 'set' : 'MISSING')
+
+  // シンソク — ポケモン
   try {
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    const fetched_at = new Date().toISOString()
-    const allRecords: PriceRecord[] = []
+    const records = await fetchShinsoku('ポケモン', 'pokemon', fetched_at)
+    console.log('[shinsoku] pokemon:', records.length, 'records')
+    allRecords.push(...records)
+  } catch (e) {
+    errors.push(`shinsoku/pokemon: ${e}`)
+    console.error('[shinsoku] pokemon error:', e)
+  }
+  await randomDelay()
 
-    // シンソク — ポケモン
-    const shinsokuPokemon = await fetchShinsoku('ポケモン', 'pokemon', fetched_at)
-    allRecords.push(...shinsokuPokemon)
-    await randomDelay()
+  // シンソク — ワンピース
+  try {
+    const records = await fetchShinsoku('ワンピース', 'onepiece', fetched_at)
+    console.log('[shinsoku] onepiece:', records.length, 'records')
+    allRecords.push(...records)
+  } catch (e) {
+    errors.push(`shinsoku/onepiece: ${e}`)
+    console.error('[shinsoku] onepiece error:', e)
+  }
+  await randomDelay()
 
-    // シンソク — ワンピース
-    const shinsokuOnepiece = await fetchShinsoku('ワンピース', 'onepiece', fetched_at)
-    allRecords.push(...shinsokuOnepiece)
-    await randomDelay()
+  // トレカバンク — ポケモン (category=1)
+  try {
+    const records = await fetchTorecabank(1, 'pokemon', fetched_at)
+    console.log('[torecabank] pokemon:', records.length, 'records')
+    allRecords.push(...records)
+  } catch (e) {
+    errors.push(`torecabank/pokemon: ${e}`)
+    console.error('[torecabank] pokemon error:', e)
+  }
+  await randomDelay()
 
-    // トレカバンク — ポケモン (category=1)
-    const torecaPokemon = await fetchTorecabank(1, 'pokemon', fetched_at)
-    allRecords.push(...torecaPokemon)
-    await randomDelay()
+  // トレカバンク — ワンピース (category=2)
+  try {
+    const records = await fetchTorecabank(2, 'onepiece', fetched_at)
+    console.log('[torecabank] onepiece:', records.length, 'records')
+    allRecords.push(...records)
+  } catch (e) {
+    errors.push(`torecabank/onepiece: ${e}`)
+    console.error('[torecabank] onepiece error:', e)
+  }
 
-    // トレカバンク — ワンピース (category=2)
-    const torecaOnepiece = await fetchTorecabank(2, 'onepiece', fetched_at)
-    allRecords.push(...torecaOnepiece)
+  console.log('[total] records collected:', allRecords.length)
 
-    if (allRecords.length === 0) {
-      return Response.json({ success: true, inserted: 0, message: 'No records fetched' })
-    }
+  if (allRecords.length === 0) {
+    return Response.json({ success: true, inserted: 0, message: 'No records fetched', errors })
+  }
 
-    // バッチで挿入（100件ずつ）
-    const BATCH = 100
-    let inserted = 0
-    for (let i = 0; i < allRecords.length; i += BATCH) {
-      const batch = allRecords.slice(i, i + BATCH)
-      const { error } = await supabase.from('reference_prices').insert(batch)
+  // バッチで挿入（100件ずつ）
+  const BATCH = 100
+  let inserted = 0
+  for (let i = 0; i < allRecords.length; i += BATCH) {
+    const batch = allRecords.slice(i, i + BATCH)
+    try {
+      const result = await supabase.from('reference_prices').insert(batch)
+      const error = result?.error
       if (error) {
-        console.error('Insert error:', error.message)
+        console.error('[insert] error:', error.message, error.code)
+        errors.push(`insert: ${error.message}`)
       } else {
         inserted += batch.length
+        console.log('[insert] ok, batch', Math.floor(i / BATCH) + 1, '/', Math.ceil(allRecords.length / BATCH))
       }
+    } catch (e) {
+      console.error('[insert] threw:', e)
+      errors.push(`insert threw: ${e}`)
     }
-
-    return Response.json({ success: true, inserted, total: allRecords.length })
-  } catch (err) {
-    console.error('fetch-reference-prices error:', err)
-    return Response.json({ success: false, error: String(err) }, { status: 500 })
   }
+
+  return Response.json({ success: true, inserted, total: allRecords.length, errors })
 })

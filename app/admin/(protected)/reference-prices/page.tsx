@@ -73,6 +73,7 @@ export default async function ReferencePricesPage({
     })
     .eq('fetched_date', date)
     .order('price', { ascending: false })
+    .range(0, 99999)
 
   if (category) query = query.eq('category', category)
   if (site) query = query.eq('site_name', site)

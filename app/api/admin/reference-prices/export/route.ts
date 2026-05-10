@@ -51,6 +51,7 @@ export async function GET(request: Request) {
     .select('category, card_name, card_number, grade, price, site_name, fetched_date')
     .eq('fetched_date', date)
     .order('price', { ascending: false })
+    .range(0, 99999)
 
   if (category) query = query.eq('category', category)
   if (site) query = query.eq('site_name', site)

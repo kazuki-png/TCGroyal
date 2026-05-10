@@ -412,9 +412,15 @@ export async function importCardsCsvContent({
     if (error) throw new Error(`CSV取込（新規）に失敗しました: ${error.message}`)
   }
 
-  for (const { id, buy_price } of toUpdate) {
-    const { error } = await admin.from('cards').update({ buy_price }).eq('id', id)
-    if (error) throw new Error(`価格更新に失敗しました: ${error.message}`)
+  // 50件ずつ並列更新（逐次だと件数が多い時にタイムアウトする）
+  const UPDATE_BATCH = 50
+  for (let i = 0; i < toUpdate.length; i += UPDATE_BATCH) {
+    await Promise.all(
+      toUpdate.slice(i, i + UPDATE_BATCH).map(async ({ id, buy_price }) => {
+        const { error } = await admin.from('cards').update({ buy_price }).eq('id', id)
+        if (error) throw new Error(`価格更新に失敗しました: ${error.message}`)
+      })
+    )
   }
 
   const inserted = toInsert.length

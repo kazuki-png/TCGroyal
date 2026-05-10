@@ -1,1 +1,8 @@
-{}
+{
+  "crons": [
+    {
+      "path": "/api/cron/fetch-reference-prices",
+      "schedule": "0 22 * * *"
+    }
+  ]
+}

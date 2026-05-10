@@ -386,17 +386,82 @@ export async function importCardsCsvContent({
     message: 'CSVを登録しています...',
   })
 
-  const { error } = await admin.from('cards').insert(rows)
-  if (error) throw new Error(`CSV取込に失敗しました: ${error.message}`)
+  // 型番+グレード+名前の3つが一致すれば価格のみ更新・なければ新規挿入
+  const cardNumbers = [...new Set(rows.map((r) => r.card_number).filter(Boolean))] as string[]
+  const noNumberNames = [...new Set(rows.filter((r) => !r.card_number).map((r) => r.name))]
+
+  let existingCards: { id: string; card_number: string | null; grade: string; name: string }[] = []
+  const PAGE = 1000
+
+  // 型番ありカードを型番で一括取得
+  if (cardNumbers.length > 0) {
+    let from = 0
+    while (true) {
+      const { data } = await admin
+        .from('cards')
+        .select('id, card_number, grade, name')
+        .in('card_number', cardNumbers)
+        .range(from, from + PAGE - 1)
+      if (!data || data.length === 0) break
+      existingCards.push(...data)
+      if (data.length < PAGE) break
+      from += PAGE
+    }
+  }
+
+  // 型番なしカードを名前で一括取得（card_number IS NULL のもの）
+  if (noNumberNames.length > 0) {
+    let from = 0
+    while (true) {
+      const { data } = await admin
+        .from('cards')
+        .select('id, card_number, grade, name')
+        .is('card_number', null)
+        .in('name', noNumberNames)
+        .range(from, from + PAGE - 1)
+      if (!data || data.length === 0) break
+      existingCards.push(...data)
+      if (data.length < PAGE) break
+      from += PAGE
+    }
+  }
+
+  const existingMap = new Map(
+    existingCards.map((c) => [`${c.card_number}::${c.grade}::${c.name}`, c.id])
+  )
+
+  const toInsert = rows.filter((r) => !existingMap.has(`${r.card_number}::${r.grade}::${r.name}`))
+  const toUpdate = rows
+    .filter((r) => existingMap.has(`${r.card_number}::${r.grade}::${r.name}`))
+    .map((r) => ({ id: existingMap.get(`${r.card_number}::${r.grade}::${r.name}`)!, buy_price: r.buy_price }))
+
+  if (toInsert.length > 0) {
+    const { error } = await admin.from('cards').insert(toInsert)
+    if (error) throw new Error(`CSV取込（新規）に失敗しました: ${error.message}`)
+  }
+
+  // 50件ずつ並列更新（逐次だと件数が多い時にタイムアウトする）
+  const UPDATE_BATCH = 50
+  for (let i = 0; i < toUpdate.length; i += UPDATE_BATCH) {
+    await Promise.all(
+      toUpdate.slice(i, i + UPDATE_BATCH).map(async ({ id, buy_price }) => {
+        const { error } = await admin.from('cards').update({ buy_price }).eq('id', id)
+        if (error) throw new Error(`価格更新に失敗しました: ${error.message}`)
+      })
+    )
+  }
+
+  const inserted = toInsert.length
+  const updated = toUpdate.length
 
   await onProgress({
     type: 'complete',
-    inserted: rows.length,
+    inserted: inserted + updated,
     warnings,
     percent: 100,
     message:
       warnings.length > 0
-        ? `取込が完了しました（警告 ${warnings.length}件）`
-        : '取込が完了しました',
+        ? `取込が完了しました（新規 ${inserted}件・更新 ${updated}件・警告 ${warnings.length}件）`
+        : `取込が完了しました（新規 ${inserted}件・更新 ${updated}件）`,
   })
 }

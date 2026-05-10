@@ -18,9 +18,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   onepiece: 'ワンピース',
 }
 
-const SITES = ['シンソク', 'トレカバンク']
-const GRADES = ['PSA10', 'PSA9', 'PSA8']
-
 function todayJST() {
   return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0]
 }
@@ -60,6 +57,15 @@ export default async function ReferencePricesPage({
   const grade = normalize(params.grade)
 
   const admin = createAdminClient()
+
+  // フィルター選択肢を実データから取得
+  const [{ data: gradeRows }, { data: siteRows }] = await Promise.all([
+    admin.from('reference_prices').select('grade').order('grade'),
+    admin.from('reference_prices').select('site_name').order('site_name'),
+  ])
+  const grades = [...new Set((gradeRows ?? []).map((r: { grade: string }) => r.grade))].filter(Boolean).sort()
+  const sites = [...new Set((siteRows ?? []).map((r: { site_name: string }) => r.site_name))].filter(Boolean).sort()
+
   let query = admin
     .from('reference_prices_deduped')
     .select('id, category, card_name, card_number, grade, price, site_name, fetched_date', {
@@ -126,7 +132,7 @@ export default async function ReferencePricesPage({
           <label className="text-xs font-black text-zinc-400">ショップ</label>
           <select name="site" defaultValue={site} className={selectClass}>
             <option value="">すべて</option>
-            {SITES.map((s) => (
+            {sites.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
@@ -138,7 +144,7 @@ export default async function ReferencePricesPage({
           <label className="text-xs font-black text-zinc-400">グレード</label>
           <select name="grade" defaultValue={grade} className={selectClass}>
             <option value="">すべて</option>
-            {GRADES.map((g) => (
+            {grades.map((g) => (
               <option key={g} value={g}>
                 {g}
               </option>

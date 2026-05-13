@@ -383,10 +383,10 @@ export async function importCardsCsvContent({
     processed: rows.length,
     total: rows.length,
     percent: 100,
-    message: 'CSVを登録しています...',
+    message: '価格を更新しています...',
   })
 
-  // 型番+グレード+名前の3つが一致すれば価格のみ更新・なければ新規挿入
+  // 型番+グレード+名前の3つが一致する既存カードの価格のみ更新（新規挿入なし）
   const cardNumbers = [...new Set(rows.map((r) => r.card_number).filter(Boolean))] as string[]
   const noNumberNames = [...new Set(rows.filter((r) => !r.card_number).map((r) => r.name))]
 
@@ -430,15 +430,10 @@ export async function importCardsCsvContent({
     existingCards.map((c) => [`${c.card_number}::${c.grade}::${c.name}`, c.id])
   )
 
-  const toInsert = rows.filter((r) => !existingMap.has(`${r.card_number}::${r.grade}::${r.name}`))
   const toUpdate = rows
     .filter((r) => existingMap.has(`${r.card_number}::${r.grade}::${r.name}`))
     .map((r) => ({ id: existingMap.get(`${r.card_number}::${r.grade}::${r.name}`)!, buy_price: r.buy_price }))
-
-  if (toInsert.length > 0) {
-    const { error } = await admin.from('cards').insert(toInsert)
-    if (error) throw new Error(`CSV取込（新規）に失敗しました: ${error.message}`)
-  }
+  const skipped = rows.length - toUpdate.length
 
   // 50件ずつ並列更新（逐次だと件数が多い時にタイムアウトする）
   const UPDATE_BATCH = 50
@@ -451,17 +446,16 @@ export async function importCardsCsvContent({
     )
   }
 
-  const inserted = toInsert.length
   const updated = toUpdate.length
 
   await onProgress({
     type: 'complete',
-    inserted: inserted + updated,
+    inserted: updated,
     warnings,
     percent: 100,
     message:
       warnings.length > 0
-        ? `取込が完了しました（新規 ${inserted}件・更新 ${updated}件・警告 ${warnings.length}件）`
-        : `取込が完了しました（新規 ${inserted}件・更新 ${updated}件）`,
+        ? `取込が完了しました（更新 ${updated}件・スキップ ${skipped}件・警告 ${warnings.length}件）`
+        : `取込が完了しました（更新 ${updated}件・スキップ ${skipped}件）`,
   })
 }

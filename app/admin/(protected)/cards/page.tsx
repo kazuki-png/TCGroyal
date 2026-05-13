@@ -33,7 +33,8 @@ function normalizeSort(value: string | string[] | undefined): CardSortKey {
     raw === 'name' ||
     raw === 'card_number' ||
     raw === 'grade' ||
-    raw === 'buy_price'
+    raw === 'buy_price' ||
+    raw === 'buy_price_updated_at'
   ) {
     return raw
   }

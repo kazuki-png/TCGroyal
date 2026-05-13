@@ -12,5 +12,6 @@ export async function GET(request: Request) {
     },
   })
 
-  return Response.json({ ok: true, status: res.status })
+  const body = await res.text()
+  return Response.json({ ok: res.ok, status: res.status, body })
 }

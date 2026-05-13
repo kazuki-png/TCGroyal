@@ -87,6 +87,7 @@ const UNLISTED_CARD: Card = {
   grade: 'PSA10',
   buy_price: 0,
   image_url: null,
+  buy_price_updated_at: null,
   created_at: '',
   updated_at: '',
 }

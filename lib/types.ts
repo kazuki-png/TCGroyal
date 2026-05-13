@@ -69,6 +69,7 @@ export interface Card {
   grade: 'PSA10' | 'PSA9' | 'PSA8'
   buy_price: number
   image_url: string | null
+  buy_price_updated_at: string | null
   created_at: string
   updated_at: string
 }

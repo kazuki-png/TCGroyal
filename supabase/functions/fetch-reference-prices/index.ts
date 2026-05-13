@@ -53,6 +53,7 @@ async function fetchShinsoku(
         tags.length > 0 && typeof (tags[0] as Record<string, unknown>).label === 'string'
           ? ((tags[0] as Record<string, unknown>).label as string)
           : 'PSA10'
+      if (!gradeLabel.startsWith('PSA')) continue
       const price = Number(i.postal_purchase_price_s)
       if (!price || price <= 0) continue
 

@@ -8,7 +8,7 @@ import type { Card } from '@/lib/types'
 import { createCard, deleteCard, updateCard } from './actions'
 
 type CategoryFilter = 'all' | 'pokemon' | 'onepiece'
-export type CardSortKey = 'created_at' | 'name' | 'card_number' | 'grade' | 'buy_price'
+export type CardSortKey = 'created_at' | 'name' | 'card_number' | 'grade' | 'buy_price' | 'buy_price_updated_at'
 export type CardSortDirection = 'asc' | 'desc'
 
 export type CardTableFilters = {
@@ -561,6 +561,11 @@ export function CardsAdminClient({
                   買取価格{sortMark('buy_price')}
                 </Link>
               </th>
+              <th className="px-4 py-3 font-black">
+                <Link href={sortHref('buy_price_updated_at')} className="hover:text-white">
+                  価格更新日時{sortMark('buy_price_updated_at')}
+                </Link>
+              </th>
               <th className="px-4 py-3 text-right font-black">操作</th>
             </tr>
           </thead>
@@ -595,6 +600,11 @@ export function CardsAdminClient({
                 <td className="px-4 py-3 text-sm text-zinc-300">{card.card_number ?? '-'}</td>
                 <td className="px-4 py-3 text-sm text-zinc-300">{card.grade}</td>
                 <td className="px-4 py-3 text-right text-sm font-black">{currency(card.buy_price)}</td>
+                <td className="px-4 py-3 text-sm text-zinc-400">
+                  {card.buy_price_updated_at
+                    ? new Date(card.buy_price_updated_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                    : '-'}
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-2">
                     <button

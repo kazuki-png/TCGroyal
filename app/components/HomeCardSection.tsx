@@ -1,17 +1,10 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Card } from '@/lib/types'
 
 const CARDS_PER_PAGE = 12
-
-type Category = 'pokemon' | 'onepiece'
-
-const CATEGORY_LABEL: Record<Category, string> = {
-  pokemon: 'ポケモン',
-  onepiece: 'ワンピース',
-}
 
 function normalizeImageUrl(value: string | null | undefined) {
   const trimmed = value?.trim()
@@ -73,11 +66,12 @@ function Pagination({
   totalPages: number
   onPageChange: (p: number) => void
 }) {
-  const [inputValue, setInputValue] = useState(String(page))
-
-  useEffect(() => {
-    setInputValue(String(page))
-  }, [page])
+  const [inputState, setInputState] = useState({
+    page,
+    value: String(page),
+  })
+  const inputValue =
+    inputState.page === page ? inputState.value : String(page)
 
   if (totalPages <= 1) return null
 
@@ -87,9 +81,10 @@ function Pagination({
   const commitInput = () => {
     const n = parseInt(inputValue, 10)
     if (!Number.isNaN(n) && n >= 1 && n <= totalPages) {
+      setInputState({ page: n, value: String(n) })
       onPageChange(n)
     } else {
-      setInputValue(String(page))
+      setInputState({ page, value: String(page) })
     }
   }
 
@@ -113,7 +108,9 @@ function Pagination({
             type="text"
             inputMode="numeric"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={(e) =>
+              setInputState({ page, value: e.target.value })
+            }
             onBlur={commitInput}
             className="h-8 w-10 rounded border border-[#3a3528] bg-[#0f0e0b] text-center text-sm font-black text-[#c9a52e] outline-none focus:border-[#c9a52e]"
             aria-label="ページ番号"
@@ -184,7 +181,9 @@ function Pagination({
             type="text"
             inputMode="numeric"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={(e) =>
+              setInputState({ page, value: e.target.value })
+            }
             onBlur={commitInput}
             className="h-9 w-12 rounded-lg border border-[#3a3528] bg-[#1c1b18] text-center text-sm font-black text-[#c9a52e] outline-none focus:border-[#c9a52e]"
             aria-label="ページ番号"
@@ -230,49 +229,19 @@ function ScrollToTop() {
 }
 
 export function HomeCardSection({ cards }: { cards: Card[] }) {
-  const [enabled, setEnabled] = useState<Set<Category>>(new Set(['pokemon', 'onepiece']))
   const [page, setPage] = useState(1)
-  const [categoryControlsVisible, setCategoryControlsVisible] = useState(true)
-  const lastScrollYRef = useRef(0)
   const repeatedImageUrls = useMemo(() => duplicatedImageUrls(cards), [cards])
 
-  const filtered = cards.filter((c) => enabled.has(c.category as Category))
+  const filtered = cards.filter((c) => c.category === 'pokemon')
   const totalPages = Math.max(1, Math.ceil(filtered.length / CARDS_PER_PAGE))
   const pageCards = filtered.slice((page - 1) * CARDS_PER_PAGE, page * CARDS_PER_PAGE)
-
-  function toggleCategory(cat: Category) {
-    setEnabled((prev) => {
-      const next = new Set(prev)
-      if (next.has(cat)) {
-        next.delete(cat)
-      } else {
-        next.add(cat)
-      }
-      return next
-    })
-    setPage(1)
-  }
 
   function handlePageChange(p: number) {
     setPage(p)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentY = window.scrollY
-      setCategoryControlsVisible(
-        currentY < 140 || currentY < lastScrollYRef.current
-      )
-      lastScrollYRef.current = currentY
-    }
-
-    handleScroll()
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
-  if (cards.length === 0) return null
+  if (filtered.length === 0) return null
 
   return (
     <>
@@ -286,83 +255,54 @@ export function HomeCardSection({ cards }: { cards: Card[] }) {
               登録済みカードから高価買取カードを表示しています。
             </p>
           </div>
-          <div
-            className={`sticky top-[69px] z-30 flex gap-2 rounded-full border border-[#2d2a20] bg-[#0f0e0b]/90 p-1 shadow-[0_14px_40px_rgba(0,0,0,0.34)] backdrop-blur transition-all duration-200 ${
-              categoryControlsVisible
-                ? 'translate-y-0 opacity-100'
-                : 'pointer-events-none -translate-y-4 opacity-0'
-            }`}
-          >
-            {(['pokemon', 'onepiece'] as Category[]).map((cat) => (
-              <button
-                key={cat}
-                onClick={() => toggleCategory(cat)}
-                aria-pressed={enabled.has(cat)}
-                className={`rounded-full px-5 py-2 text-sm font-black transition-colors ${
-                  enabled.has(cat)
-                    ? 'bg-[#c9a52e] text-[#0e0c09] shadow-[0_8px_20px_rgba(201,165,46,0.18)]'
-                    : 'bg-[#252420] text-[#8f8369] hover:bg-[#2e2b25] hover:text-[#d7ceb8]'
-                }`}
-              >
-                {CATEGORY_LABEL[cat]}
-              </button>
-            ))}
-          </div>
         </div>
 
-        {filtered.length === 0 ? (
-          <div className="rounded-2xl border border-[#2d2a20] bg-[#15130f] py-16 text-center text-[#5a5243]">
-            カテゴリーを選択してください
-          </div>
-        ) : (
-          <>
-            <div
-              className="grid gap-4"
-              style={{
-                gridTemplateColumns:
-                  'repeat(auto-fit, minmax(min(100%, 156px), 1fr))',
-              }}
+        <div
+          className="grid gap-4"
+          style={{
+            gridTemplateColumns:
+              'repeat(auto-fit, minmax(min(100%, 156px), 1fr))',
+          }}
+        >
+          {pageCards.map((card) => (
+            <article
+              key={card.id}
+              className="rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-3 shadow-[0_18px_46px_rgba(0,0,0,0.38)] transition-colors hover:border-[#4a4233] sm:p-4"
             >
-              {pageCards.map((card) => (
-                <article
-                  key={card.id}
-                  className="rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-3 shadow-[0_18px_46px_rgba(0,0,0,0.38)] transition-colors hover:border-[#4a4233] sm:p-4"
-                >
-                  <div className="relative mx-auto aspect-[5/7] overflow-hidden rounded-lg bg-[#1e1c17]">
-                    {card.image_url && !repeatedImageUrls.has(normalizeImageUrl(card.image_url) ?? '') ? (
-                      <Image
-                        src={card.image_url}
-                        alt={card.name}
-                        fill
-                        sizes="(max-width: 359px) 92vw, (max-width: 767px) 48vw, (max-width: 1279px) 24vw, 16vw"
-                        className="object-contain"
-                      />
-                    ) : (
-                      <CardPlaceholder />
-                    )}
-                  </div>
-                  <div className="mt-3">
-                    <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-black leading-snug text-[#ede8d5]" title={card.name}>
-                      {card.name}
-                    </h3>
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="rounded-full bg-[#2d2a20] px-2.5 py-0.5 text-xs font-black text-[#c9a52e]">
-                        {card.grade}
-                      </span>
-                      <span className="truncate text-xs font-semibold text-[#5a5243]">
-                        {card.card_number ?? '-'}
-                      </span>
-                    </div>
-                    <p className="mt-2 whitespace-nowrap text-xl font-black text-red-400">
-                      <span className="text-sm">¥</span>{card.buy_price.toLocaleString('ja-JP')}
-                    </p>
-                  </div>
-                </article>
-              ))}
-            </div>
-            <Pagination page={page} totalPages={totalPages} onPageChange={handlePageChange} />
-          </>
-        )}
+              <div className="relative mx-auto aspect-[5/7] overflow-hidden rounded-lg bg-[#1e1c17]">
+                {card.image_url && !repeatedImageUrls.has(normalizeImageUrl(card.image_url) ?? '') ? (
+                  <Image
+                    src={card.image_url}
+                    alt={card.name}
+                    fill
+                    sizes="(max-width: 359px) 92vw, (max-width: 767px) 48vw, (max-width: 1279px) 24vw, 16vw"
+                    className="object-contain"
+                  />
+                ) : (
+                  <CardPlaceholder />
+                )}
+              </div>
+              <div className="mt-3">
+                <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-black leading-snug text-[#ede8d5]" title={card.name}>
+                  {card.name}
+                </h3>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <span className="rounded-full bg-[#2d2a20] px-2.5 py-0.5 text-xs font-black text-[#c9a52e]">
+                    {card.grade}
+                  </span>
+                  <span className="truncate text-xs font-semibold text-[#5a5243]">
+                    {card.card_number ?? '-'}
+                  </span>
+                </div>
+                <p className="mt-2 max-w-full break-words text-lg font-black leading-tight text-red-400 [overflow-wrap:anywhere] sm:text-xl">
+                  <span className="text-[0.75em]">¥</span>
+                  {card.buy_price.toLocaleString('ja-JP')}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+        <Pagination page={page} totalPages={totalPages} onPageChange={handlePageChange} />
       </section>
 
       <ScrollToTop />

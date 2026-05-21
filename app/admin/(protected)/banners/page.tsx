@@ -31,6 +31,9 @@ export default async function AdminBannersPage({
           <p className="mt-2 text-sm font-black text-zinc-400">
             トップページのスライドバナーを管理します。
           </p>
+          <p className="mt-2 text-xs font-semibold leading-relaxed text-zinc-500">
+            推奨サイズ: 2400×900px（8:3）または 1920×720px。画像全体を表示するため、端末によって上下左右に余白が入る場合があります。
+          </p>
         </div>
       </div>
 
@@ -46,7 +49,12 @@ export default async function AdminBannersPage({
         action={createBanner}
         className="mb-8 rounded-2xl border border-zinc-800 bg-zinc-900 p-5"
       >
-        <h2 className="mb-5 text-lg font-semibold text-white">新規追加</h2>
+        <div className="mb-5">
+          <h2 className="text-lg font-semibold text-white">新規追加</h2>
+          <p className="mt-1 text-xs font-semibold text-zinc-500">
+            重要な文字やロゴは中央寄せにし、画像端から10%程度の余白を確保してください。
+          </p>
+        </div>
         <div className="grid gap-4 lg:grid-cols-[minmax(220px,1fr)_1fr_120px_auto]">
           <ImageUploadPreviewInput
             name="image"
@@ -114,13 +122,13 @@ export default async function AdminBannersPage({
               className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5"
             >
               <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
-                <div className="relative aspect-[16/5] overflow-hidden rounded-xl bg-zinc-800">
+                <div className="relative aspect-[16/5] overflow-hidden rounded-xl bg-zinc-950">
                   <Image
                     src={banner.image_url}
                     alt={banner.title || 'バナー'}
                     fill
                     sizes="280px"
-                    className="object-cover"
+                    className="object-contain"
                   />
                 </div>
                 <form action={updateBanner} className="grid gap-4">

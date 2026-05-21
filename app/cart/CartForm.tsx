@@ -19,8 +19,8 @@ import {
   CART_TOTAL_QUANTITY_EVENT,
 } from './CartHeaderLink'
 import type { Card, CartItem, HomepageBanner, Profile } from '@/lib/types'
+import unlistedPurchaseRequestImage from '@/public/images/unlisted-purchase-request.png'
 
-type Category = 'pokemon' | 'onepiece'
 type SortKey = 'price-desc' | 'price-asc' | 'name'
 type ViewMode = 'catalog' | 'cart' | 'confirm' | 'complete'
 type CheckoutInfo = {
@@ -38,9 +38,107 @@ type CheckoutInfo = {
   accountHolderKana: string
 }
 
-const FLOW_URL = 'https://www.notion.so/'
 const CART_STORAGE_KEY = 'tcg_royal_purchase_cart'
 const CARDS_PER_PAGE = 12
+
+const SHIPPING_DESTINATION = [
+  ['宛名', '株式会社フィンテグラホールディングス 買取部'],
+  ['住所', '〒106-0032 東京都港区六本木4-2-14 六本木三河台スクエアビル 3F'],
+  ['電話番号', '03-6841-8309'],
+] as const
+
+const SHIPPING_NOTE_SECTIONS = [
+  {
+    title: '発送方法について',
+    paragraphs: [
+      '商品発送時の送料は、お客様ご負担の「元払い」にてお願いいたします。',
+      '着払いで発送された荷物につきましては、お受け取りできかねますので予めご了承ください。',
+      'なお、配送業者の指定はございません。',
+    ],
+  },
+  {
+    title: '価格保証について',
+    paragraphs: [
+      'お申し込み承認時刻に応じて、下記期間まで査定価格を保証いたします。',
+      '19:00以前に承認された場合は、当日中の発送かつ翌日到着分まで保証対象です。',
+      '19:00以降に承認された場合は、翌日発送かつ翌々日到着分まで保証対象です。',
+      '発送地域の都合上、配送に2日以上必要となる場合は、上記保証期間に加えて1日延長いたします。',
+      '規定の発送期限を超過した場合、到着時点の相場価格を基準に査定させていただく場合がございます。',
+      '発送日時は、コンビニ等での受付時刻ではなく、配送会社側で正式に荷受け処理された時点を基準といたします。',
+    ],
+  },
+  {
+    title: '価格変動に関するご案内',
+    paragraphs: [
+      '査定価格は、お申し込み時点で掲載されていた金額を基準としております。',
+      'お申し込み後から商品到着までの間に市場価格や掲載価格に変動があった場合でも、その変動を理由とした査定額変更のご要望には対応いたしかねます。',
+    ],
+  },
+  {
+    title: '査定について',
+    paragraphs: [
+      '減額対象外としている商品については、原則として査定額の変更はございません。',
+      'ただし、著しい傷・破損・状態不良など、当社基準を満たさない場合には減額となる可能性がございます。',
+      'その他の商品につきましては、査定結果をご確認いただいたうえで、商品ごとに「買取承認」または「返却」をご選択いただけます。',
+      'なお、返却をご希望の場合の送料はお客様負担となります。',
+    ],
+  },
+  {
+    title: 'キャンセルについて',
+    paragraphs: [
+      '査定結果がお申し込み時の査定額と同額である商品については、キャンセルを承ることができません。',
+      'また、キャンセル商品の返送にかかる送料につきましても、お客様負担となりますのでご了承ください。',
+    ],
+  },
+  {
+    title: 'お申し込み確認について',
+    paragraphs: [
+      '営業時間外にいただいた買取申込につきましては、営業開始後より順次確認を行っております。',
+      '内容確認および承認完了までお時間をいただく場合がございますので、当社からのご連絡をお待ちください。',
+    ],
+  },
+] as const
+
+const PURCHASE_FLOW_STEPS = [
+  {
+    title: '商品をカートに追加',
+    body: 'カード名・型番などで検索し、ご希望の商品をカートへ追加してください。',
+  },
+  {
+    title: '承認メール受信後、商品を発送',
+    body: '当社スタッフより買取申込承認メールをお送りいたします。メールをご確認後、当社指定住所まで商品をご発送ください。',
+  },
+  {
+    title: '査定・査定金額のご確認',
+    body: '商品到着後、査定を行います。査定完了後は、マイページ内「郵送買取一覧」より、査定結果をご確認いただき、「承諾」または「キャンセル」をご選択ください。',
+  },
+  {
+    title: 'ご入金',
+    body: 'お客様による査定金額のご承諾後、最短1営業日以内にご指定の銀行口座へお振込みいたします。',
+  },
+] as const
+
+const PURCHASE_FLOW_FAQS = [
+  {
+    question: '発送後のキャンセルは可能ですか？',
+    answer:
+      '査定結果にご納得いただけない場合は、キャンセル可能です。返送料はお客様負担となります。ただし、査定金額がカート追加時の金額から減額されていない場合は、原則キャンセルをお受けできません。',
+  },
+  {
+    question: '本査定・振込までにどのくらい時間がかかりますか？',
+    answer:
+      '商品到着後、原則として当日中に本査定およびお振込み手続きを行っております。',
+  },
+  {
+    question: '送料はかかりますか？',
+    answer: '商品発送時の送料は、お客様負担にてお願いいたします。',
+  },
+  {
+    question: 'リストにない商品の申し込みは可能ですか？',
+    answer:
+      'はい、可能です。「まとめて買取」をカートに追加のうえ、商品をご発送ください。到着後、当社スタッフが査定いたします。',
+  },
+] as const
 
 const ID_TYPES = [
   '運転免許証',
@@ -66,11 +164,6 @@ const CHECKOUT_FIELD_LABELS: Record<keyof CheckoutInfo, string> = {
   accountType: '口座種別',
   accountNumber: '口座番号',
   accountHolderKana: '口座名義',
-}
-
-const CATEGORY_LABEL: Record<Category, string> = {
-  pokemon: 'ポケモン',
-  onepiece: 'ワンピース',
 }
 
 const SORT_LABEL: Record<SortKey, string> = {
@@ -277,6 +370,90 @@ function CardImage({
   )
 }
 
+function UnlistedProductImage() {
+  return (
+    <div className="relative h-[178px] w-[124px] shrink-0 overflow-hidden rounded-lg border border-[#2d2a20] bg-[#1e1c17] shadow-[0_12px_28px_rgba(0,0,0,0.28)] sm:h-[210px] sm:w-[146px]">
+      <Image
+        src={unlistedPurchaseRequestImage}
+        alt="リストにない商品はこちら"
+        fill
+        sizes="(min-width: 640px) 146px, 124px"
+        className="object-cover"
+        placeholder="blur"
+      />
+    </div>
+  )
+}
+
+function PurchaseFlowPanel({ onClose }: { onClose: () => void }) {
+  return (
+    <section
+      id="purchase-flow"
+      className="rounded-[24px] border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#11100d_100%)] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.36)] sm:p-5"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#c9a52e]">
+            Guide
+          </p>
+          <h2 className="mt-1 text-xl font-black text-[#f6f0dc]">
+            買取お申し込みの流れ
+          </h2>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full border border-[#3a3528] px-3 py-1 text-xs font-black text-[#8f8369] transition-colors hover:border-[#c9a52e]/60 hover:text-[#c9a52e]"
+        >
+          閉じる
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        {PURCHASE_FLOW_STEPS.map((step, index) => (
+          <article
+            key={step.title}
+            className="rounded-[18px] border border-[#2d2a20] bg-[#0f0e0b] p-4"
+          >
+            <div className="flex items-center gap-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#c9a52e] text-sm font-black text-[#0e0c09]">
+                {index + 1}
+              </span>
+              <h3 className="font-black leading-snug text-[#f6f0dc]">
+                {step.title}
+              </h3>
+            </div>
+            <p className="mt-3 text-sm font-semibold leading-relaxed text-[#d7ceb8]">
+              {step.body}
+            </p>
+          </article>
+        ))}
+      </div>
+
+      <div className="mt-6 border-t border-[#2d2a20] pt-5">
+        <h3 className="text-base font-black text-[#f6f0dc]">
+          よくあるご質問
+        </h3>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {PURCHASE_FLOW_FAQS.map((faq) => (
+            <article
+              key={faq.question}
+              className="rounded-[18px] bg-[#0f0e0b] p-4"
+            >
+              <h4 className="text-sm font-black text-[#c9a52e]">
+                {faq.question}
+              </h4>
+              <p className="mt-2 text-sm font-semibold leading-relaxed text-[#d7ceb8]">
+                {faq.answer}
+              </p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function QuantityControl({
   quantity,
   onDecrement,
@@ -318,11 +495,12 @@ function Pagination({
   totalPages: number
   onPageChange: (page: number) => void
 }) {
-  const [inputValue, setInputValue] = useState(String(page))
-
-  useEffect(() => {
-    setInputValue(String(page))
-  }, [page])
+  const [inputState, setInputState] = useState({
+    page,
+    value: String(page),
+  })
+  const inputValue =
+    inputState.page === page ? inputState.value : String(page)
 
   if (totalPages <= 1) return null
 
@@ -332,9 +510,10 @@ function Pagination({
   const commitInput = () => {
     const n = parseInt(inputValue, 10)
     if (!Number.isNaN(n) && n >= 1 && n <= totalPages) {
+      setInputState({ page: n, value: String(n) })
       onPageChange(n)
     } else {
-      setInputValue(String(page))
+      setInputState({ page, value: String(page) })
     }
   }
 
@@ -359,7 +538,9 @@ function Pagination({
             type="text"
             inputMode="numeric"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={(e) =>
+              setInputState({ page, value: e.target.value })
+            }
             onBlur={commitInput}
             className="h-8 w-10 rounded border border-[#3a3528] bg-[#0f0e0b] text-center text-sm font-black text-[#c9a52e] outline-none focus:border-[#c9a52e]"
             aria-label="ページ番号"
@@ -433,7 +614,9 @@ function Pagination({
             type="text"
             inputMode="numeric"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={(e) =>
+              setInputState({ page, value: e.target.value })
+            }
             onBlur={commitInput}
             className="h-9 w-12 rounded-lg border border-[#3a3528] bg-[#1c1b18] text-center text-sm font-black text-[#c9a52e] outline-none focus:border-[#c9a52e]"
             aria-label="ページ番号"
@@ -585,8 +768,13 @@ function checkoutSnapshotNote(info: CheckoutInfo) {
     `住所: 〒${info.postalCode} ${info.address}`,
     `電話番号: ${info.phone}`,
     `振込先: ${info.bankName} / ${info.branchName} / ${accountTypeLabel(info.accountType) ?? '-'} / ${info.accountNumber} / ${info.accountHolderKana}`,
-    '発送先: 【ダミー】後日共有される正式な発送先へ差し替え予定',
-    '注意事項: 【ダミー】後日共有される正式な注意事項へ差し替え予定',
+    '発送先情報',
+    ...SHIPPING_DESTINATION.map(([label, value]) => `${label}: ${value}`),
+    '注意事項',
+    ...SHIPPING_NOTE_SECTIONS.flatMap((section) => [
+      section.title,
+      ...section.paragraphs,
+    ]),
   ].join('\n')
 }
 
@@ -703,15 +891,11 @@ export function CartForm({
   }>()
   const [agreementChecked, setAgreementChecked] = useState(false)
   const [completedOrderNumber, setCompletedOrderNumber] = useState<string>()
-  const [enabledCategories, setEnabledCategories] = useState<Record<Category, boolean>>({
-    pokemon: true,
-    onepiece: true,
-  })
+  const [purchaseFlowOpen, setPurchaseFlowOpen] = useState(false)
   const [sort, setSort] = useState<SortKey>('price-desc')
   const [keyword, setKeyword] = useState('')
   const [submittedKeyword, setSubmittedKeyword] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const [categoryControlsVisible, setCategoryControlsVisible] = useState(true)
   const [selectedQuantities, setSelectedQuantities] = useState<
     Record<string, number>
   >({})
@@ -727,20 +911,13 @@ export function CartForm({
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
   const [pending, startTransition] = useTransition()
-  const lastScrollYRef = useRef(0)
   const listTopRef = useRef<HTMLDivElement>(null)
 
   const repeatedImageUrls = useMemo(() => duplicatedImageUrls(displayCards), [displayCards])
   const totalPages = Math.max(1, Math.ceil(totalCards / CARDS_PER_PAGE))
-  const activeCategoryLabels = (['pokemon', 'onepiece'] as Category[])
-    .filter((category) => enabledCategories[category])
-    .map((category) => CATEGORY_LABEL[category])
-  const activeCategoryText =
-    activeCategoryLabels.length > 0 ? activeCategoryLabels.join('・') : 'なし'
   const appliedKeyword = submittedKeyword.trim()
   const hasSearchConditions =
     appliedKeyword.length > 0 ||
-    activeCategoryLabels.length !== 2 ||
     sort !== 'price-desc'
 
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0)
@@ -843,20 +1020,6 @@ export function CartForm({
   }, [keyword])
 
   useEffect(() => {
-    const handleScroll = () => {
-      const currentY = window.scrollY
-      setCategoryControlsVisible(
-        currentY < 140 || currentY < lastScrollYRef.current
-      )
-      lastScrollYRef.current = currentY
-    }
-
-    handleScroll()
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
-  useEffect(() => {
     const openCart = () => {
       setViewMode('cart')
       window.requestAnimationFrame(() => {
@@ -870,30 +1033,20 @@ export function CartForm({
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setCardsLoading(true)
     setCurrentPage(1)
     setSubmittedKeyword(keyword.trim())
   }
 
   useEffect(() => {
-    const cats = (['pokemon', 'onepiece'] as Category[]).filter(
-      (c) => enabledCategories[c]
-    )
-    if (cats.length === 0) {
-      setDisplayCards([])
-      setTotalCards(0)
-      setCardsLoading(false)
-      return
-    }
-
     const controller = new AbortController()
-    setCardsLoading(true)
 
     const params = new URLSearchParams({
       page: String(currentPage),
       limit: String(CARDS_PER_PAGE),
       sort,
+      category: 'pokemon',
     })
-    if (cats.length === 1) params.set('category', cats[0])
     if (submittedKeyword) {
       const normalizedQ = submittedKeyword
         .normalize('NFKC')
@@ -931,27 +1084,19 @@ export function CartForm({
       })
 
     return () => controller.abort()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, sort, submittedKeyword, enabledCategories.pokemon, enabledCategories.onepiece])
-
-  const toggleCategory = (category: Category) => {
-    setCurrentPage(1)
-    setEnabledCategories((current) => ({
-      ...current,
-      [category]: !current[category],
-    }))
-  }
+  }, [currentPage, sort, submittedKeyword])
 
   const clearSearchConditions = () => {
+    setCardsLoading(true)
     setKeyword('')
     setSubmittedKeyword('')
-    setEnabledCategories({ pokemon: true, onepiece: true })
     setSort('price-desc')
     setCurrentPage(1)
   }
 
   const handlePageChange = (nextPage: number) => {
     const safePage = Math.min(totalPages, Math.max(1, nextPage))
+    if (safePage !== currentPage) setCardsLoading(true)
     setCurrentPage(safePage)
     window.requestAnimationFrame(() => {
       listTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -1103,7 +1248,7 @@ export function CartForm({
                   className="rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-4 shadow-[0_18px_46px_rgba(0,0,0,0.38)]"
                 >
                   <div className="flex gap-3">
-                    <div className="h-[178px] w-[124px] shrink-0 rounded-lg bg-[#1e1c17] sm:h-[210px] sm:w-[146px]" />
+                    <UnlistedProductImage />
                     <div className="flex min-w-0 flex-1 flex-col">
                       <h3 className="text-center text-xl font-black leading-tight">
                         リストにない商品は
@@ -1162,10 +1307,11 @@ export function CartForm({
                         </p>
                       </div>
                     </div>
-                    <p className="mt-2 whitespace-nowrap text-2xl font-black leading-none text-red-400 sm:text-3xl">
-                      <span className="text-base sm:text-lg">¥</span>{item.card.buy_price.toLocaleString()}
+                    <p className="mt-2 max-w-full break-words text-[1.45rem] font-black leading-[1.05] text-red-400 [overflow-wrap:anywhere] sm:text-[1.55rem]">
+                      <span className="text-[0.75em]">¥</span>
+                      {item.card.buy_price.toLocaleString()}
                     </p>
-                    <div className="mt-3 flex items-center gap-2">
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       <QuantityControl
                         quantity={item.quantity}
                         onDecrement={() =>
@@ -1178,7 +1324,7 @@ export function CartForm({
                       <button
                         type="button"
                         onClick={() => removeFromCart(item.card.id)}
-                        className="h-10 flex-1 rounded-xl bg-red-600 text-sm font-black text-white shadow-sm"
+                        className="h-10 min-w-20 flex-1 rounded-xl bg-red-600 px-3 text-sm font-black text-white shadow-sm"
                       >
                         削除
                       </button>
@@ -1389,13 +1535,13 @@ export function CartForm({
         </h1>
 
         <section className="mt-6 overflow-hidden rounded-[20px] border border-[#2d2a20] bg-[#171511]">
-          <div className="overflow-hidden">
-            <table className="w-full table-fixed text-left text-[10px] text-[#ede8d5] sm:text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[400px] table-fixed text-left text-[10px] text-[#ede8d5] sm:text-sm">
               <colgroup>
-                <col className="w-[38%]" />
-                <col className="w-[13%]" />
-                <col className="w-[24%]" />
-                <col className="w-[25%]" />
+                <col className="w-[36%]" />
+                <col className="w-[11%]" />
+                <col className="w-[22%]" />
+                <col className="w-[31%]" />
               </colgroup>
               <thead className="bg-[#211f18] text-[10px] font-black text-[#c9a52e] sm:text-xs">
                 <tr>
@@ -1475,17 +1621,35 @@ export function CartForm({
               <h2 className="text-base font-black text-[#f6f0dc]">
                 発送先
               </h2>
-              <p className="mt-3 text-sm font-semibold leading-relaxed text-[#d7ceb8]">
-                【ダミー】発送先情報は後日共有予定です。現在は確認用の仮文言です。
-              </p>
+              <dl className="mt-3 space-y-2 text-sm">
+                {SHIPPING_DESTINATION.map(([label, value]) => (
+                  <div key={label} className="rounded-[14px] bg-[#0f0e0b] px-3 py-2">
+                    <dt className="text-xs font-black text-[#8f8369]">{label}</dt>
+                    <dd className="mt-1 break-words font-semibold leading-relaxed text-[#ede8d5]">
+                      {value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </section>
             <section className="rounded-[20px] border border-[#2d2a20] bg-[#171511] p-4">
               <h2 className="text-base font-black text-[#f6f0dc]">
                 注意事項
               </h2>
-              <p className="mt-3 text-sm font-semibold leading-relaxed text-[#d7ceb8]">
-                【ダミー】注意事項は後日共有予定です。正式な運用文言に差し替える前提の仮表示です。
-              </p>
+              <div className="mt-3 space-y-3 text-sm">
+                {SHIPPING_NOTE_SECTIONS.map((section) => (
+                  <article key={section.title} className="rounded-[14px] bg-[#0f0e0b] px-3 py-3">
+                    <h3 className="font-black text-[#c9a52e]">
+                      {section.title}
+                    </h3>
+                    <div className="mt-2 space-y-1.5 font-semibold leading-relaxed text-[#d7ceb8]">
+                      {section.paragraphs.map((paragraph) => (
+                        <p key={paragraph}>{paragraph}</p>
+                      ))}
+                    </div>
+                  </article>
+                ))}
+              </div>
             </section>
           </div>
         </div>
@@ -1557,52 +1721,34 @@ export function CartForm({
 
   const renderCatalogView = () => (
     <>
-      {hasRegisteredCards && (
-        <div
-          className={[
-            'sticky top-[69px] z-30 border-b border-[#2d2a20] bg-[#111110]/95 py-3 backdrop-blur transition-all duration-200',
-            categoryControlsVisible
-              ? 'translate-y-0 opacity-100'
-              : 'pointer-events-none -translate-y-full opacity-0',
-          ].join(' ')}
-        >
-          <div className="grid grid-cols-2 gap-2">
-            {(['pokemon', 'onepiece'] as Category[]).map((item) => (
-              <button
-                key={item}
-                type="button"
-                aria-pressed={enabledCategories[item]}
-                onClick={() => toggleCategory(item)}
-                className={`h-10 rounded-full text-sm font-black transition-colors ${
-                  enabledCategories[item]
-                    ? 'bg-[#c9a52e] text-[#0e0c09] shadow-[0_8px_20px_rgba(201,165,46,0.18)]'
-                    : 'bg-[#252420] text-[#8f8369] hover:bg-[#2e2b25] hover:text-[#d7ceb8]'
-                }`}
-              >
-                {CATEGORY_LABEL[item]}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       <HomeBannerCarousel banners={banners} fallback="cart-message" />
 
       <div className="space-y-5 py-5" ref={listTopRef}>
         {hasRegisteredCards && (
           <>
             <div className="grid gap-3 md:grid-cols-[auto_1fr] md:items-center">
-              <Link
-                href={FLOW_URL}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                aria-expanded={purchaseFlowOpen}
+                aria-controls="purchase-flow"
+                onClick={() => {
+                  setPurchaseFlowOpen((current) => !current)
+                  if (!purchaseFlowOpen) {
+                    window.requestAnimationFrame(() => {
+                      document
+                        .getElementById('purchase-flow')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    })
+                  }
+                }}
                 className="inline-flex h-10 items-center rounded-full border border-[#2d2a20] bg-[#1c1b18] px-4 text-sm font-black text-[#c9a52e] underline underline-offset-2 transition-colors hover:border-[#c9a52e]/50 hover:bg-[#252420]"
               >
-                ? 買取の流れについて
-              </Link>
+                買取の流れについて
+              </button>
               <select
                 value={sort}
                 onChange={(event) => {
+                  setCardsLoading(true)
                   setSort(event.target.value as SortKey)
                   setCurrentPage(1)
                 }}
@@ -1629,6 +1775,10 @@ export function CartForm({
                 検索
               </button>
             </form>
+
+            {purchaseFlowOpen && (
+              <PurchaseFlowPanel onClose={() => setPurchaseFlowOpen(false)} />
+            )}
           </>
         )}
 
@@ -1653,7 +1803,7 @@ export function CartForm({
             </div>
             <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-[#7a6e55]">
               <span className="rounded-full bg-[#252420] px-3 py-1">
-                カテゴリ: {activeCategoryText}
+                カテゴリ: ポケモン
               </span>
               <span className="rounded-full bg-[#252420] px-3 py-1">
                 並び順: {SORT_LABEL[sort]}
@@ -1700,7 +1850,7 @@ export function CartForm({
         >
         <div className="rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-4 shadow-[0_18px_46px_rgba(0,0,0,0.38)] transition-colors hover:border-[#4a4233]">
           <div className="flex gap-3">
-            <div className="h-[178px] w-[124px] shrink-0 rounded-lg bg-[#1e1c17] sm:h-[210px] sm:w-[146px]" />
+            <UnlistedProductImage />
             <div className="flex min-w-0 flex-1 flex-col">
               <h2 className="text-center text-xl font-black leading-tight text-[#ede8d5]">
                 リストにない商品はこちら
@@ -1758,10 +1908,11 @@ export function CartForm({
                       </p>
                     </div>
                   </div>
-                  <p className="mt-2 whitespace-nowrap text-2xl font-black leading-none text-red-400 sm:text-3xl">
-                    <span className="text-base sm:text-lg">¥</span>{card.buy_price.toLocaleString()}
+                  <p className="mt-2 max-w-full break-words text-[1.45rem] font-black leading-[1.05] text-red-400 [overflow-wrap:anywhere] sm:text-[1.55rem]">
+                    <span className="text-[0.75em]">¥</span>
+                    {card.buy_price.toLocaleString()}
                   </p>
-                  <div className="mt-3 flex items-center gap-2">
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
                     <QuantityControl
                       quantity={quantity}
                       onDecrement={() =>
@@ -1774,7 +1925,7 @@ export function CartForm({
                     <button
                       type="button"
                       onClick={() => addToCart(card)}
-                      className="h-10 flex-1 rounded-xl bg-[#16a9f2] text-sm font-black text-white shadow-sm"
+                      className="h-10 min-w-20 flex-1 rounded-xl bg-[#16a9f2] px-3 text-sm font-black text-white shadow-sm"
                     >
                       追加
                     </button>

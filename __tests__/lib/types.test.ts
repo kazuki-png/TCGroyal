@@ -40,9 +40,9 @@ describe('ORDER_STATUS_LABELS', () => {
 })
 
 describe('EMAIL_TRIGGER_STATUSES', () => {
-  it('accepted, waiting_arrival, completedを含む', () => {
+  it('accepted, pending_approval, completedを含む', () => {
     expect(EMAIL_TRIGGER_STATUSES).toContain('accepted')
-    expect(EMAIL_TRIGGER_STATUSES).toContain('waiting_arrival')
+    expect(EMAIL_TRIGGER_STATUSES).toContain('pending_approval')
     expect(EMAIL_TRIGGER_STATUSES).toContain('completed')
   })
 

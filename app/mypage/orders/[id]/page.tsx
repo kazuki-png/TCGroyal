@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { AssessmentDecisionPanel } from './AssessmentDecisionPanel'
 import {
   customerStatusClass,
   customerStatusLabel,
@@ -15,6 +16,7 @@ type OrderRow = {
   order_number: string | null
   status: OrderStatus
   total_amount: number
+  assessment_saved_at: string | null
   created_at: string
   order_items: OrderItemRow[] | null
 }
@@ -44,7 +46,7 @@ export default async function OrderDetailPage({
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, order_number, status, total_amount, created_at, order_items(id, card_name, item_type, grade, quantity, unit_price, requested_note)')
+    .select('id, order_number, status, total_amount, assessment_saved_at, created_at, order_items(id, card_name, item_type, grade, quantity, unit_price, assessed_unit_price, customer_decision, customer_decided_at, requested_note)')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
@@ -60,6 +62,9 @@ export default async function OrderDetailPage({
   const row = order as OrderRow
   const items = row.order_items ?? []
   const status = row.status as OrderStatus
+  const assessmentReady =
+    Boolean(row.assessment_saved_at) ||
+    items.some((item) => Boolean(item.customer_decision))
   const history = [
     {
       id: 'initial',
@@ -143,73 +148,12 @@ export default async function OrderDetailPage({
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-[24px] border border-[#2d2a20] bg-[#15130f]">
-          <div className="border-b border-[#2d2a20] px-5 py-4">
-            <h2 className="text-lg font-black text-[#f6f0dc]">
-              申し込んだカードの内訳
-            </h2>
-          </div>
-          <div className="overflow-hidden">
-            <table className="w-full table-fixed text-[10px] text-[#ede8d5] sm:text-sm">
-              <colgroup>
-                <col className="w-[32%]" />
-                <col className="w-[16%]" />
-                <col className="w-[12%]" />
-                <col className="w-[20%]" />
-                <col className="w-[20%]" />
-              </colgroup>
-              <thead className="bg-[#0f0e0b] text-left text-[10px] font-black uppercase tracking-[0.08em] text-[#c9a52e] sm:text-xs sm:tracking-[0.14em]">
-                <tr>
-                  <th className="px-2 py-3 sm:px-5">カード名</th>
-                  <th className="px-1 py-3 sm:px-5">グレード</th>
-                  <th className="px-1 py-3 text-right sm:px-5">数量</th>
-                  <th className="px-1 py-3 text-right sm:px-5">
-                    <span className="inline-block leading-tight">
-                      買取<br className="sm:hidden" />申込額
-                    </span>
-                  </th>
-                  <th className="px-2 py-3 text-right sm:px-5">小計</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#2d2a20]">
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="break-words px-2 py-4 font-black leading-tight text-[#f6f0dc] sm:px-5">
-                      {item.card_name}
-                      {item.item_type === 'unlisted' && item.requested_note && (
-                        <span className="mt-1 block text-xs font-semibold text-[#8f8369]">
-                          {item.requested_note}
-                        </span>
-                      )}
-                    </td>
-                    <td className="break-words px-1 py-4 font-semibold text-[#8f8369] sm:px-5">
-                      {item.grade}
-                    </td>
-                    <td className="px-1 py-4 text-right font-black text-[#f6f0dc] sm:px-5">
-                      {item.quantity}
-                    </td>
-                    <td className="whitespace-nowrap px-1 py-4 text-right font-semibold text-[#ede8d5] sm:px-5">
-                      {currency(item.unit_price)}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-4 text-right font-black text-red-300 sm:px-5">
-                      {currency(item.unit_price * item.quantity)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="border-t border-[#c9a52e]/40 bg-[#0f0e0b]">
-                <tr>
-                  <td colSpan={4} className="px-2 py-4 text-right font-black text-[#f6f0dc] sm:px-5">
-                    合計
-                  </td>
-                  <td className="whitespace-nowrap px-2 py-4 text-right text-sm font-black text-red-300 sm:px-5 sm:text-lg">
-                    {currency(row.total_amount)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
+        <AssessmentDecisionPanel
+          orderId={row.id}
+          status={status}
+          assessmentReady={assessmentReady}
+          items={items}
+        />
       </section>
     </div>
   )

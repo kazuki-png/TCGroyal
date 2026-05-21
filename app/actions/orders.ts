@@ -4,14 +4,20 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendStatusEmail } from '@/lib/email/send'
+import {
+  logEmailDebug,
+  sendAdminOrderNotification,
+  sendOrderSubmittedEmail,
+  sendStatusEmail,
+} from '@/lib/email/send'
 import {
   EMAIL_TRIGGER_STATUSES,
   ORDER_STATUS_FLOW,
   isBackwardOrderStatusTransition,
   isForwardOrderStatusTransition,
 } from '@/lib/types'
-import type { CartItem, OrderStatus, OrderWithItems } from '@/lib/types'
+import { loadOrderForNotification } from '@/lib/orders/notification'
+import type { CartItem, OrderStatus } from '@/lib/types'
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -34,6 +40,7 @@ type PreparedOrderItem = {
   grade: string
   quantity: number
   unit_price: number
+  assessed_unit_price: number
   requested_note: string | null
 }
 
@@ -159,6 +166,7 @@ export async function createOrder(
       grade: card.grade,
       quantity,
       unit_price: card.buy_price,
+      assessed_unit_price: card.buy_price,
       requested_note: null,
     }
   })
@@ -171,6 +179,7 @@ export async function createOrder(
       grade: '未確定',
       quantity: 1,
       unit_price: 0,
+      assessed_unit_price: 0,
       requested_note: UNLISTED_NOTE,
     })
   }
@@ -221,6 +230,59 @@ export async function createOrder(
     console.error('createOrder item insert failed', itemsError)
     await adminClient.from('orders').delete().eq('id', order.id)
     return { error: '注文明細の作成に失敗しました' }
+  }
+
+  const notificationOrder = await loadOrderForNotification(
+    adminClient,
+    order.id,
+    'createOrder'
+  )
+
+  if (notificationOrder) {
+    logEmailDebug('createOrder-notification-order-loaded', {
+      orderId: notificationOrder.id,
+      orderNumber: notificationOrder.order_number,
+      userId: notificationOrder.user_id,
+      hasUserEmail: Boolean(user.email),
+      itemCount: notificationOrder.order_items?.length ?? 0,
+    })
+
+    if (user.email) {
+      logEmailDebug('createOrder-user-email-trigger', {
+        orderId: notificationOrder.id,
+        orderNumber: notificationOrder.order_number,
+        userId: notificationOrder.user_id,
+        toEmail: user.email,
+      })
+
+      await sendOrderSubmittedEmail(user.email, notificationOrder).catch(
+        console.error
+      )
+    } else {
+      logEmailDebug('createOrder-user-email-skipped', {
+        orderId: notificationOrder.id,
+        orderNumber: notificationOrder.order_number,
+        userId: notificationOrder.user_id,
+        reason: 'auth user email is empty',
+      })
+    }
+
+    logEmailDebug('createOrder-admin-email-trigger', {
+      orderId: notificationOrder.id,
+      orderNumber: notificationOrder.order_number,
+      userId: notificationOrder.user_id,
+      kind: 'new_order',
+    })
+
+    await sendAdminOrderNotification('new_order', notificationOrder).catch(
+      console.error
+    )
+  } else {
+    logEmailDebug('createOrder-notification-order-missing', {
+      orderId: order.id,
+      orderNumber: order.order_number,
+      reason: 'order reload returned no rows',
+    })
   }
 
   revalidatePath('/mypage/orders')
@@ -274,6 +336,10 @@ export async function updateOrderStatus(
     return {}
   }
 
+  if (newStatus === 'pending_approval') {
+    return { error: 'お客様対応待ちへ進めるには査定額を保存してください' }
+  }
+
   if (
     isBackwardOrderStatusTransition(currentStatus, newStatus) &&
     !rollbackReason
@@ -305,30 +371,96 @@ export async function updateOrderStatus(
     note: rollbackReason || null,
   })
 
-  if (EMAIL_TRIGGER_STATUSES.includes(newStatus)) {
-    const { data: orderWithItems } = await adminClient
-      .from('orders')
-      .select('*, order_items(*)')
-      .eq('id', orderId)
-      .single()
+  const shouldSendUserEmail = EMAIL_TRIGGER_STATUSES.includes(newStatus)
+  const shouldSendAdminEmail = newStatus === 'pending_transfer'
 
-    if (orderWithItems) {
-      const { data: authUser } = await adminClient.auth.admin.getUserById(
-        orderWithItems.user_id
-      )
+  logEmailDebug('updateOrderStatus-email-evaluation', {
+    orderId,
+    currentStatus,
+    newStatus,
+    shouldSendUserEmail,
+    shouldSendAdminEmail,
+  })
 
-      if (authUser.user?.email) {
-        await sendStatusEmail(
-          authUser.user.email,
-          orderWithItems as unknown as OrderWithItems,
-          newStatus
+  if (shouldSendUserEmail || shouldSendAdminEmail) {
+    const notificationOrder = await loadOrderForNotification(
+      adminClient,
+      orderId,
+      'updateOrderStatus'
+    )
+
+    if (notificationOrder) {
+      logEmailDebug('updateOrderStatus-notification-order-loaded', {
+        orderId: notificationOrder.id,
+        orderNumber: notificationOrder.order_number,
+        userId: notificationOrder.user_id,
+        newStatus,
+        itemCount: notificationOrder.order_items?.length ?? 0,
+      })
+
+      if (shouldSendUserEmail) {
+        const { data: authUser } = await adminClient.auth.admin.getUserById(
+          notificationOrder.user_id
+        )
+
+        if (authUser.user?.email) {
+          logEmailDebug('updateOrderStatus-user-email-trigger', {
+            orderId: notificationOrder.id,
+            orderNumber: notificationOrder.order_number,
+            userId: notificationOrder.user_id,
+            newStatus,
+            toEmail: authUser.user.email,
+          })
+
+          await sendStatusEmail(
+            authUser.user.email,
+            notificationOrder,
+            newStatus
+          ).catch(console.error)
+        } else {
+          logEmailDebug('updateOrderStatus-user-email-skipped', {
+            orderId: notificationOrder.id,
+            orderNumber: notificationOrder.order_number,
+            userId: notificationOrder.user_id,
+            newStatus,
+            reason: 'auth user email is empty',
+          })
+        }
+      }
+
+      if (shouldSendAdminEmail) {
+        logEmailDebug('updateOrderStatus-admin-email-trigger', {
+          orderId: notificationOrder.id,
+          orderNumber: notificationOrder.order_number,
+          userId: notificationOrder.user_id,
+          kind: 'assessment_approved',
+        })
+
+        await sendAdminOrderNotification(
+          'assessment_approved',
+          notificationOrder
         ).catch(console.error)
       }
+    } else {
+      logEmailDebug('updateOrderStatus-notification-order-missing', {
+        orderId,
+        newStatus,
+        reason: 'order reload returned no rows',
+      })
     }
+  } else {
+    logEmailDebug('updateOrderStatus-email-skipped', {
+      orderId,
+      currentStatus,
+      newStatus,
+      reason: 'status has no email trigger',
+    })
   }
 
   revalidatePath(`/admin/orders/${orderId}`)
   revalidatePath('/admin/orders')
+  revalidatePath('/mypage/orders')
+  revalidatePath(`/mypage/orders/${orderId}`)
 
   return {}
 }

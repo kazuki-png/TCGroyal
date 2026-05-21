@@ -5,7 +5,7 @@ export const CUSTOMER_STATUS_LABELS: Record<OrderStatus, string> = {
   accepted: '受付',
   waiting_arrival: '到着待ち',
   inspecting: '査定中',
-  pending_approval: '承認待ち',
+  pending_approval: 'お客様対応待ち',
   pending_transfer: '振込待ち',
   completed: '振り込み完了',
 }
@@ -38,6 +38,9 @@ export type OrderItemRow = {
   grade: string
   quantity: number
   unit_price: number
+  assessed_unit_price?: number | null
+  customer_decision?: 'approved' | 'cancelled' | null
+  customer_decided_at?: string | null
   requested_note?: string | null
 }
 

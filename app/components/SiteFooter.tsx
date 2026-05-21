@@ -2,9 +2,9 @@ import Link from 'next/link'
 
 export function SiteFooter() {
   return (
-    <footer className="w-full border-t border-[#2d2a20] bg-[#0c0b09] px-4 py-7 text-center text-[11px] text-[#6f664f]">
-      <div className="mx-auto max-w-5xl">
-        <nav className="mb-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 font-semibold">
+    <footer className="w-full border-t border-[#2d2a20] bg-[#0c0b09] px-4 py-4 text-[11px] text-[#6f664f]">
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 md:flex-row">
+        <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 font-semibold md:justify-start">
           <Link href="/" className="transition-colors hover:text-[#c9a52e]">
             トップ
           </Link>
@@ -20,8 +20,6 @@ export function SiteFooter() {
           <Link href="/tokusho" className="transition-colors hover:text-[#c9a52e]">
             特商法
           </Link>
-        </nav>
-        <div className="mb-3 flex items-center justify-center gap-5 font-semibold">
           <Link href="/company" className="transition-colors hover:text-[#c9a52e]">
             会社概要
           </Link>
@@ -32,8 +30,10 @@ export function SiteFooter() {
           >
             X
           </Link>
-        </div>
-        <p className="text-[10px]">© 2026 TCG Royal All Rights Reserved.</p>
+        </nav>
+        <p className="shrink-0 text-[10px] font-semibold text-[#5d543f]">
+          © 2026 TCG Royal All Rights Reserved.
+        </p>
       </div>
     </footer>
   )

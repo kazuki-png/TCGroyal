@@ -2,7 +2,10 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { StatusBadge } from '@/app/components/StatusBadge'
-import { StatusUpdateForm } from './StatusUpdateForm'
+import {
+  AssessmentEditor,
+  type AssessmentEditorItem,
+} from '../AssessmentEditor'
 import {
   ORDER_STATUS_LABELS,
   nextOrderStatuses,
@@ -12,6 +15,19 @@ import type { OrderStatus } from '@/lib/types'
 
 function displayOrderNumber(order: { id: string; order_number?: string | null }) {
   return order.order_number || order.id.slice(0, 8).toUpperCase()
+}
+
+function orderActionStatuses(status: OrderStatus) {
+  if (
+    status === 'inspecting' ||
+    status === 'pending_approval' ||
+    status === 'completed'
+  ) {
+    return []
+  }
+
+  const nextStatus = nextOrderStatuses(status)[0]
+  return nextStatus ? [nextStatus] : []
 }
 
 export default async function AdminOrderDetailPage({
@@ -41,8 +57,9 @@ export default async function AdminOrderDetailPage({
     .order('created_at', { ascending: true })
 
   const currentStatus = order.status as OrderStatus
-  const nextStatuses = nextOrderStatuses(currentStatus)
+  const nextStatuses = orderActionStatuses(currentStatus)
   const previousStatuses = previousOrderStatuses(currentStatus)
+  const orderItems = (order.order_items ?? []) as AssessmentEditorItem[]
 
   return (
     <div>
@@ -59,147 +76,71 @@ export default async function AdminOrderDetailPage({
         <StatusBadge status={order.status as OrderStatus} />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-            <h2 className="mb-1 text-sm font-medium text-zinc-400">申込者</h2>
-            <p className="text-white">{authUser?.user?.email ?? '不明'}</p>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-            <h2 className="mb-4 text-lg font-semibold text-white">申込カード</h2>
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-zinc-700 text-left text-sm text-zinc-400">
-                  <th className="pb-2 font-medium">カード名</th>
-                  <th className="pb-2 font-medium">グレード</th>
-                  <th className="pb-2 text-right font-medium">枚数</th>
-                  <th className="pb-2 text-right font-medium">単価</th>
-                  <th className="pb-2 text-right font-medium">小計</th>
-                </tr>
-              </thead>
-              <tbody>
-                {order.order_items?.map((item: {
-                  id: string
-                  card_name: string
-                  item_type?: 'card' | 'unlisted'
-                  grade: string
-                  quantity: number
-                  unit_price: number
-                  requested_note?: string | null
-                }) => (
-                  <tr key={item.id} className="border-b border-zinc-800">
-                    <td className="py-3 text-sm text-white">
-                      {item.card_name}
-                      {item.item_type === 'unlisted' && item.requested_note && (
-                        <span className="mt-1 block text-xs text-zinc-500">
-                          {item.requested_note}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 text-sm text-zinc-400">{item.grade}</td>
-                    <td className="py-3 text-right text-sm text-white">
-                      {item.quantity}枚
-                    </td>
-                    <td className="py-3 text-right text-sm text-white">
-                      ¥{item.unit_price.toLocaleString()}
-                    </td>
-                    <td className="py-3 text-right text-sm font-medium text-white">
-                      ¥{(item.unit_price * item.quantity).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colSpan={4} className="pt-3 text-right text-zinc-400">
-                    合計
-                  </td>
-                  <td className="pt-3 text-right text-lg font-bold text-white">
-                    ¥{order.total_amount.toLocaleString()}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-            <h2 className="mb-4 text-lg font-semibold text-white">振込先口座</h2>
-            <dl className="space-y-2 text-sm">
-              {[
-                { label: '銀行', value: order.bank_name },
-                { label: '支店', value: order.bank_branch },
-                { label: '口座番号', value: order.bank_account_no },
-                { label: '口座名義', value: order.bank_holder },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex gap-4">
-                  <dt className="w-24 text-zinc-500">{label}</dt>
-                  <dd className="text-white">{value ?? '-'}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-
-          {logs && logs.length > 0 && (
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-              <h2 className="mb-4 text-lg font-semibold text-white">
-                ステータス変更履歴
-              </h2>
-              <div className="space-y-3">
-                {logs.map((log: {
-                  id: string
-                  old_status: string | null
-                  new_status: string
-                  created_at: string
-                }) => (
-                  <div
-                    key={log.id}
-                    className="flex items-center gap-3 text-sm text-zinc-400"
-                  >
-                    <span className="text-xs">
-                      {new Date(log.created_at).toLocaleString('ja-JP')}
-                    </span>
-                    <span>
-                      {log.old_status
-                        ? ORDER_STATUS_LABELS[log.old_status as OrderStatus]
-                        : '-'}
-                    </span>
-                    <span>→</span>
-                    <span className="text-white">
-                      {ORDER_STATUS_LABELS[log.new_status as OrderStatus]}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      <div className="space-y-6">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+          <h2 className="mb-1 text-sm font-medium text-zinc-400">申込者</h2>
+          <p className="text-white">{authUser?.user?.email ?? '不明'}</p>
         </div>
 
-        <div>
+        <AssessmentEditor
+          key={`${order.id}-${currentStatus}`}
+          orderId={order.id}
+          status={currentStatus}
+          items={orderItems}
+          nextStatuses={nextStatuses}
+          previousStatuses={previousStatuses}
+        />
+
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+          <h2 className="mb-4 text-lg font-semibold text-white">振込先口座</h2>
+          <dl className="space-y-2 text-sm">
+            {[
+              { label: '銀行', value: order.bank_name },
+              { label: '支店', value: order.bank_branch },
+              { label: '口座番号', value: order.bank_account_no },
+              { label: '口座名義', value: order.bank_holder },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex gap-4">
+                <dt className="w-24 text-zinc-500">{label}</dt>
+                <dd className="text-white">{value ?? '-'}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        {logs && logs.length > 0 && (
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
             <h2 className="mb-4 text-lg font-semibold text-white">
-              ステータス変更
+              ステータス変更履歴
             </h2>
-            {nextStatuses.length === 0 ? (
-              <p className="text-sm text-zinc-500">このステータスは完了です</p>
-            ) : (
-              <StatusUpdateForm
-                orderId={order.id}
-                nextStatuses={nextStatuses}
-                previousStatuses={previousStatuses}
-              />
-            )}
-            {nextStatuses.length === 0 && previousStatuses.length > 0 && (
-              <div className="mt-5">
-                <StatusUpdateForm
-                  orderId={order.id}
-                  nextStatuses={[]}
-                  previousStatuses={previousStatuses}
-                />
-              </div>
-            )}
+            <div className="space-y-3">
+              {logs.map((log: {
+                id: string
+                old_status: string | null
+                new_status: string
+                created_at: string
+              }) => (
+                <div
+                  key={log.id}
+                  className="flex items-center gap-3 text-sm text-zinc-400"
+                >
+                  <span className="text-xs">
+                    {new Date(log.created_at).toLocaleString('ja-JP')}
+                  </span>
+                  <span>
+                    {log.old_status
+                      ? ORDER_STATUS_LABELS[log.old_status as OrderStatus]
+                      : '-'}
+                  </span>
+                  <span>→</span>
+                  <span className="text-white">
+                    {ORDER_STATUS_LABELS[log.new_status as OrderStatus]}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

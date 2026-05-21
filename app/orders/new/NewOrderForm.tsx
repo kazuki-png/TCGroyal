@@ -8,11 +8,10 @@ import type { Card, CartItem } from '@/lib/types'
 export function NewOrderForm({ cards }: { cards: Card[] }) {
   const router = useRouter()
   const [cart, setCart] = useState<CartItem[]>([])
-  const [category, setCategory] = useState<'all' | 'pokemon' | 'onepiece'>('all')
   const [error, setError] = useState<string>()
   const [pending, startTransition] = useTransition()
 
-  const filtered = category === 'all' ? cards : cards.filter((c) => c.category === category)
+  const filtered = cards.filter((c) => c.category === 'pokemon')
 
   const addToCart = (card: Card) => {
     setCart((prev) => {
@@ -72,21 +71,6 @@ export function NewOrderForm({ cards }: { cards: Card[] }) {
       <div className="lg:col-span-2 space-y-4">
         <div className="rounded-2xl border border-zinc-200 bg-white p-6">
           <h2 className="mb-4 text-lg font-semibold">カードを選択</h2>
-          <div className="mb-4 flex gap-2">
-            {(['all', 'pokemon', 'onepiece'] as const).map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                  category === cat
-                    ? 'bg-zinc-900 text-white'
-                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                }`}
-              >
-                {cat === 'all' ? '全て' : cat === 'pokemon' ? 'ポケモン' : 'ワンピース'}
-              </button>
-            ))}
-          </div>
 
           {filtered.length === 0 ? (
             <p className="py-8 text-center text-zinc-400">カードが登録されていません</p>
@@ -100,8 +84,7 @@ export function NewOrderForm({ cards }: { cards: Card[] }) {
                   <div>
                     <p className="font-medium text-zinc-900">{card.name}</p>
                     <p className="text-sm text-zinc-500">
-                      {card.category === 'pokemon' ? 'ポケモン' : 'ワンピース'} /{' '}
-                      {card.grade}
+                      ポケモン / {card.grade}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">

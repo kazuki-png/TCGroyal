@@ -18,7 +18,6 @@ export function HomeBannerCarousel({
     [banners]
   )
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [isPaused, setIsPaused] = useState(false)
   const touchStartXRef = useRef<number | null>(null)
   const didSwipeRef = useRef(false)
 
@@ -31,14 +30,14 @@ export function HomeBannerCarousel({
   }
 
   useEffect(() => {
-    if (activeBanners.length <= 1 || isPaused) return
+    if (activeBanners.length <= 1) return
 
     const timer = window.setInterval(() => {
       setCurrentIndex((index) => (index + 1) % activeBanners.length)
     }, 4200)
 
     return () => window.clearInterval(timer)
-  }, [activeBanners.length, isPaused])
+  }, [activeBanners.length])
 
   if (activeBanners.length === 0) {
     if (fallback === 'cart-message') {
@@ -90,7 +89,6 @@ export function HomeBannerCarousel({
     if (Math.abs(diff) < 44) return
 
     didSwipeRef.current = true
-    setIsPaused(true)
     moveBanner(diff < 0 ? 1 : -1)
     window.setTimeout(() => {
       didSwipeRef.current = false
@@ -98,7 +96,6 @@ export function HomeBannerCarousel({
   }
 
   const handleManualMove = (offset: number) => {
-    setIsPaused(true)
     moveBanner(offset)
   }
 
@@ -109,7 +106,7 @@ export function HomeBannerCarousel({
       className="w-full border-b border-zinc-100 bg-white dark:border-[#2d2a20] dark:bg-[#111110]"
     >
       <div
-        className="relative min-h-[240px] touch-pan-y select-none overflow-hidden sm:min-h-[360px] lg:min-h-[440px]"
+        className="relative h-[clamp(160px,32vw,440px)] touch-pan-y select-none overflow-hidden bg-[#0f0e0b]"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -133,7 +130,7 @@ export function HomeBannerCarousel({
             fill
             priority={normalizedIndex === 0}
             sizes="100vw"
-            className="object-cover"
+            className="object-contain"
           />
         </Link>
         {activeBanners.length > 1 && (
@@ -157,15 +154,6 @@ export function HomeBannerCarousel({
               </button>
             </div>
             <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-3 px-4">
-              <button
-                type="button"
-                aria-label={isPaused ? 'バナーの自動再生を再開' : 'バナーの自動再生を一時停止'}
-                aria-pressed={isPaused}
-                onClick={() => setIsPaused((current) => !current)}
-                className="rounded-full bg-black/55 px-3 py-1 text-xs font-black text-white shadow-sm backdrop-blur transition-colors hover:bg-black/75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-              >
-                {isPaused ? '再生' : '停止'}
-              </button>
               <div className="flex items-center justify-center gap-1.5">
                 {activeBanners.map((item, index) => (
                   <button
@@ -174,7 +162,6 @@ export function HomeBannerCarousel({
                     aria-label={`${index + 1}枚目のバナーを表示`}
                     aria-current={index === normalizedIndex ? 'true' : undefined}
                     onClick={() => {
-                      setIsPaused(true)
                       setCurrentIndex(index)
                     }}
                     className={`h-2 rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${

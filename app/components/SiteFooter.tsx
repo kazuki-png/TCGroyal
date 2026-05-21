@@ -8,9 +8,6 @@ export function SiteFooter() {
           <Link href="/" className="transition-colors hover:text-[#c9a52e]">
             トップ
           </Link>
-          <Link href="#" className="transition-colors hover:text-[#c9a52e]">
-            通販
-          </Link>
           <Link href="/terms" className="transition-colors hover:text-[#c9a52e]">
             利用規約
           </Link>

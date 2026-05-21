@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { createClient } from '@/lib/supabase/server'
 import { SiteFooter } from './SiteFooter'
 import { SiteHeader } from './SiteHeader'
 
@@ -163,7 +164,7 @@ function getNumberedParts(paragraph: string) {
   }
 }
 
-export function LegalPage({
+export async function LegalPage({
   title,
   lead,
   sections = [],
@@ -174,9 +175,14 @@ export function LegalPage({
   sections?: LegalSection[]
   paragraphs?: readonly string[]
 }) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   return (
     <div className="flex min-h-screen flex-col bg-[#0b0a08] text-[#ede8d5]">
-      <SiteHeader isAuthenticated={false} priorityLogo />
+      <SiteHeader isAuthenticated={Boolean(user)} priorityLogo />
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
         <article className="rounded-[28px] border border-[#2d2a20] bg-[#12100c] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
           <p className="text-xs font-black uppercase tracking-[0.22em] text-[#ede8d5]">

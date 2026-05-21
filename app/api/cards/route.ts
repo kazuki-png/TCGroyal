@@ -6,7 +6,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? String(DEFAULT_LIMIT), 10)))
-  const category = searchParams.get('category') ?? ''
+  const category = searchParams.get('category') ?? 'pokemon'
   const sort = searchParams.get('sort') ?? 'price-desc'
   const q = searchParams.get('q')?.trim() ?? ''
 

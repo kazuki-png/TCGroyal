@@ -16,7 +16,7 @@ const notoSerifJP = Noto_Serif_JP({
 
 export const metadata: Metadata = {
   title: 'TCG Royal - 郵送トレカ買取',
-  description: 'ポケモンカード・ワンピースカードの郵送買取サービス',
+  description: 'ポケモンカードの郵送買取サービス',
 }
 
 export default function RootLayout({

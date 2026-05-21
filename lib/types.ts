@@ -12,7 +12,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   accepted: '受付済み',
   waiting_arrival: '到着待ち',
   inspecting: '査定中',
-  pending_approval: '承認待ち',
+  pending_approval: 'お客様対応待ち',
   pending_transfer: '振込待ち',
   completed: '完了',
 }
@@ -29,7 +29,7 @@ export const ORDER_STATUS_FLOW: OrderStatus[] = [
 
 export const EMAIL_TRIGGER_STATUSES: OrderStatus[] = [
   'accepted',
-  'inspecting',
+  'pending_approval',
   'completed',
 ]
 
@@ -123,6 +123,7 @@ export interface Order {
   bank_account_no: string | null
   bank_holder: string | null
   note: string | null
+  assessment_saved_at: string | null
   created_at: string
   updated_at: string
 }
@@ -136,6 +137,9 @@ export interface OrderItem {
   grade: string
   quantity: number
   unit_price: number
+  assessed_unit_price: number
+  customer_decision: 'approved' | 'cancelled' | null
+  customer_decided_at: string | null
   requested_note: string | null
   created_at: string
 }

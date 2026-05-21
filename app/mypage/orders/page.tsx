@@ -23,7 +23,12 @@ function currency(value: number) {
   return `¥${value.toLocaleString('ja-JP')}`
 }
 
-export default async function MypageOrdersPage() {
+export default async function MypageOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>
+}) {
+  const { filter } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -38,6 +43,8 @@ export default async function MypageOrdersPage() {
     .order('created_at', { ascending: false })
 
   const rows = (orders ?? []) as OrderRow[]
+  const actionRows = rows.filter((order) => order.status === 'pending_approval')
+  const visibleRows = filter === 'customer-action' ? actionRows : rows
   const totalAmount = rows.reduce((sum, order) => sum + order.total_amount, 0)
   const activeCount = rows.filter((order) => order.status !== 'completed').length
 
@@ -73,21 +80,48 @@ export default async function MypageOrdersPage() {
         </div>
       </section>
 
-      {rows.length === 0 ? (
+      <div className="flex flex-wrap gap-2">
+        {[
+          { href: '/mypage/orders', label: 'すべて', active: !filter },
+          {
+            href: '/mypage/orders?filter=customer-action',
+            label: `お客様対応待ち ${actionRows.length}`,
+            active: filter === 'customer-action',
+          },
+        ].map((tab) => (
+          <Link
+            key={tab.href}
+            href={tab.href}
+            className={`rounded-full px-4 py-2 text-sm font-black transition-colors ${
+              tab.active
+                ? 'bg-[#c9a52e] text-[#0e0c09]'
+                : 'border border-[#2d2a20] bg-[#15130f] text-[#8f8369] hover:border-[#c9a52e]/60 hover:text-[#f6f0dc]'
+            }`}
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </div>
+
+      {visibleRows.length === 0 ? (
         <div className="rounded-[24px] border border-dashed border-[#3a3528] bg-[#11100c] px-5 py-12 text-center">
           <p className="text-base font-black text-[#f6f0dc]">
-            郵送買取の申し込みはまだありません
+            {filter === 'customer-action'
+              ? 'お客様対応待ちの申し込みはありません'
+              : '郵送買取の申し込みはまだありません'}
           </p>
-          <Link
-            href="/cart"
-            className="mt-5 inline-flex rounded-full bg-[#c9a52e] px-5 py-3 text-sm font-black text-[#0e0c09]"
-          >
-            買取申込へ
-          </Link>
+          {!filter && (
+            <Link
+              href="/cart"
+              className="mt-5 inline-flex rounded-full bg-[#c9a52e] px-5 py-3 text-sm font-black text-[#0e0c09]"
+            >
+              買取申込へ
+            </Link>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
-          {rows.map((order) => {
+          {visibleRows.map((order) => {
             const quantity = totalQuantity(order.order_items)
             const status = order.status as OrderStatus
 

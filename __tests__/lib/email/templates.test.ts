@@ -1,13 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import {
+  orderSubmittedEmailHtml,
   acceptedEmailHtml,
-  waitingArrivalEmailHtml,
+  pendingApprovalEmailHtml,
   completedEmailHtml,
 } from '@/lib/email/templates'
 import type { OrderWithItems } from '@/lib/types'
 
 const mockOrder: OrderWithItems = {
   id: '12345678-0000-0000-0000-000000000000',
+  order_number: '20260521-01',
   user_id: 'user-1',
   status: 'accepted',
   total_amount: 50000,
@@ -16,6 +18,7 @@ const mockOrder: OrderWithItems = {
   bank_account_no: '1234567',
   bank_holder: 'ヤマダ タロウ',
   note: null,
+  assessment_saved_at: null,
   created_at: '2025-01-01T00:00:00Z',
   updated_at: '2025-01-01T00:00:00Z',
   order_items: [
@@ -27,25 +30,33 @@ const mockOrder: OrderWithItems = {
       grade: 'PSA10',
       quantity: 2,
       unit_price: 25000,
+      assessed_unit_price: 25000,
+      customer_decision: null,
+      customer_decided_at: null,
+      requested_note: null,
       created_at: '2025-01-01T00:00:00Z',
     },
   ],
 }
 
-describe('acceptedEmailHtml', () => {
-  it('申込番号が含まれる', () => {
-    const html = acceptedEmailHtml(mockOrder)
-    expect(html).toContain('12345678')
-  })
-
-  it('カード名が含まれる', () => {
-    const html = acceptedEmailHtml(mockOrder)
+describe('orderSubmittedEmailHtml', () => {
+  it('注文番号と明細が含まれる', () => {
+    const html = orderSubmittedEmailHtml(mockOrder)
+    expect(html).toContain('20260521-01')
     expect(html).toContain('リザードン')
+    expect(html).toContain('50,000')
+  })
+})
+
+describe('acceptedEmailHtml', () => {
+  it('注文番号が含まれる', () => {
+    const html = acceptedEmailHtml(mockOrder)
+    expect(html).toContain('20260521-01')
   })
 
-  it('合計金額が含まれる', () => {
+  it('発送先住所が含まれる', () => {
     const html = acceptedEmailHtml(mockOrder)
-    expect(html).toContain('50,000')
+    expect(html).toContain('東京都港区六本木4-2-14')
   })
 
   it('有効なHTMLドキュメントである', () => {
@@ -55,34 +66,25 @@ describe('acceptedEmailHtml', () => {
   })
 })
 
-describe('waitingArrivalEmailHtml', () => {
-  it('申込番号が含まれる', () => {
-    const html = waitingArrivalEmailHtml(mockOrder)
-    expect(html).toContain('12345678')
+describe('pendingApprovalEmailHtml', () => {
+  it('注文番号と査定結果合計額が含まれる', () => {
+    const html = pendingApprovalEmailHtml(mockOrder)
+    expect(html).toContain('20260521-01')
+    expect(html).toContain('50,000')
   })
 
-  it('送付先住所が含まれる', () => {
-    const html = waitingArrivalEmailHtml(mockOrder)
-    expect(html).toContain('TCG Royal')
+  it('マイページリンクが含まれる', () => {
+    const html = pendingApprovalEmailHtml(mockOrder, {
+      mypageUrl: 'https://example.com/mypage/orders/1',
+    })
+    expect(html).toContain('https://example.com/mypage/orders/1')
   })
 })
 
 describe('completedEmailHtml', () => {
-  it('振込金額が含まれる', () => {
+  it('注文番号と振込金額が含まれる', () => {
     const html = completedEmailHtml(mockOrder)
+    expect(html).toContain('20260521-01')
     expect(html).toContain('50,000')
-  })
-
-  it('銀行情報が含まれる', () => {
-    const html = completedEmailHtml(mockOrder)
-    expect(html).toContain('テスト銀行')
-    expect(html).toContain('1234567')
-    expect(html).toContain('ヤマダ タロウ')
-  })
-
-  it('bank_nameがnullの場合にハイフンを表示する', () => {
-    const order = { ...mockOrder, bank_name: null }
-    const html = completedEmailHtml(order)
-    expect(html).toContain('銀行：-')
   })
 })

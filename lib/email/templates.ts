@@ -1,25 +1,72 @@
 import type { OrderWithItems } from '@/lib/types'
 
+export type AdminNotificationKind =
+  | 'new_order'
+  | 'assessment_approved'
+  | 'cancellation'
+
+type EmailContext = {
+  customerName?: string
+  mypageUrl?: string
+  adminUrl?: string
+}
+
+const SHIPPING_DESTINATION = [
+  ['宛名', '株式会社フィンテグラホールディングス 買取部'],
+  ['住所', '〒106-0032 東京都港区六本木4-2-14 六本木三河台スクエアビル 3F'],
+  ['電話番号', '03-6841-8309'],
+] as const
+
+function escapeHtml(value: unknown) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function yen(value: number) {
+  return `¥${value.toLocaleString('ja-JP')}`
+}
+
+function salutation(name?: string) {
+  const cleanName = name?.trim()
+  return cleanName ? `${escapeHtml(cleanName)}様` : 'お客様'
+}
+
+function currentUnitPrice(item: OrderWithItems['order_items'][number]) {
+  return item.assessed_unit_price ?? item.unit_price
+}
+
+function signatureBlock() {
+  return `
+    <div class="signature">
+      <p>株式会社フィンテグラホールディングス 買取部</p>
+    </div>
+  `
+}
+
 function baseLayout(title: string, body: string): string {
   return `<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
   <style>
-    body { font-family: sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 32px auto; background: #fff; border-radius: 8px; padding: 32px; }
-    .header { border-bottom: 2px solid #1a1a1a; margin-bottom: 24px; padding-bottom: 16px; }
-    .header h1 { margin: 0; font-size: 24px; color: #1a1a1a; }
-    .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e5e5; font-size: 12px; color: #666; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; color: #1a1a1a; margin: 0; padding: 0; }
+    .container { max-width: 640px; margin: 32px auto; background: #fff; border-radius: 12px; padding: 32px; }
+    .header { border-bottom: 2px solid #111; margin-bottom: 24px; padding-bottom: 16px; }
+    .header h1 { margin: 0; font-size: 24px; color: #111; }
+    .lead { font-size: 16px; line-height: 1.8; }
+    .box { background: #f7f7f7; border-radius: 10px; padding: 16px; margin: 16px 0; }
+    .amount { font-size: 20px; font-weight: 800; color: #111; }
+    .button { display: inline-block; background: #111; color: #fff !important; border-radius: 999px; padding: 12px 18px; text-decoration: none; font-weight: 800; }
     table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #e5e5e5; }
-    th { background: #f5f5f5; font-weight: 600; }
-    .amount { font-size: 20px; font-weight: bold; color: #1a1a1a; }
-    .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
-    .badge-accepted { background: #dbeafe; color: #1d4ed8; }
-    .badge-waiting { background: #fef3c7; color: #b45309; }
-    .badge-completed { background: #d1fae5; color: #065f46; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e5e5e5; vertical-align: top; }
+    th { background: #f5f5f5; font-weight: 700; }
+    .signature { margin-top: 28px; border-top: 1px solid #d8d8d8; border-bottom: 1px solid #d8d8d8; padding: 12px 0; font-weight: 700; }
+    .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e5e5; font-size: 12px; color: #666; }
   </style>
 </head>
 <body>
@@ -29,7 +76,7 @@ function baseLayout(title: string, body: string): string {
     </div>
     ${body}
     <div class="footer">
-      <p>このメールは自動送信されています。ご不明な点は、サイトよりお問い合わせください。</p>
+      <p>このメールは自動送信されています。</p>
       <p>© TCG Royal</p>
     </div>
   </div>
@@ -37,88 +84,201 @@ function baseLayout(title: string, body: string): string {
 </html>`
 }
 
-export function acceptedEmailHtml(order: OrderWithItems): string {
-  const itemRows = order.order_items
+function itemRows(order: OrderWithItems) {
+  return order.order_items
     .map(
-      (item) => `
-    <tr>
-      <td>${item.card_name}</td>
-      <td>${item.grade}</td>
-      <td>${item.quantity}枚</td>
-      <td>¥${item.unit_price.toLocaleString()}</td>
-    </tr>`
+      (item) => {
+        const unitPrice = currentUnitPrice(item)
+        return `
+        <tr>
+          <td>${escapeHtml(item.card_name)}</td>
+          <td>${escapeHtml(item.grade)}</td>
+          <td>${item.quantity}</td>
+          <td>${yen(unitPrice)}</td>
+          <td>${yen(unitPrice * item.quantity)}</td>
+        </tr>
+      `
+      }
     )
     .join('')
+}
 
-  const body = `
-    <p>この度はTCG Royalの郵送買取にお申込みいただきありがとうございます。</p>
-    <p>以下の内容で買取申込を受け付けました。</p>
-
-    <p><span class="badge badge-accepted">受付済み</span></p>
-
-    <h3>申込内容</h3>
-    <p><strong>申込番号：</strong> ${order.order_number}</p>
+function orderItemsTable(order: OrderWithItems) {
+  return `
     <table>
       <thead>
-        <tr><th>カード名</th><th>グレード</th><th>枚数</th><th>買取価格</th></tr>
+        <tr>
+          <th>カード名</th>
+          <th>グレード</th>
+          <th>数量</th>
+          <th>単価</th>
+          <th>小計</th>
+        </tr>
       </thead>
-      <tbody>${itemRows}</tbody>
+      <tbody>${itemRows(order)}</tbody>
     </table>
-    <p class="amount">合計金額：¥${order.total_amount.toLocaleString()}</p>
-
-    <h3>次のステップ</h3>
-    <p>カードを以下の住所に郵送してください。到着後、査定を開始いたします。</p>
-    <p>
-      〒XXX-XXXX<br />
-      東京都XX区XX 1-1-1<br />
-      TCG Royal 買取担当宛
-    </p>
-    <p>※送料はお客様のご負担となります。追跡可能な方法での発送をお願いいたします。</p>
+    <p class="amount">合計金額：${yen(order.total_amount)}</p>
   `
-
-  return baseLayout('買取申込受付のお知らせ - TCG Royal', body)
 }
 
-export function inspectingEmailHtml(order: OrderWithItems): string {
-  const body = `
-    <p>TCG Royalをご利用いただきありがとうございます。</p>
-    <p>お客様からお送りいただいたカードを受け取りました。これより査定を開始いたします。</p>
-
-    <p><span class="badge badge-waiting">査定中</span></p>
-
-    <h3>申込番号</h3>
-    <p>${order.order_number}</p>
-
-    <p>査定結果が出次第、改めてご連絡いたします。今しばらくお待ちください。</p>
-    <p>※査定内容にご不明な点がございましたら、お気軽にお問い合わせください。</p>
+function shippingDestinationHtml() {
+  return `
+    <div class="box">
+      <h3>発送先</h3>
+      <p>
+        ${SHIPPING_DESTINATION.map(
+          ([label, value]) => `<strong>${label}：</strong>${escapeHtml(value)}`
+        ).join('<br />')}
+      </p>
+    </div>
   `
-
-  return baseLayout('カード受取のお知らせ - TCG Royal', body)
 }
 
-export function completedEmailHtml(order: OrderWithItems): string {
+function adminLink(url?: string) {
+  if (!url) return '<p>※管理画面URLが設定されていません。</p>'
+  return `<p><a class="button" href="${escapeHtml(url)}">管理画面で確認する</a></p>`
+}
+
+export function orderSubmittedEmailHtml(
+  order: OrderWithItems,
+  context: EmailContext = {}
+): string {
   const body = `
-    <p>TCG Royalをご利用いただきありがとうございます。</p>
-    <p>買取代金の振込が完了いたしました。</p>
+    <p class="lead">${salutation(context.customerName)}</p>
+    <p>この度はTCG Royalの郵送買取をご利用いただきありがとうございます。</p>
+    <p>お申し込みを受け付けいたしました。</p>
+    <p>現在、当社にて内容確認を行っております。</p>
+    <p>承認完了後、発送先住所および発送方法をメールにてご案内いたしますので、商品発送は承認メール受領後にお願いいたします。</p>
 
-    <p><span class="badge badge-completed">完了</span></p>
+    <div class="box">
+      <p><strong>注文番号：</strong>${escapeHtml(order.order_number)}</p>
+    </div>
+    ${orderItemsTable(order)}
 
-    <h3>申込番号</h3>
-    <p>${order.order_number}</p>
-
-    <h3>振込金額</h3>
-    <p class="amount">¥${order.total_amount.toLocaleString()}</p>
-
-    <h3>振込先</h3>
-    <p>
-      銀行：${order.bank_name ?? '-'}<br />
-      支店：${order.bank_branch ?? '-'}<br />
-      口座番号：${order.bank_account_no ?? '-'}<br />
-      口座名義：${order.bank_holder ?? '-'}
-    </p>
-
-    <p>またのご利用をお待ちしております。</p>
+    <p>何卒よろしくお願いいたします。</p>
+    ${signatureBlock()}
   `
 
-  return baseLayout('買取完了のお知らせ - TCG Royal', body)
+  return baseLayout('買取申込を受け付けました - TCG Royal', body)
+}
+
+export function acceptedEmailHtml(
+  order: OrderWithItems,
+  context: EmailContext = {}
+): string {
+  const body = `
+    <p class="lead">${salutation(context.customerName)}</p>
+    <p>この度はTCG Royalの郵送買取をご利用いただきありがとうございます。</p>
+    <p>お申し込み内容の確認が完了し、承認いたしました。</p>
+    <p>下記住所まで商品をご発送ください。</p>
+
+    <div class="box">
+      <p><strong>注文番号：</strong>${escapeHtml(order.order_number)}</p>
+    </div>
+    ${shippingDestinationHtml()}
+    <div class="box">
+      <h3>発送について</h3>
+      <p>・必ず発払い（元払い）にて発送をお願いいたします<br />
+      ・配送会社の指定はございません<br />
+      ・発送後は追跡番号の保管をお願いいたします</p>
+    </div>
+
+    <p>商品到着後、査定完了次第ご連絡いたします。</p>
+    <p>何卒よろしくお願いいたします。</p>
+    ${signatureBlock()}
+  `
+
+  return baseLayout('お申し込み内容を承認しました - TCG Royal', body)
+}
+
+export function pendingApprovalEmailHtml(
+  order: OrderWithItems,
+  context: EmailContext = {}
+): string {
+  const mypageLink = context.mypageUrl
+    ? `<p><a class="button" href="${escapeHtml(context.mypageUrl)}">査定結果を確認する</a></p>`
+    : '<p>マイページの「郵送買取一覧」よりご確認ください。</p>'
+
+  const body = `
+    <p class="lead">${salutation(context.customerName)}</p>
+    <p>この度はTCG Royalの郵送買取をご利用いただきありがとうございます。</p>
+    <p>商品の査定が完了いたしました。</p>
+    <p>マイページの「郵送買取一覧」より、査定結果をご確認いただき、「承認」または「キャンセル」をご選択ください。</p>
+
+    <div class="box">
+      <p><strong>注文番号：</strong>${escapeHtml(order.order_number)}</p>
+      <p class="amount">査定結果合計額：${yen(order.total_amount)}</p>
+    </div>
+    ${mypageLink}
+
+    <p>査定額をご承認いただき次第、最短1営業日以内にご指定口座へお振込みいたします。</p>
+    <p>なお、キャンセルされた商品につきましては、ご返送対応となります。ご返送となる場合の送料は、お客様負担となりますので、あらかじめご了承ください。</p>
+    <p>ご不明点がございましたら、お気軽にお問い合わせください。</p>
+    <p>今後ともよろしくお願いいたします。</p>
+    ${signatureBlock()}
+  `
+
+  return baseLayout('査定結果のご確認・ご承認のお願い - TCG Royal', body)
+}
+
+export function completedEmailHtml(
+  order: OrderWithItems,
+  context: EmailContext = {}
+): string {
+  const body = `
+    <p class="lead">${salutation(context.customerName)}</p>
+    <p>この度は郵送買取をご利用いただきありがとうございます。</p>
+    <p>買取代金のお振込み手続きが完了いたしました。</p>
+    <p>ご登録いただいた銀行口座をご確認ください。</p>
+
+    <div class="box">
+      <p><strong>注文番号：</strong>${escapeHtml(order.order_number)}</p>
+      <p class="amount">振込金額：${yen(order.total_amount)}</p>
+      <p>※金融機関によっては、着金までにお時間がかかる場合がございます。</p>
+    </div>
+
+    <p>今後ともよろしくお願いいたします。</p>
+    ${signatureBlock()}
+  `
+
+  return baseLayout('買取代金をお振込みいたしました - TCG Royal', body)
+}
+
+export function adminNotificationEmailHtml(
+  kind: AdminNotificationKind,
+  order: OrderWithItems,
+  context: EmailContext = {}
+): string {
+  const content = {
+    new_order: {
+      title: '新規買取申込がありました',
+      lead: '新しい郵送買取申込がありました。',
+      body: '管理画面より申込内容をご確認のうえ、受付対応をお願いいたします。',
+    },
+    assessment_approved: {
+      title: '査定結果が承認されました',
+      lead: 'ユーザーが査定結果を承認しました。',
+      body: '管理画面をご確認のうえ、振込対応をお願いいたします。',
+    },
+    cancellation: {
+      title: 'キャンセル商品があります',
+      lead: 'ユーザーよりキャンセル申請がありました。',
+      body: '返送対応が必要なため、管理画面をご確認ください。',
+    },
+  }[kind]
+
+  const body = `
+    <p class="lead">${escapeHtml(content.lead)}</p>
+    <p>${escapeHtml(content.body)}</p>
+
+    <div class="box">
+      <p><strong>注文番号：</strong>${escapeHtml(order.order_number)}</p>
+      <p><strong>ユーザー名：</strong>${escapeHtml(context.customerName || order.user_id)}</p>
+      <p><strong>査定結果合計額：</strong>${yen(order.total_amount)}</p>
+    </div>
+    ${orderItemsTable(order)}
+    ${adminLink(context.adminUrl)}
+  `
+
+  return baseLayout(`${content.title} - TCG Royal`, body)
 }

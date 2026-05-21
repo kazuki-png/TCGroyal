@@ -390,7 +390,7 @@ export async function importCardsCsvContent({
   const cardNumbers = [...new Set(rows.map((r) => r.card_number).filter(Boolean))] as string[]
   const noNumberNames = [...new Set(rows.filter((r) => !r.card_number).map((r) => r.name))]
 
-  let existingCards: { id: string; card_number: string | null; grade: string; name: string }[] = []
+  const existingCards: { id: string; card_number: string | null; grade: string; name: string }[] = []
   const PAGE = 1000
 
   // 型番ありカードを型番で一括取得

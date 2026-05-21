@@ -1,7 +1,12 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { setOrderStatus } from './actions'
+import {
+  AssessmentEditor,
+  type AssessmentEditorItem,
+} from './AssessmentEditor'
 import {
   ORDER_STATUS_LABELS,
   nextOrderStatuses,
@@ -22,6 +27,7 @@ export type AdminOrderRow = {
   bankBranch: string
   bankAccountNo: string
   bankHolder: string
+  items: AssessmentEditorItem[]
 }
 
 function currency(value: number) {
@@ -43,22 +49,26 @@ function relativeTime(value: string) {
 }
 
 function StatusSelect({ order }: { order: AdminOrderRow }) {
-  const [status, setStatus] = useState<OrderStatus>(order.status)
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
-  const availableStatuses = [status, ...nextOrderStatuses(status)]
+  const nextStatus = orderActionStatuses(order.status)[0]
+  const availableStatuses = nextStatus
+    ? [order.status, nextStatus]
+    : [order.status]
 
   return (
     <select
-      value={status}
+      value={order.status}
       disabled={pending}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
       onChange={(event) => {
         const next = event.target.value as OrderStatus
-        setStatus(next)
         startTransition(async () => {
           const result = await setOrderStatus(order.id, next)
-          if (result?.error) setStatus(order.status)
+          if (!result?.error) {
+            router.refresh()
+          }
         })
       }}
       className="h-9 rounded-lg border border-zinc-700 bg-zinc-950 px-2 text-xs font-black text-white outline-none disabled:opacity-50"
@@ -70,6 +80,19 @@ function StatusSelect({ order }: { order: AdminOrderRow }) {
       ))}
     </select>
   )
+}
+
+function orderActionStatuses(status: OrderStatus) {
+  if (
+    status === 'inspecting' ||
+    status === 'pending_approval' ||
+    status === 'completed'
+  ) {
+    return []
+  }
+
+  const nextStatus = nextOrderStatuses(status)[0]
+  return nextStatus ? [nextStatus] : []
 }
 
 export function AdminOrdersTable({ rows }: { rows: AdminOrderRow[] }) {
@@ -151,31 +174,41 @@ export function AdminOrdersTable({ rows }: { rows: AdminOrderRow[] }) {
       </div>
 
       {selected && (
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5 text-white">
-          <h2 className="text-lg font-black">取引詳細</h2>
-          <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-            <div>
-              <dt className="text-zinc-500">注文番号</dt>
-              <dd className="mt-1 font-black">{selected.orderNumber}</dd>
-            </div>
-            <div>
-              <dt className="text-zinc-500">ユーザー名</dt>
-              <dd className="mt-1 font-black">{selected.userName}</dd>
-            </div>
-            <div>
-              <dt className="text-zinc-500">メールアドレス</dt>
-              <dd className="mt-1 break-all font-black">{selected.userEmail}</dd>
-            </div>
-            <div>
-              <dt className="text-zinc-500">振込先</dt>
-              <dd className="mt-1 font-black">
-                {[selected.bankName, selected.bankBranch, selected.bankAccountNo, selected.bankHolder]
-                  .filter(Boolean)
-                  .join(' / ') || '-'}
-              </dd>
-            </div>
-          </dl>
-        </section>
+        <div className="space-y-5">
+          <section className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5 text-white">
+            <h2 className="text-lg font-black">取引詳細</h2>
+            <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <dt className="text-zinc-500">注文番号</dt>
+                <dd className="mt-1 font-black">{selected.orderNumber}</dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500">ユーザー名</dt>
+                <dd className="mt-1 font-black">{selected.userName}</dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500">メールアドレス</dt>
+                <dd className="mt-1 break-all font-black">{selected.userEmail}</dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500">振込先</dt>
+                <dd className="mt-1 font-black">
+                  {[selected.bankName, selected.bankBranch, selected.bankAccountNo, selected.bankHolder]
+                    .filter(Boolean)
+                    .join(' / ') || '-'}
+                </dd>
+              </div>
+            </dl>
+          </section>
+
+          <AssessmentEditor
+            key={`${selected.id}-${selected.status}`}
+            orderId={selected.id}
+            status={selected.status}
+            items={selected.items}
+            nextStatuses={orderActionStatuses(selected.status)}
+          />
+        </div>
       )}
     </div>
   )

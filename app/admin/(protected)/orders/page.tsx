@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ORDER_STATUS_LABELS, type OrderStatus } from '@/lib/types'
 import { AdminOrdersTable, type AdminOrderRow } from './AdminOrdersTable'
+import type { AssessmentEditorItem } from './AssessmentEditor'
 
 type OrderRow = {
   id: string
@@ -15,7 +16,7 @@ type OrderRow = {
   bank_holder: string | null
   created_at: string
   updated_at: string
-  order_items: { id: string }[] | null
+  order_items: AssessmentEditorItem[] | null
 }
 
 type ProfileRow = {
@@ -43,7 +44,7 @@ export default async function AdminOrdersPage({
 
   let query = admin
     .from('orders')
-    .select('*, order_items(id)')
+    .select('*, order_items(*)')
     .order('created_at', { ascending: false })
     .limit(100)
 
@@ -74,6 +75,7 @@ export default async function AdminOrdersPage({
     bankBranch: order.bank_branch ?? '',
     bankAccountNo: order.bank_account_no ?? '',
     bankHolder: order.bank_holder ?? '',
+    items: order.order_items ?? [],
   }))
 
   return (

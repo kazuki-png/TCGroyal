@@ -168,7 +168,7 @@ async function fetchTorecabank(
 // =============================================
 // メインハンドラ
 // =============================================
-Deno.serve(async (_req) => {
+Deno.serve(async () => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
   const fetched_at = new Date().toISOString()
   const allRecords: PriceRecord[] = []

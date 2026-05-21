@@ -7,7 +7,7 @@ import { SiteFooter } from './components/SiteFooter'
 import { SiteHeader } from './components/SiteHeader'
 import type { Card, HomepageBanner } from '@/lib/types'
 
-const LINE_ASSESSMENT_URL = '#'
+const LINE_ASSESSMENT_URL = 'https://lin.ee/Q6CsfJkl'
 
 function LineIcon() {
   return (
@@ -102,6 +102,7 @@ export default async function HomePage() {
       supabase
         .from('cards')
         .select('*')
+        .eq('category', 'pokemon')
         .order('buy_price', { ascending: false })
         .limit(32),
     ])

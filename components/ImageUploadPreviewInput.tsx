@@ -58,7 +58,7 @@ export function ImageUploadPreviewInput({
       >
         {previewImage ? (
           <div
-            className="h-full w-full bg-cover bg-center"
+            className="h-full w-full bg-contain bg-center bg-no-repeat"
             style={{ backgroundImage: `url("${previewImage}")` }}
           />
         ) : (

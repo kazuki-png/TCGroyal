@@ -152,7 +152,7 @@ function emailClient() {
 async function sendEmail(
   payload: Omit<CreateEmailOptions, 'from'>,
   meta: EmailDebugDetails
-) {
+): Promise<boolean> {
   const payloadRecord = payload as Record<string, unknown>
   logEmailDebug('send-request-created', {
     ...meta,
@@ -168,7 +168,7 @@ async function sendEmail(
   })
 
   const client = emailClient()
-  if (!client) return
+  if (!client) return false
 
   const from = fromEmail()
   const emailPayload = {
@@ -204,6 +204,85 @@ async function sendEmail(
     subject: payloadRecord.subject,
     resendEmailId: data?.id,
   })
+
+  return true
+}
+
+function escapeEmailHtml(value: unknown) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function passwordResetEmailHtml(resetUrl: string) {
+  const escapedResetUrl = escapeEmailHtml(resetUrl)
+
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>TCG Royal パスワード再設定</title>
+  <style>
+    body { margin: 0; padding: 0; background: #0b0a08; color: #ede8d5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .container { max-width: 640px; margin: 0 auto; padding: 32px 20px; }
+    .panel { border: 1px solid #2d2a20; border-radius: 18px; background: #12100c; padding: 28px; }
+    .brand { color: #c9a52e; font-size: 13px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+    h1 { margin: 16px 0 12px; color: #f6f0dc; font-size: 24px; line-height: 1.35; }
+    p { margin: 0 0 16px; color: #d7ceb8; font-size: 15px; line-height: 1.8; }
+    .button { display: inline-block; margin: 10px 0 18px; border-radius: 999px; background: #c9a52e; color: #0b0a08 !important; padding: 13px 22px; font-weight: 900; text-decoration: none; }
+    .note { color: #9c9278; font-size: 12px; overflow-wrap: anywhere; }
+    .footer { margin-top: 18px; color: #756c56; font-size: 12px; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="panel">
+      <div class="brand">TCG Royal</div>
+      <h1>パスワード再設定のご案内</h1>
+      <p>TCG Royal アカウントのパスワード再設定を受け付けました。以下のボタンから新しいパスワードを設定してください。</p>
+      <p><a class="button" href="${escapedResetUrl}">パスワードを再設定する</a></p>
+      <p>このメールに心当たりがない場合は、何も操作せず破棄してください。</p>
+      <p class="note">ボタンが開けない場合は、以下のURLをブラウザに貼り付けてください。<br />${escapedResetUrl}</p>
+    </div>
+    <div class="footer">
+      <p>このメールは自動送信されています。返信は受け付けておりません。</p>
+      <p>© TCG Royal</p>
+    </div>
+  </div>
+</body>
+</html>`
+}
+
+export async function sendPasswordResetEmail(
+  toEmail: string,
+  resetUrl: string
+): Promise<boolean> {
+  return sendEmail(
+    {
+      to: toEmail,
+      subject: '【TCG Royal】パスワード再設定のご案内',
+      html: passwordResetEmailHtml(resetUrl),
+      text: [
+        'TCG Royal パスワード再設定のご案内',
+        '',
+        'TCG Royal アカウントのパスワード再設定を受け付けました。',
+        '以下のURLから新しいパスワードを設定してください。',
+        '',
+        resetUrl,
+        '',
+        'このメールに心当たりがない場合は、何も操作せず破棄してください。',
+        '',
+        'TCG Royal',
+      ].join('\n'),
+    },
+    {
+      emailType: 'password_reset',
+      resetUrlOrigin: new URL(resetUrl).origin,
+    }
+  )
 }
 
 export async function sendOrderSubmittedEmail(

@@ -20,13 +20,15 @@ export function SiteFooter() {
           <Link href="/company" className="transition-colors hover:text-[#c9a52e]">
             会社概要
           </Link>
-          <Link
-            href="#"
+          <a
+            href="https://x.com/TCG_ROYAL"
             aria-label="X"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-base transition-colors hover:text-[#c9a52e]"
           >
             X
-          </Link>
+          </a>
         </nav>
         <p className="shrink-0 text-[10px] font-semibold text-[#5d543f]">
           © 2026 TCG Royal All Rights Reserved.

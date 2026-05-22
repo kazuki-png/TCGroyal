@@ -19,7 +19,7 @@ import {
   CART_TOTAL_QUANTITY_EVENT,
 } from './CartHeaderLink'
 import type { Card, CartItem, HomepageBanner, Profile } from '@/lib/types'
-import unlistedPurchaseRequestImage from '@/public/images/unlisted-purchase-request.png'
+import unlistedPurchaseRequestImage from '@/public/images/bulk-assessment-request.png'
 
 type SortKey = 'price-desc' | 'price-asc' | 'name'
 type ViewMode = 'catalog' | 'cart' | 'confirm' | 'complete'
@@ -39,7 +39,7 @@ type CheckoutInfo = {
 }
 
 const CART_STORAGE_KEY = 'tcg_royal_purchase_cart'
-const CARDS_PER_PAGE = 12
+const REAL_CARDS_PER_PAGE = 23
 
 const SHIPPING_DESTINATION = [
   ['宛名', '株式会社フィンテグラホールディングス 買取部'],
@@ -131,12 +131,12 @@ const PURCHASE_FLOW_FAQS = [
   },
   {
     question: '送料はかかりますか？',
-    answer: '商品発送時の送料は、お客様負担にてお願いいたします。',
+    answer: '商品発送時の送料は無料です！発送の際は、着払いにてお送りください。',
   },
   {
     question: 'リストにない商品の申し込みは可能ですか？',
     answer:
-      'はい、可能です。「まとめて買取」をカートに追加のうえ、商品をご発送ください。到着後、当社スタッフが査定いたします。',
+      'はい、可能です。「まとめて査定依頼」をカートに追加のうえ、商品をご発送ください。到着後、当社スタッフが査定いたします。',
   },
 ] as const
 
@@ -175,7 +175,7 @@ const SORT_LABEL: Record<SortKey, string> = {
 const UNLISTED_CARD: Card = {
   id: 'unlisted-card-request',
   card_number: null,
-  name: 'リストにない商品',
+  name: 'まとめて査定依頼',
   category: 'pokemon',
   grade: 'PSA10',
   buy_price: 0,
@@ -333,24 +333,35 @@ function CardImage({
   src,
   alt,
   onClick,
+  variant = 'fixed',
 }: {
   src: StaticImageData | string | null
   alt: string
   onClick?: (cachedSrc: string) => void
+  variant?: 'fixed' | 'catalog'
 }) {
   const btnRef = useRef<HTMLButtonElement>(null)
+  const sizeClass =
+    variant === 'catalog'
+      ? 'relative aspect-[5/7] w-full overflow-hidden rounded-lg border border-[#2d2a20] bg-[#1e1c17] shadow-[0_12px_28px_rgba(0,0,0,0.28)] sm:h-[210px] sm:w-[146px] sm:shrink-0'
+      : 'relative h-[178px] w-[124px] shrink-0 overflow-hidden rounded-lg border border-[#2d2a20] bg-[#1e1c17] shadow-[0_12px_28px_rgba(0,0,0,0.28)] sm:h-[210px] sm:w-[146px]'
+  const sizes =
+    variant === 'catalog'
+      ? '(max-width: 639px) 45vw, 146px'
+      : '(min-width: 640px) 146px, 124px'
 
   return (
     <button
       type="button"
       ref={btnRef}
-      onClick={() => {
+      onClick={(event) => {
         if (!onClick) return
+        event.stopPropagation()
         const img = btnRef.current?.querySelector('img')
         onClick(img?.currentSrc ?? '')
       }}
-      disabled={!src}
-      className="relative h-[178px] w-[124px] shrink-0 overflow-hidden rounded-lg border border-[#2d2a20] bg-[#1e1c17] shadow-[0_12px_28px_rgba(0,0,0,0.28)] sm:h-[210px] sm:w-[146px]"
+      disabled={!onClick}
+      className={sizeClass}
       aria-label={`${alt}を拡大表示`}
     >
       {src ? (
@@ -360,7 +371,7 @@ function CardImage({
           fill
           decoding="async"
           loading="lazy"
-          sizes="(min-width: 640px) 146px, 124px"
+          sizes={sizes}
           className="object-contain"
         />
       ) : (
@@ -370,15 +381,28 @@ function CardImage({
   )
 }
 
-function UnlistedProductImage() {
+function UnlistedProductImage({
+  variant = 'fixed',
+}: {
+  variant?: 'fixed' | 'catalog'
+}) {
+  const sizeClass =
+    variant === 'catalog'
+      ? 'relative aspect-[5/7] w-full overflow-hidden rounded-lg border border-[#2d2a20] bg-white shadow-[0_12px_28px_rgba(0,0,0,0.28)] sm:h-[210px] sm:w-[146px] sm:shrink-0'
+      : 'relative h-[178px] w-[124px] shrink-0 overflow-hidden rounded-lg border border-[#2d2a20] bg-white shadow-[0_12px_28px_rgba(0,0,0,0.28)] sm:h-[210px] sm:w-[146px]'
+  const sizes =
+    variant === 'catalog'
+      ? '(max-width: 639px) 45vw, 146px'
+      : '(min-width: 640px) 146px, 124px'
+
   return (
-    <div className="relative h-[178px] w-[124px] shrink-0 overflow-hidden rounded-lg border border-[#2d2a20] bg-[#1e1c17] shadow-[0_12px_28px_rgba(0,0,0,0.28)] sm:h-[210px] sm:w-[146px]">
+    <div className={sizeClass}>
       <Image
         src={unlistedPurchaseRequestImage}
         alt="リストにない商品はこちら"
         fill
-        sizes="(min-width: 640px) 146px, 124px"
-        className="object-cover"
+        sizes={sizes}
+        className="object-contain"
         placeholder="blur"
       />
     </div>
@@ -900,7 +924,7 @@ export function CartForm({
     Record<string, number>
   >({})
   const [preview, setPreview] = useState<{
-    src: StaticImageData | string
+    src: StaticImageData | string | null
     alt: string
     thumbnailSrc: string
     price: number
@@ -914,7 +938,7 @@ export function CartForm({
   const listTopRef = useRef<HTMLDivElement>(null)
 
   const repeatedImageUrls = useMemo(() => duplicatedImageUrls(displayCards), [displayCards])
-  const totalPages = Math.max(1, Math.ceil(totalCards / CARDS_PER_PAGE))
+  const totalPages = Math.max(1, Math.ceil(totalCards / REAL_CARDS_PER_PAGE))
   const appliedKeyword = submittedKeyword.trim()
   const hasSearchConditions =
     appliedKeyword.length > 0 ||
@@ -926,14 +950,19 @@ export function CartForm({
 
   const getSelectedQuantity = (cardId: string) => selectedQuantities[cardId] ?? 1
 
-  const openPreview = (src: StaticImageData | string, alt: string, cachedSrc = '', price = 0) => {
+  const openPreview = (
+    src: StaticImageData | string | null,
+    alt: string,
+    cachedSrc = '',
+    price = 0
+  ) => {
     setPreview({
       alt,
       src,
-      thumbnailSrc: cachedSrc || lowResolutionPreviewUrl(src),
+      thumbnailSrc: src ? cachedSrc || lowResolutionPreviewUrl(src) : '',
       price,
     })
-    setPreviewStatus('loading')
+    setPreviewStatus(src ? 'loading' : 'loaded')
   }
 
   const updateCheckoutInfo = (key: keyof CheckoutInfo, value: string) => {
@@ -1043,7 +1072,7 @@ export function CartForm({
 
     const params = new URLSearchParams({
       page: String(currentPage),
-      limit: String(CARDS_PER_PAGE),
+      limit: String(REAL_CARDS_PER_PAGE),
       sort,
       category: 'pokemon',
     })
@@ -1274,26 +1303,32 @@ export function CartForm({
             }
 
             const imageSrc = cardImageSource(item.card, repeatedImageUrls)
+            const openItemPreview = () =>
+              openPreview(imageSrc, item.card.name, '', item.card.buy_price)
 
             return (
               <div
                 key={item.card.id}
-                className="rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-4 shadow-[0_18px_46px_rgba(0,0,0,0.38)]"
+                onClick={openItemPreview}
+                className="cursor-zoom-in rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-4 shadow-[0_18px_46px_rgba(0,0,0,0.38)] transition-colors hover:border-[#4a4233]"
               >
                 <div className="flex gap-3">
                   <CardImage
                     src={imageSrc}
                     alt={item.card.name}
-                    onClick={
-                      imageSrc
-                        ? (cachedSrc) => openPreview(imageSrc, item.card.name, cachedSrc, item.card.buy_price)
-                        : undefined
+                    onClick={(cachedSrc) =>
+                      openPreview(
+                        imageSrc,
+                        item.card.name,
+                        cachedSrc,
+                        item.card.buy_price
+                      )
                     }
                   />
                   <div className="min-w-0 flex-1">
                     <div className="grid grid-cols-[1fr_auto] items-start gap-x-2">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-[#ede8d5]" title={item.card.name}>
+                        <p className="text-sm font-black leading-snug text-[#ede8d5] [overflow-wrap:anywhere]" title={item.card.name}>
                           {item.card.name}
                         </p>
                         <span className="mt-1 inline-flex rounded-full bg-[#2d2a20] px-4 py-2 text-xs font-black text-[#c9a52e]">
@@ -1311,7 +1346,11 @@ export function CartForm({
                       <span className="text-[0.75em]">¥</span>
                       {item.card.buy_price.toLocaleString()}
                     </p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <div
+                      className="mt-3 flex flex-wrap items-center gap-2"
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    >
                       <QuantityControl
                         quantity={item.quantity}
                         onDecrement={() =>
@@ -1841,18 +1880,12 @@ export function CartForm({
           </p>
         )}
 
-        <div
-          className="grid gap-4"
-          style={{
-            gridTemplateColumns:
-              'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
-          }}
-        >
-        <div className="rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-4 shadow-[0_18px_46px_rgba(0,0,0,0.38)] transition-colors hover:border-[#4a4233]">
-          <div className="flex gap-3">
-            <UnlistedProductImage />
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+        <div className="rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-3 shadow-[0_18px_46px_rgba(0,0,0,0.38)] transition-colors hover:border-[#4a4233] sm:p-4">
+          <div className="flex h-full flex-col gap-3 sm:flex-row">
+            <UnlistedProductImage variant="catalog" />
             <div className="flex min-w-0 flex-1 flex-col">
-              <h2 className="text-center text-xl font-black leading-tight text-[#ede8d5]">
+              <h2 className="text-base font-black leading-tight text-[#ede8d5] [overflow-wrap:anywhere] sm:text-xl sm:text-center">
                 リストにない商品はこちら
               </h2>
               <p className="mt-3 text-xs font-medium leading-relaxed text-[#7a6e55]">
@@ -1862,7 +1895,7 @@ export function CartForm({
                 type="button"
                 onClick={() => addToCart(UNLISTED_CARD, 1)}
                 disabled={unlistedInCart}
-                className={`mt-auto self-end rounded-xl px-8 py-2 text-sm font-black text-white shadow-sm ${
+                className={`mt-auto w-full rounded-xl px-4 py-2 text-sm font-black text-white shadow-sm sm:w-auto sm:self-end sm:px-8 ${
                   unlistedInCart ? 'bg-zinc-500' : 'bg-[#16a9f2]'
                 }`}
               >
@@ -1875,44 +1908,50 @@ export function CartForm({
         {displayCards.map((card) => {
           const quantity = getSelectedQuantity(card.id)
           const imageSrc = cardImageSource(card, repeatedImageUrls)
+          const openCardPreview = () =>
+            openPreview(imageSrc, card.name, '', card.buy_price)
 
           return (
             <div
               key={card.id}
-              className="rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-4 shadow-[0_18px_46px_rgba(0,0,0,0.38)] transition-colors hover:border-[#4a4233]"
+              onClick={openCardPreview}
+              className="cursor-zoom-in rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-3 shadow-[0_18px_46px_rgba(0,0,0,0.38)] transition-colors hover:border-[#4a4233] sm:p-4"
             >
-              <div className="flex gap-3">
+              <div className="flex h-full flex-col gap-3 sm:flex-row">
                 <CardImage
                   src={imageSrc}
                   alt={card.name}
-                  onClick={
-                    imageSrc
-                      ? (cachedSrc) => openPreview(imageSrc, card.name, cachedSrc, card.buy_price)
-                      : undefined
+                  variant="catalog"
+                  onClick={(cachedSrc) =>
+                    openPreview(imageSrc, card.name, cachedSrc, card.buy_price)
                   }
                 />
-                <div className="min-w-0 flex-1">
-                  <div className="grid grid-cols-[1fr_auto] items-start gap-x-2">
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-[1fr_auto] sm:gap-x-2">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-[#ede8d5]" title={card.name}>
+                      <p className="text-sm font-black leading-snug text-[#ede8d5] [overflow-wrap:anywhere]" title={card.name}>
                         {card.name}
                       </p>
                       <span className="mt-1 inline-flex rounded-full bg-[#2d2a20] px-4 py-2 text-xs font-black text-[#c9a52e]">
                         {card.grade}
                       </span>
                     </div>
-                    <div className="pt-6 text-sm font-medium text-[#7a6e55]">
+                    <div className="text-sm font-medium text-[#7a6e55] sm:pt-6">
                       <p>型番</p>
                       <p className="max-w-[72px] truncate text-xs text-[#5a5243]">
                         {card.card_number ?? '-'}
                       </p>
                     </div>
                   </div>
-                  <p className="mt-2 max-w-full break-words text-[1.45rem] font-black leading-[1.05] text-red-400 [overflow-wrap:anywhere] sm:text-[1.55rem]">
+                  <p className="mt-2 max-w-full break-words text-[1.15rem] font-black leading-[1.05] text-red-400 [overflow-wrap:anywhere] sm:text-[1.45rem] xl:text-[1.55rem]">
                     <span className="text-[0.75em]">¥</span>
                     {card.buy_price.toLocaleString()}
                   </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <div
+                    className="mt-auto flex flex-col gap-2 pt-3 sm:flex-row sm:flex-wrap sm:items-center"
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                  >
                     <QuantityControl
                       quantity={quantity}
                       onDecrement={() =>
@@ -2065,25 +2104,29 @@ export function CartForm({
                   style={{ backgroundImage: cssImageUrl(preview.thumbnailSrc) }}
                 />
               )}
-              <Image
-                key={imageSourceUrl(preview.src)}
-                src={preview.src}
-                alt={preview.alt}
-                fill
-                unoptimized
-                sizes="(max-width: 640px) 92vw, 420px"
-                onError={() => setPreviewStatus('error')}
-                onLoad={() => setPreviewStatus('loaded')}
-                className={`object-contain transition-opacity duration-200 ${
-                  previewStatus === 'loaded' ? 'opacity-100' : 'opacity-0'
-                }`}
-              />
-              {previewStatus === 'loading' && (
+              {preview.src ? (
+                <Image
+                  key={imageSourceUrl(preview.src)}
+                  src={preview.src}
+                  alt={preview.alt}
+                  fill
+                  unoptimized
+                  sizes="(max-width: 640px) 92vw, 420px"
+                  onError={() => setPreviewStatus('error')}
+                  onLoad={() => setPreviewStatus('loaded')}
+                  className={`object-contain transition-opacity duration-200 ${
+                    previewStatus === 'loaded' ? 'opacity-100' : 'opacity-0'
+                  }`}
+                />
+              ) : (
+                <CardPlaceholder />
+              )}
+              {preview.src && previewStatus === 'loading' && (
                 <div className="absolute inset-x-4 bottom-4 rounded-full bg-black/65 px-4 py-2 text-center text-xs font-black text-[#ede8d5]">
                   高画質画像を読み込み中...
                 </div>
               )}
-              {previewStatus === 'error' && (
+              {preview.src && previewStatus === 'error' && (
                 <div className="absolute inset-x-4 bottom-4 rounded-2xl bg-black/70 px-4 py-3 text-center text-xs font-black leading-relaxed text-[#ede8d5]">
                   高画質画像を読み込めませんでした。プレビュー画像を表示しています。
                 </div>

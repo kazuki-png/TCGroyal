@@ -283,7 +283,7 @@ export function HomeCardSection({ cards }: { cards: Card[] }) {
                 )}
               </div>
               <div className="mt-3">
-                <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-black leading-snug text-[#ede8d5]" title={card.name}>
+                <h3 className="text-sm font-black leading-snug text-[#ede8d5] [overflow-wrap:anywhere]" title={card.name}>
                   {card.name}
                 </h3>
                 <div className="mt-2 flex items-center justify-between gap-2">

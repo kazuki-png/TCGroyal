@@ -58,6 +58,7 @@ export async function GET(request: Request) {
       .from('reference_prices_deduped')
       .select('category, card_name, card_number, grade, price, site_name, fetched_date')
       .eq('fetched_date', date)
+      .ilike('grade', 'PSA%')
       .order('price', { ascending: false })
       .range(from, from + PAGE - 1)
 

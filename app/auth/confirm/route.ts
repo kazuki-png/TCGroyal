@@ -30,8 +30,18 @@ export async function GET(request: NextRequest) {
   const next = safeNextPath(searchParams.get('next'))
   const redirectTo = request.nextUrl.clone()
 
+  if (redirectTo.hostname === '0.0.0.0') {
+    redirectTo.hostname = 'localhost'
+  }
+
   redirectTo.pathname = next
   redirectTo.search = ''
+
+  console.info('[auth-confirm] request received', {
+    hasTokenHash: Boolean(tokenHash),
+    type,
+    next,
+  })
 
   if (tokenHash && isEmailOtpType(type)) {
     const supabase = await createClient()
@@ -41,6 +51,7 @@ export async function GET(request: NextRequest) {
     })
 
     if (!error) {
+      console.info('[auth-confirm] verifyOtp succeeded', { type, next })
       return NextResponse.redirect(redirectTo)
     }
 

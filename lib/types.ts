@@ -61,6 +61,13 @@ export function previousOrderStatuses(currentStatus: OrderStatus) {
   return currentIndex > 0 ? ORDER_STATUS_FLOW.slice(0, currentIndex) : []
 }
 
+export function canEditOrderAssessment(
+  status: OrderStatus,
+  assessmentSavedAt?: string | null
+) {
+  return status === 'inspecting' || (status === 'pending_approval' && !assessmentSavedAt)
+}
+
 export interface Card {
   id: string
   card_number: string | null

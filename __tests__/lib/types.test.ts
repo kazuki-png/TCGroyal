@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  canEditOrderAssessment,
   ORDER_STATUS_FLOW,
   ORDER_STATUS_LABELS,
   EMAIL_TRIGGER_STATUSES,
@@ -52,5 +53,19 @@ describe('EMAIL_TRIGGER_STATUSES', () => {
 
   it('unhandledはトリガーにならない', () => {
     expect(EMAIL_TRIGGER_STATUSES).not.toContain('unhandled')
+  })
+})
+
+describe('canEditOrderAssessment', () => {
+  it('査定中は査定額を編集できる', () => {
+    expect(canEditOrderAssessment('inspecting', null)).toBe(true)
+  })
+
+  it('査定保存済みのお客様対応待ちは査定額を編集できない', () => {
+    expect(canEditOrderAssessment('pending_approval', '2026-05-22T00:00:00Z')).toBe(false)
+  })
+
+  it('査定未保存のお客様対応待ちは復旧のため査定額を編集できる', () => {
+    expect(canEditOrderAssessment('pending_approval', null)).toBe(true)
   })
 })

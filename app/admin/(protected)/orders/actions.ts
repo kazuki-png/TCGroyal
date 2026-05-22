@@ -13,6 +13,7 @@ import { loadOrderForNotification } from '@/lib/orders/notification'
 import {
   EMAIL_TRIGGER_STATUSES,
   ORDER_STATUS_FLOW,
+  canEditOrderAssessment,
   isBackwardOrderStatusTransition,
   isForwardOrderStatusTransition,
 } from '@/lib/types'
@@ -151,14 +152,14 @@ export async function saveOrderAssessment(
   const admin = createAdminClient()
   const { data: order } = await admin
     .from('orders')
-    .select('id, user_id, status, order_items(id, quantity, unit_price)')
+    .select('id, user_id, status, assessment_saved_at, order_items(id, quantity, unit_price)')
     .eq('id', orderId)
     .single()
 
   if (!order) return { error: '注文が見つかりません' }
 
   const currentStatus = order.status as OrderStatus
-  if (currentStatus !== 'inspecting') {
+  if (!canEditOrderAssessment(currentStatus, order.assessment_saved_at)) {
     return { error: '査定額を変更できるのは査定中の注文のみです' }
   }
 

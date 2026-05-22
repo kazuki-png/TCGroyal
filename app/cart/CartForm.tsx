@@ -382,8 +382,10 @@ function CardImage({
 }
 
 function UnlistedProductImage({
+  showImage = true,
   variant = 'fixed',
 }: {
+  showImage?: boolean
   variant?: 'fixed' | 'catalog'
 }) {
   const sizeClass =
@@ -397,14 +399,18 @@ function UnlistedProductImage({
 
   return (
     <div className={sizeClass}>
-      <Image
-        src={unlistedPurchaseRequestImage}
-        alt="リストにない商品はこちら"
-        fill
-        sizes={sizes}
-        className="object-contain"
-        placeholder="blur"
-      />
+      {showImage ? (
+        <Image
+          src={unlistedPurchaseRequestImage}
+          alt="リストにない商品はこちら"
+          fill
+          sizes={sizes}
+          className="object-contain"
+          placeholder="blur"
+        />
+      ) : (
+        <CardPlaceholder />
+      )}
     </div>
   )
 }
@@ -890,6 +896,7 @@ export function CartForm({
   const [totalCards, setTotalCards] = useState(0)
   const [hasEverFoundCards, setHasEverFoundCards] = useState(false)
   const [cardsLoading, setCardsLoading] = useState(true)
+  const [readyCatalogImageBatchKey, setReadyCatalogImageBatchKey] = useState('')
   const [cardsError, setCardsError] = useState<string>()
   const hasRegisteredCards = hasEverFoundCards
   const initialCheckoutInfo = useMemo(
@@ -939,6 +946,11 @@ export function CartForm({
 
   const repeatedImageUrls = useMemo(() => duplicatedImageUrls(displayCards), [displayCards])
   const totalPages = Math.max(1, Math.ceil(totalCards / REAL_CARDS_PER_PAGE))
+  const catalogImageBatchKey = `${currentPage}:${sort}:${submittedKeyword}`
+  const catalogImagesReady =
+    viewMode === 'catalog' &&
+    !cardsLoading &&
+    readyCatalogImageBatchKey === catalogImageBatchKey
   const appliedKeyword = submittedKeyword.trim()
   const hasSearchConditions =
     appliedKeyword.length > 0 ||
@@ -1114,6 +1126,16 @@ export function CartForm({
 
     return () => controller.abort()
   }, [currentPage, sort, submittedKeyword])
+
+  useEffect(() => {
+    if (viewMode !== 'catalog' || cardsLoading) return
+
+    const timer = window.setTimeout(() => {
+      setReadyCatalogImageBatchKey(catalogImageBatchKey)
+    }, 250)
+
+    return () => window.clearTimeout(timer)
+  }, [cardsLoading, catalogImageBatchKey, viewMode])
 
   const clearSearchConditions = () => {
     setCardsLoading(true)
@@ -1883,7 +1905,10 @@ export function CartForm({
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         <div className="rounded-2xl border border-[#2d2a20] bg-[linear-gradient(180deg,#1b1812_0%,#12100c_100%)] p-3 shadow-[0_18px_46px_rgba(0,0,0,0.38)] transition-colors hover:border-[#4a4233] sm:p-4">
           <div className="flex h-full flex-col gap-3 sm:flex-row">
-            <UnlistedProductImage variant="catalog" />
+            <UnlistedProductImage
+              showImage={catalogImagesReady}
+              variant="catalog"
+            />
             <div className="flex min-w-0 flex-1 flex-col">
               <h2 className="text-base font-black leading-tight text-[#ede8d5] [overflow-wrap:anywhere] sm:text-xl sm:text-center">
                 リストにない商品はこちら
@@ -1919,7 +1944,7 @@ export function CartForm({
             >
               <div className="flex h-full flex-col gap-3 sm:flex-row">
                 <CardImage
-                  src={imageSrc}
+                  src={catalogImagesReady ? imageSrc : null}
                   alt={card.name}
                   variant="catalog"
                   onClick={(cachedSrc) =>

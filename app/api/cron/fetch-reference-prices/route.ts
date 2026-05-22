@@ -1,14 +1,22 @@
 export const runtime = 'edge'
 
 export async function GET(request: Request) {
-  if (request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+
+  if (!cronSecret || !serviceRoleKey || !supabaseUrl) {
+    return Response.json({ error: 'Cron is not configured' }, { status: 503 })
+  }
+
+  if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/fetch-reference-prices`, {
+  const res = await fetch(`${supabaseUrl}/functions/v1/fetch-reference-prices`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+      Authorization: `Bearer ${serviceRoleKey}`,
     },
   })
 

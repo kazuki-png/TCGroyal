@@ -9,7 +9,14 @@ export const metadata = {
 export default function RegisterPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[#0b0a08] text-[#ede8d5]">
-      <SiteHeader isAuthenticated={false} priorityLogo />
+      <SiteHeader
+        isAuthenticated={false}
+        priorityLogo
+        breadcrumbs={[
+          { href: '/', label: 'トップ' },
+          { label: '新規登録' },
+        ]}
+      />
       <main className="flex-1 px-0 py-0 md:px-6 md:py-8">
         <div className="mx-auto w-full max-w-md md:max-w-5xl">
           <RegisterForm />

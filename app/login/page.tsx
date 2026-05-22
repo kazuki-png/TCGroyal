@@ -39,7 +39,14 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0b0a08] text-[#ede8d5]">
-      <SiteHeader isAuthenticated={false} priorityLogo />
+      <SiteHeader
+        isAuthenticated={false}
+        priorityLogo
+        breadcrumbs={[
+          { href: '/', label: 'トップ' },
+          { label: 'ログイン' },
+        ]}
+      />
       <main className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6">
         <section className="w-full max-w-md rounded-[28px] border border-[#2d2a20] bg-[#12100c] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-7">
           <p className="text-center text-xs font-black uppercase tracking-[0.22em] text-[#c9a52e]">

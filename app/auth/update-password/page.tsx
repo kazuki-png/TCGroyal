@@ -11,7 +11,14 @@ export default async function UpdatePasswordPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-950">
-      <SiteHeader isAuthenticated={Boolean(user)} priorityLogo />
+      <SiteHeader
+        isAuthenticated={Boolean(user)}
+        priorityLogo
+        breadcrumbs={[
+          { href: '/', label: 'トップ' },
+          { label: 'パスワード変更' },
+        ]}
+      />
       <main className="flex flex-1 items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
           <div className="mb-8 text-center">

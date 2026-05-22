@@ -31,6 +31,10 @@ export default async function CartPage() {
         isAuthenticated={Boolean(user)}
         priorityLogo
         borderClassName="border-b border-[#2d2a20]"
+        breadcrumbs={[
+          { href: '/', label: 'トップ' },
+          { label: 'カート買取' },
+        ]}
         afterAccount={<CartHeaderLink />}
         nav={user ? (
           <Link href="/mypage" className="hidden text-sm text-zinc-500 hover:text-zinc-900 dark:text-[#7a6e55] dark:hover:text-[#c9a52e] md:inline">

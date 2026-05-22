@@ -3,6 +3,7 @@
 import { headers } from 'next/headers'
 import { sendPasswordResetEmail } from '@/lib/email/send'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 
 export type ForgotPasswordState = {
   error?: string
@@ -76,6 +77,42 @@ async function publicSiteUrl() {
   return null
 }
 
+async function sendSupabaseRecoveryEmail(
+  email: string,
+  siteUrl: string,
+  reason: string
+): Promise<ForgotPasswordState> {
+  const callbackUrl = new URL('/auth/callback', siteUrl)
+  callbackUrl.searchParams.set('next', '/auth/update-password')
+
+  console.warn('[password-reset] falling back to Supabase recovery email', {
+    reason,
+    redirectToOrigin: callbackUrl.origin,
+  })
+
+  const supabase = await createServerClient()
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: callbackUrl.toString(),
+  })
+
+  if (error) {
+    console.error('[password-reset] Supabase recovery email fallback failed', {
+      reason,
+      message: error.message,
+      status: error.status,
+    })
+
+    return { error: 'メールの送信に失敗しました。しばらく経ってから再試行してください' }
+  }
+
+  console.info('[password-reset] Supabase recovery email fallback succeeded', {
+    reason,
+    redirectToOrigin: callbackUrl.origin,
+  })
+
+  return { success: true }
+}
+
 export async function forgotPasswordAction(
   _prev: ForgotPasswordState | undefined,
   formData: FormData
@@ -94,12 +131,16 @@ export async function forgotPasswordAction(
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     console.error('[password-reset] SUPABASE_SERVICE_ROLE_KEY is not configured')
-    return { error: 'メール送信設定に不備があります。時間をおいて再度お試しください' }
+    return sendSupabaseRecoveryEmail(
+      email,
+      siteUrl,
+      'SUPABASE_SERVICE_ROLE_KEY missing'
+    )
   }
 
   if (!process.env.RESEND_API_KEY) {
     console.error('[password-reset] RESEND_API_KEY is not configured')
-    return { error: 'メール送信設定に不備があります。時間をおいて再度お試しください' }
+    return sendSupabaseRecoveryEmail(email, siteUrl, 'RESEND_API_KEY missing')
   }
 
   const supabase = createAdminClient()
@@ -117,7 +158,11 @@ export async function forgotPasswordAction(
       status: error?.status,
       hasTokenHash: Boolean(tokenHash),
     })
-    return { error: 'メールの送信に失敗しました。しばらく経ってから再試行してください' }
+    return sendSupabaseRecoveryEmail(
+      email,
+      siteUrl,
+      error?.message ?? 'recovery token missing'
+    )
   }
 
   const resetUrl = new URL('/auth/confirm', siteUrl)
@@ -128,11 +173,15 @@ export async function forgotPasswordAction(
   try {
     const sent = await sendPasswordResetEmail(email, resetUrl.toString())
     if (!sent) {
-      return { error: 'メール送信設定に不備があります。時間をおいて再度お試しください' }
+      return sendSupabaseRecoveryEmail(email, siteUrl, 'custom email not sent')
     }
   } catch (sendError) {
     console.error('[password-reset] custom email send failed', sendError)
-    return { error: 'メールの送信に失敗しました。しばらく経ってから再試行してください' }
+    return sendSupabaseRecoveryEmail(
+      email,
+      siteUrl,
+      sendError instanceof Error ? sendError.message : 'custom email failed'
+    )
   }
 
   return { success: true }

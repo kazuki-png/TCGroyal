@@ -2,6 +2,11 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { SiteLogo } from './SiteLogo'
 
+export type SiteBreadcrumb = {
+  href?: string
+  label: string
+}
+
 function AccountIcon() {
   return (
     <svg
@@ -25,6 +30,7 @@ export function SiteHeader({
   isAuthenticated,
   nav,
   afterAccount,
+  breadcrumbs,
   maxWidthClassName = 'max-w-5xl',
   borderClassName = 'border-b border-[#2d2a20]',
   priorityLogo = false,
@@ -33,6 +39,7 @@ export function SiteHeader({
   isAuthenticated: boolean
   nav?: ReactNode
   afterAccount?: ReactNode
+  breadcrumbs?: SiteBreadcrumb[]
   maxWidthClassName?: string
   borderClassName?: string
   priorityLogo?: boolean
@@ -69,6 +76,33 @@ export function SiteHeader({
           {afterAccount}
         </div>
       </div>
+      {breadcrumbs && breadcrumbs.length > 0 && (
+        <nav
+          aria-label="パンくず"
+          className={`mx-auto mt-3 flex ${maxWidthClassName} items-center gap-2 overflow-x-auto whitespace-nowrap text-xs font-semibold text-[#7a6e55]`}
+        >
+          {breadcrumbs.map((item, index) => {
+            const isLast = index === breadcrumbs.length - 1
+            return (
+              <span key={`${item.label}-${index}`} className="inline-flex items-center gap-2">
+                {index > 0 && <span className="text-[#4a4233]">/</span>}
+                {item.href && !isLast ? (
+                  <Link
+                    href={item.href}
+                    className="transition-colors hover:text-[#c9a52e]"
+                  >
+                    {item.label}
+                  </Link>
+                ) : (
+                  <span className={isLast ? 'text-[#c9a52e]' : undefined}>
+                    {item.label}
+                  </span>
+                )}
+              </span>
+            )
+          })}
+        </nav>
+      )}
     </header>
   )
 }

@@ -17,6 +17,7 @@ export type AdminOrderRow = {
   id: string
   orderNumber: string
   status: OrderStatus
+  assessmentSavedAt: string | null
   totalAmount: number
   itemCount: number
   createdAt: string
@@ -205,6 +206,7 @@ export function AdminOrdersTable({ rows }: { rows: AdminOrderRow[] }) {
             key={`${selected.id}-${selected.status}`}
             orderId={selected.id}
             status={selected.status}
+            assessmentSavedAt={selected.assessmentSavedAt}
             items={selected.items}
             nextStatuses={orderActionStatuses(selected.status)}
           />

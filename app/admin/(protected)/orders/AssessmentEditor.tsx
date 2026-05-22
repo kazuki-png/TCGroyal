@@ -3,7 +3,12 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { saveOrderAssessment, setOrderStatus } from './actions'
-import { EMAIL_TRIGGER_STATUSES, ORDER_STATUS_LABELS, type OrderStatus } from '@/lib/types'
+import {
+  EMAIL_TRIGGER_STATUSES,
+  ORDER_STATUS_LABELS,
+  canEditOrderAssessment,
+  type OrderStatus,
+} from '@/lib/types'
 
 type Decision = 'approved' | 'cancelled'
 
@@ -76,12 +81,14 @@ function StopIcon({ tooltip }: { tooltip: string }) {
 export function AssessmentEditor({
   orderId,
   status,
+  assessmentSavedAt,
   items,
   nextStatuses = [],
   previousStatuses = [],
 }: {
   orderId: string
   status: OrderStatus
+  assessmentSavedAt?: string | null
   items: AssessmentEditorItem[]
   nextStatuses?: OrderStatus[]
   previousStatuses?: OrderStatus[]
@@ -98,7 +105,8 @@ export function AssessmentEditor({
   const [error, setError] = useState<string>()
   const [success, setSuccess] = useState<string>()
   const [pending, startTransition] = useTransition()
-  const editable = status === 'inspecting'
+  const editable = canEditOrderAssessment(status, assessmentSavedAt)
+  const needsAssessmentRepair = status === 'pending_approval' && !assessmentSavedAt
 
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>(
     nextStatuses[0] ?? ''
@@ -216,7 +224,9 @@ export function AssessmentEditor({
         <div>
           <h2 className="text-lg font-semibold text-white">申込カードと当社査定額</h2>
           <p className="mt-1 text-sm text-zinc-400">
-            {editable
+            {needsAssessmentRepair
+              ? 'お客様対応待ちですが査定額が未保存です。ここで査定額を保存するとユーザー確認へ進められます。'
+              : editable
               ? '保存すると注文はお客様対応待ちへ移動し、ユーザーが商品ごとに承認またはキャンセルを選択できます。'
               : '査定結果を確認し、次のステータスへ進めてください。'}
           </p>

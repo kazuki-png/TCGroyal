@@ -12,19 +12,51 @@ const navItems = [
   { href: '/mypage/profile', label: '会員情報' },
 ]
 
+function getMypageBreadcrumbs(pathname: string) {
+  if (pathname.startsWith('/mypage/orders/')) {
+    return [
+      { href: '/', label: 'トップ' },
+      { href: '/mypage', label: 'マイページ' },
+      { href: '/mypage/orders', label: '郵送買取一覧' },
+      { label: '申込詳細' },
+    ]
+  }
+
+  if (pathname.startsWith('/mypage/orders')) {
+    return [
+      { href: '/', label: 'トップ' },
+      { href: '/mypage', label: 'マイページ' },
+      { label: '郵送買取一覧' },
+    ]
+  }
+
+  if (pathname.startsWith('/mypage/profile')) {
+    return [
+      { href: '/', label: 'トップ' },
+      { href: '/mypage', label: 'マイページ' },
+      { label: '会員情報' },
+    ]
+  }
+
+  return [
+    { href: '/', label: 'トップ' },
+    { label: 'マイページ' },
+  ]
+}
+
 export default async function MypageLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const headersList = await headers()
+  const pathname = headersList.get('x-pathname') ?? '/mypage'
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) {
-    const headersList = await headers()
-    const pathname = headersList.get('x-pathname') ?? '/mypage'
     redirect(`/login?next=${encodeURIComponent(pathname)}`)
   }
 
@@ -35,6 +67,7 @@ export default async function MypageLayout({
         priorityLogo
         borderClassName="border-b border-[#2d2a20]"
         maxWidthClassName="max-w-6xl"
+        breadcrumbs={getMypageBreadcrumbs(pathname)}
         nav={
           <nav className="hidden items-center gap-5 md:flex">
             {navItems.map((item) => (

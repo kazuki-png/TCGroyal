@@ -1,12 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
 
 const DEFAULT_LIMIT = 12
+const SEARCH_TOKEN_LIMIT = 6
+
+function normalizeSearchToken(value: string) {
+  return value
+    .normalize('NFKC')
+    .trim()
+    .replace(/[,%()_]/g, ' ')
+    .replace(/\s+/g, ' ')
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? String(DEFAULT_LIMIT), 10)))
-  const category = searchParams.get('category') ?? 'pokemon'
   const sort = searchParams.get('sort') ?? 'price-desc'
   const q = searchParams.get('q')?.trim() ?? ''
 
@@ -16,15 +24,14 @@ export async function GET(request: Request) {
     .from('cards')
     .select('id,name,category,card_number,grade,buy_price,image_url,created_at,updated_at', { count: 'exact' })
 
-  if (category) {
-    const cats = category.split(',').filter(Boolean)
-    if (cats.length === 1) {
-      query = query.eq('category', cats[0])
-    }
-  }
+  query = query.eq('category', 'pokemon')
 
   if (q) {
-    const tokens = q.split(/\s+/).filter(Boolean)
+    const tokens = q
+      .split(/\s+/)
+      .map(normalizeSearchToken)
+      .filter(Boolean)
+      .slice(0, SEARCH_TOKEN_LIMIT)
     for (const token of tokens) {
       query = query.or(`name.ilike.%${token}%,card_number.ilike.%${token}%`)
     }

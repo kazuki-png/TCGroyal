@@ -10,6 +10,7 @@ type OrderRow = {
   user_id: string
   status: OrderStatus
   total_amount: number | null
+  assessment_saved_at: string | null
   bank_name: string | null
   bank_branch: string | null
   bank_account_no: string | null
@@ -65,6 +66,7 @@ export default async function AdminOrdersPage({
     id: order.id,
     orderNumber: displayOrderNumber(order),
     status: order.status,
+    assessmentSavedAt: order.assessment_saved_at,
     totalAmount: order.total_amount ?? 0,
     itemCount: order.order_items?.length ?? 0,
     createdAt: order.created_at,

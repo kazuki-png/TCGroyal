@@ -11,7 +11,15 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-950">
-      <SiteHeader isAuthenticated={false} priorityLogo />
+      <SiteHeader
+        isAuthenticated={false}
+        priorityLogo
+        breadcrumbs={[
+          { href: '/', label: 'トップ' },
+          { href: '/login', label: 'ログイン' },
+          { label: 'パスワード再設定' },
+        ]}
+      />
       <main className="flex flex-1 items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
         <div className="mb-8 text-center">

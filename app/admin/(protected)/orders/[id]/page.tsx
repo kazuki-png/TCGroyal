@@ -86,6 +86,7 @@ export default async function AdminOrderDetailPage({
           key={`${order.id}-${currentStatus}`}
           orderId={order.id}
           status={currentStatus}
+          assessmentSavedAt={order.assessment_saved_at}
           items={orderItems}
           nextStatuses={nextStatuses}
           previousStatuses={previousStatuses}

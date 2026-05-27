@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { setOrderStatus } from './actions'
 import {
   AssessmentEditor,
+  type AssessmentCardOption,
   type AssessmentEditorItem,
 } from './AssessmentEditor'
 import {
@@ -96,7 +97,13 @@ function orderActionStatuses(status: OrderStatus) {
   return nextStatus ? [nextStatus] : []
 }
 
-export function AdminOrdersTable({ rows }: { rows: AdminOrderRow[] }) {
+export function AdminOrdersTable({
+  rows,
+  cardOptions,
+}: {
+  rows: AdminOrderRow[]
+  cardOptions: AssessmentCardOption[]
+}) {
   const [selectedId, setSelectedId] = useState(rows[0]?.id ?? '')
   const selected = rows.find((row) => row.id === selectedId) ?? rows[0]
 
@@ -208,6 +215,7 @@ export function AdminOrdersTable({ rows }: { rows: AdminOrderRow[] }) {
             status={selected.status}
             assessmentSavedAt={selected.assessmentSavedAt}
             items={selected.items}
+            cardOptions={cardOptions}
             nextStatuses={orderActionStatuses(selected.status)}
           />
         </div>

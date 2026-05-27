@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { SiteFooter } from '@/app/components/SiteFooter'
 import { SiteHeader } from '@/app/components/SiteHeader'
@@ -13,16 +12,16 @@ export default async function CartPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) redirect('/login?next=/cart')
-
-  const [{ data: banners }, { data: profile }] = await Promise.all([
+  const [{ data: banners }, profileResult] = await Promise.all([
     supabase
       .from('homepage_banners')
       .select('*')
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false }),
-    supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+    user
+      ? supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
 
   return (
@@ -46,8 +45,9 @@ export default async function CartPage() {
         <CartForm
           cards={[] as Card[]}
           banners={(banners ?? []) as HomepageBanner[]}
-          profile={profile as Profile | null}
+          profile={profileResult.data as Profile | null}
           userEmail={user?.email ?? null}
+          isAuthenticated={Boolean(user)}
         />
       </main>
       <SiteFooter />

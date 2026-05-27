@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {
   type FormEvent,
   type HTMLAttributes,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -39,6 +40,7 @@ type CheckoutInfo = {
 }
 
 const CART_STORAGE_KEY = 'tcg_royal_purchase_cart'
+const LOGIN_NEXT_CART_PATH = '/login?next=%2Fcart'
 const REAL_CARDS_PER_PAGE = 23
 
 const SHIPPING_DESTINATION = [
@@ -884,11 +886,13 @@ function CheckoutSelect({
 
 export function CartForm({
   banners,
+  isAuthenticated,
   profile,
   userEmail,
 }: {
   cards: Card[]
   banners: HomepageBanner[]
+  isAuthenticated: boolean
   profile: Profile | null
   userEmail: string | null
 }) {
@@ -1154,16 +1158,43 @@ export function CartForm({
     })
   }
 
-  const showCartTop = () => {
+  const showCartTop = useCallback(() => {
     window.requestAnimationFrame(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     })
-  }
+  }, [])
+
+  const closeProfileUpdateModal = useCallback(() => {
+    setProfileUpdateModal(undefined)
+    setViewMode('cart')
+    showCartTop()
+  }, [showCartTop])
+
+  useEffect(() => {
+    if (!preview && !profileUpdateModal) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      if (preview) {
+        setPreview(undefined)
+        return
+      }
+      closeProfileUpdateModal()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [closeProfileUpdateModal, preview, profileUpdateModal])
 
   const handleProceedToConfirm = () => {
     setError(undefined)
     if (cart.length === 0) {
       setError('カードを追加してください')
+      return
+    }
+
+    if (!isAuthenticated) {
+      window.location.assign(LOGIN_NEXT_CART_PATH)
       return
     }
 
@@ -1196,9 +1227,7 @@ export function CartForm({
     setError(undefined)
 
     if (choice === 'cancel') {
-      setProfileUpdateModal(undefined)
-      setViewMode('cart')
-      showCartTop()
+      closeProfileUpdateModal()
       return
     }
 
@@ -1307,9 +1336,7 @@ export function CartForm({
                         こちら
                       </h3>
                       <p className="mt-2 text-xs font-medium leading-relaxed">
-                        リストにない商品や、商品名が分からない場合はこちら。
-                        <br />
-                        1点カートに追加するだけで、まとめてお申し込みいただけます。
+                        リストにない商品や商品名が分からない場合は、こちらの項目を1点カートに追加するだけで、まとめてお申し込みいただけます。商品到着後に内容を確認し、当社スタッフが丁寧に査定いたします。
                       </p>
                       <button
                         type="button"
@@ -1404,7 +1431,27 @@ export function CartForm({
         </p>
       )}
 
-      {cart.length > 0 && (
+      {cart.length > 0 && !isAuthenticated && (
+        <section className="mt-8 rounded-[24px] border border-[#2d2a20] bg-[#15130f] p-5 text-center shadow-[0_18px_50px_rgba(0,0,0,0.28)]">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8f8369]">
+            Login Required
+          </p>
+          <h2 className="mt-2 text-xl font-black text-[#f6f0dc]">
+            申込手続きにはログインが必要です
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-7 text-[#8f8369]">
+            カートの商品はこの端末に保存されています。ログイン後、このまま申込情報の入力に進めます。
+          </p>
+          <Link
+            href={LOGIN_NEXT_CART_PATH}
+            className="mt-5 inline-flex h-12 items-center justify-center rounded-[18px] bg-[#c9a52e] px-8 text-base font-black text-[#0e0c09] shadow-[0_14px_40px_rgba(201,165,46,0.18)] transition-colors hover:bg-[#d7b865]"
+          >
+            ログインして続ける
+          </Link>
+        </section>
+      )}
+
+      {cart.length > 0 && isAuthenticated && (
         <form
           onSubmit={(event) => {
             event.preventDefault()
@@ -1443,7 +1490,7 @@ export function CartForm({
                 onChange={(value) => updateCheckoutInfo('email', value)}
                 required
                 type="email"
-                placeholder="example@tcg-royal.jp"
+                placeholder="example@tcg-royal.com"
               />
               <CheckoutSelect
                 label="身分証"
@@ -1864,9 +1911,6 @@ export function CartForm({
             </div>
             <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-[#7a6e55]">
               <span className="rounded-full bg-[#252420] px-3 py-1">
-                カテゴリ: ポケモン
-              </span>
-              <span className="rounded-full bg-[#252420] px-3 py-1">
                 並び順: {SORT_LABEL[sort]}
               </span>
               {appliedKeyword && (
@@ -1914,7 +1958,7 @@ export function CartForm({
                 リストにない商品はこちら
               </h2>
               <p className="mt-3 text-xs font-medium leading-relaxed text-[#7a6e55]">
-                リストにない商品や商品名が分からない場合は、この項目を1点カートに追加するだけでまとめてお申し込みいただけます。
+                リストにない商品や商品名が分からない場合は、こちらの項目を1点カートに追加するだけで、まとめてお申し込みいただけます。商品到着後に内容を確認し、当社スタッフが丁寧に査定いたします。
               </p>
               <button
                 type="button"
@@ -2008,7 +2052,7 @@ export function CartForm({
               該当するカードがありません
             </p>
             <p className="mt-2">
-              検索語またはカテゴリを変更してください。
+              検索語を変更してください。
             </p>
           </div>
         )}
@@ -2059,9 +2103,21 @@ export function CartForm({
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4"
+          onClick={closeProfileUpdateModal}
         >
-          <div className="w-full max-w-md rounded-[28px] border border-[#2d2a20] bg-[#12100c] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+          <div
+            className="relative max-h-[88vh] w-full max-w-md overflow-y-auto rounded-[28px] border border-[#2d2a20] bg-[#12100c] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              aria-label="閉じる"
+              onClick={closeProfileUpdateModal}
+              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full border border-[#3a3528] bg-[#1c1b18] text-xl font-black leading-none text-[#c9a52e] transition-colors hover:border-[#c9a52e]/60 hover:bg-[#252420]"
+            >
+              ×
+            </button>
             <p className="text-xs font-black uppercase tracking-[0.22em] text-[#c9a52e]">
               Profile Update
             </p>
@@ -2106,12 +2162,20 @@ export function CartForm({
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-5"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-5"
           onClick={() => setPreview(undefined)}
         >
           <button
             type="button"
-            className="absolute right-4 top-4 rounded-full bg-[#1c1b18] px-3 py-1 text-sm font-black text-[#c9a52e]"
+            aria-label="閉じる"
+            className="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-full border border-[#3a3528] bg-[#1c1b18] text-2xl font-black leading-none text-[#c9a52e] shadow-[0_12px_34px_rgba(0,0,0,0.4)] transition-colors hover:border-[#c9a52e]/60 hover:bg-[#252420]"
+            onClick={() => setPreview(undefined)}
+          >
+            ×
+          </button>
+          <button
+            type="button"
+            className="sr-only"
             onClick={() => setPreview(undefined)}
           >
             閉じる

@@ -102,7 +102,7 @@ export async function createOrder(
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/login')
+    redirect('/login?next=/cart')
   }
 
   const requestedCardQuantities = new Map<string, number>()

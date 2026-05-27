@@ -3,6 +3,19 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
+function safeLoginDestination(value: string) {
+  if (!value.startsWith('/') || value.startsWith('//')) {
+    return '/mypage'
+  }
+
+  const pathname = value.split('?')[0]
+  if (pathname === '/login' || pathname === '/register') {
+    return '/mypage'
+  }
+
+  return value
+}
+
 export async function loginAction(
   _prev: { error?: string } | undefined,
   formData: FormData
@@ -18,9 +31,5 @@ export async function loginAction(
   }
 
   const next = (formData.get('next') as string | null)?.trim() ?? ''
-  const destination =
-    next.startsWith('/') && !next.startsWith('//') && next !== '/login' && next !== '/register'
-      ? next
-      : '/mypage'
-  redirect(destination)
+  redirect(safeLoginDestination(next))
 }

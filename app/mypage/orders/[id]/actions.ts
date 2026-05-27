@@ -34,7 +34,7 @@ export async function submitAssessmentDecision(
     return { error: 'ログインが必要です' }
   }
 
-  if (!Array.isArray(decisions) || decisions.length === 0) {
+  if (!Array.isArray(decisions)) {
     return { error: '承認またはキャンセルを選択してください' }
   }
 
@@ -66,7 +66,7 @@ export async function submitAssessmentDecision(
   }[]
   const decisionMap = new Map(decisions.map((item) => [item.itemId, item.decision]))
 
-  if (items.length === 0 || decisionMap.size !== items.length) {
+  if (items.length > 0 && decisionMap.size !== items.length) {
     return { error: 'すべての商品について承認またはキャンセルを選択してください' }
   }
 
@@ -117,7 +117,9 @@ export async function submitAssessmentDecision(
     old_status: currentStatus,
     new_status: nextStatus,
     changed_by: user.id,
-    note: 'ユーザーが査定結果を確定',
+    note: items.length === 0
+      ? 'ユーザーがカード0枚の査定結果を確認'
+      : 'ユーザーが査定結果を確定',
   })
 
   const notificationOrder = await loadOrderForNotification(

@@ -445,8 +445,8 @@ export function RegisterForm() {
       <Section title="基本情報" icon="ⓘ">
         <Field label="氏名" name="last_name" required placeholder="山田太郎" errors={allErrors} />
         <Field label="氏名（カナ）" name="last_name_kana" required placeholder="ヤマダタロウ" errors={allErrors} />
-        <Field label="メールアドレス" name="email" type="email" required placeholder="example@tcg-royal.jp" autoComplete="email" errors={allErrors} />
-        <Field label="メールアドレス（確認）" name="email_confirm" type="email" required placeholder="example@tcg-royal.jp" autoComplete="email" errors={allErrors} />
+        <Field label="メールアドレス" name="email" type="email" required placeholder="example@tcg-royal.com" autoComplete="email" errors={allErrors} />
+        <Field label="メールアドレス（確認）" name="email_confirm" type="email" required placeholder="example@tcg-royal.com" autoComplete="email" errors={allErrors} />
         <Field label="パスワード" name="password" type="password" required placeholder="8文字以上で入力" autoComplete="new-password" errors={allErrors} />
         <Field label="パスワード（確認）" name="password_confirm" type="password" required placeholder="確認のため再入力してください" autoComplete="new-password" errors={allErrors} />
 

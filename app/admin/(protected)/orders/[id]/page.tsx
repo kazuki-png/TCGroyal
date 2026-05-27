@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { StatusBadge } from '@/app/components/StatusBadge'
 import {
   AssessmentEditor,
+  type AssessmentCardOption,
   type AssessmentEditorItem,
 } from '../AssessmentEditor'
 import {
@@ -50,11 +51,19 @@ export default async function AdminOrderDetailPage({
     order.user_id
   )
 
-  const { data: logs } = await adminClient
-    .from('order_status_logs')
-    .select('*')
-    .eq('order_id', id)
-    .order('created_at', { ascending: true })
+  const [{ data: logs }, { data: cardOptions }] = await Promise.all([
+    adminClient
+      .from('order_status_logs')
+      .select('*')
+      .eq('order_id', id)
+      .order('created_at', { ascending: true }),
+    adminClient
+      .from('cards')
+      .select('id, name, card_number, category, grade, buy_price, image_url')
+      .eq('category', 'pokemon')
+      .order('name', { ascending: true })
+      .limit(5000),
+  ])
 
   const currentStatus = order.status as OrderStatus
   const nextStatuses = orderActionStatuses(currentStatus)
@@ -88,6 +97,7 @@ export default async function AdminOrderDetailPage({
           status={currentStatus}
           assessmentSavedAt={order.assessment_saved_at}
           items={orderItems}
+          cardOptions={(cardOptions ?? []) as AssessmentCardOption[]}
           nextStatuses={nextStatuses}
           previousStatuses={previousStatuses}
         />

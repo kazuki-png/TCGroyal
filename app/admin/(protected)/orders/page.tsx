@@ -2,7 +2,10 @@ import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ORDER_STATUS_LABELS, type OrderStatus } from '@/lib/types'
 import { AdminOrdersTable, type AdminOrderRow } from './AdminOrdersTable'
-import type { AssessmentEditorItem } from './AssessmentEditor'
+import type {
+  AssessmentCardOption,
+  AssessmentEditorItem,
+} from './AssessmentEditor'
 
 type OrderRow = {
   id: string
@@ -51,7 +54,15 @@ export default async function AdminOrdersPage({
 
   if (status) query = query.eq('status', status)
 
-  const { data: orders } = await query
+  const [{ data: orders }, { data: cardOptions }] = await Promise.all([
+    query,
+    admin
+      .from('cards')
+      .select('id, name, card_number, category, grade, buy_price, image_url')
+      .eq('category', 'pokemon')
+      .order('name', { ascending: true })
+      .limit(5000),
+  ])
   const orderRows = (orders ?? []) as OrderRow[]
   const userIds = Array.from(new Set(orderRows.map((order) => order.user_id)))
   const { data: profiles } = userIds.length > 0
@@ -112,7 +123,10 @@ export default async function AdminOrdersPage({
         )}
       </div>
 
-      <AdminOrdersTable rows={rows} />
+      <AdminOrdersTable
+        rows={rows}
+        cardOptions={(cardOptions ?? []) as AssessmentCardOption[]}
+      />
     </div>
   )
 }

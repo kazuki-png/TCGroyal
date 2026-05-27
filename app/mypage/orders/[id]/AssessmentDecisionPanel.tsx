@@ -108,7 +108,8 @@ export function AssessmentDecisionPanel({
       }),
     [decisions, items]
   )
-  const allSelected = rows.every((item) => item.decision)
+  const allSelected = rows.length === 0 || rows.every((item) => item.decision)
+  const unansweredCount = rows.filter((item) => !item.decision).length
   const acceptedTotal = rows.reduce((sum, item) => {
     if (item.decision !== 'approved') return sum
     return sum + item.assessedSubtotal
@@ -166,9 +167,14 @@ export function AssessmentDecisionPanel({
         <h2 className="text-lg font-black text-[#f6f0dc]">
           申し込んだカードの内訳
         </h2>
-        {canRespond && (
+        {canRespond && rows.length > 0 && (
           <p className="mt-1 text-sm font-semibold text-[#8f8369]">
             当社査定額を確認し、商品ごとに承認またはキャンセルを選択してください。
+          </p>
+        )}
+        {canRespond && rows.length === 0 && (
+          <p className="mt-1 text-sm font-semibold text-[#8f8369]">
+            査定対象カードはありません。内容をご確認のうえ確定してください。
           </p>
         )}
         {!assessmentReady && (
@@ -190,15 +196,24 @@ export function AssessmentDecisionPanel({
       )}
 
       <form onSubmit={handleSubmit}>
-        <div className="grid gap-3 p-4 md:grid-cols-2 xl:hidden">
+        {assessmentReady && rows.length === 0 && (
+          <div className="p-4">
+            <div className="rounded-[18px] border border-[#2d2a20] bg-[#0f0e0b] px-4 py-5 text-sm font-semibold leading-7 text-[#8f8369]">
+              当社にて商品内容を確認しましたが、査定対象となるカードはありませんでした。確定後、この申込は振込待ちへ進みます。
+            </div>
+          </div>
+        )}
+
+        {rows.length > 0 && (
+        <div className="grid gap-3 p-4 md:grid-cols-2 2xl:grid-cols-3">
           {rows.map((item) => (
             <article
               key={item.id}
               className="rounded-[18px] border border-[#2d2a20] bg-[#0f0e0b] p-4"
             >
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-black text-[#f6f0dc]">
+                <div className="min-w-0 flex-1">
+                  <h3 className="break-words text-base font-black leading-relaxed text-[#f6f0dc] [overflow-wrap:anywhere]">
                     {item.card_name}
                   </h3>
                   <p className="mt-1 text-xs font-semibold text-[#8f8369]">
@@ -273,102 +288,7 @@ export function AssessmentDecisionPanel({
             </article>
           ))}
         </div>
-
-        <div className="hidden overflow-x-auto xl:block">
-          <table className="w-full min-w-[980px] text-sm text-[#ede8d5]">
-            <thead className="bg-[#0f0e0b] text-left text-xs font-black uppercase tracking-[0.14em] text-[#c9a52e]">
-              {assessmentReady ? (
-                <tr>
-                  <th className="px-5 py-3">カード名</th>
-                  <th className="px-5 py-3">グレード</th>
-                  <th className="px-5 py-3 text-right">数量</th>
-                  <th className="px-5 py-3 text-right">申込時単価</th>
-                  <th className="px-5 py-3 text-right">当社査定額</th>
-                  <th className="px-5 py-3 text-right">小計</th>
-                  <th className="px-5 py-3 text-center">減額</th>
-                  <th className="px-5 py-3 text-center">回答</th>
-                </tr>
-              ) : (
-                <tr>
-                  <th className="px-5 py-3">カード名</th>
-                  <th className="px-5 py-3">グレード</th>
-                  <th className="px-5 py-3 text-right">数量</th>
-                  <th className="px-5 py-3 text-right">申込時単価</th>
-                  <th className="px-5 py-3 text-right">申込時小計</th>
-                  <th className="px-5 py-3 text-center">状態</th>
-                </tr>
-              )}
-            </thead>
-            <tbody className="divide-y divide-[#2d2a20]">
-              {rows.map((item) => (
-                <tr key={item.id} className="align-top">
-                  <td className="px-5 py-4 font-black leading-tight text-[#f6f0dc]">
-                    {item.card_name}
-                    {item.item_type === 'unlisted' && item.requested_note && (
-                      <span className="mt-1 block text-xs font-semibold text-[#8f8369]">
-                        {item.requested_note}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4 font-semibold text-[#8f8369]">
-                    {item.grade}
-                  </td>
-                  <td className="px-5 py-4 text-right font-black text-[#f6f0dc]">
-                    {item.quantity}
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-4 text-right font-semibold text-[#ede8d5]">
-                    {currency(item.unit_price)}
-                  </td>
-                  {assessmentReady ? (
-                    <>
-                      <td className="whitespace-nowrap px-5 py-4 text-right font-black text-[#f6f0dc]">
-                        {currency(item.assessedUnitPrice)}
-                      </td>
-                      <td className="whitespace-nowrap px-5 py-4 text-right font-black text-red-300">
-                        {currency(item.assessedSubtotal)}
-                      </td>
-                      <td className="px-5 py-4 text-center">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-black ${reductionBadgeClass(item.isReduced)}`}
-                        >
-                          {item.isReduced ? '減額あり' : '減額なし'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 text-center">
-                        {canRespond ? (
-                          <DecisionButtons
-                            value={item.decision as Decision | ''}
-                            onChange={(decision) => choose(item.id, decision)}
-                            disabled={pending}
-                          />
-                        ) : (
-                          <span
-                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${decisionBadgeClass(item.customer_decision)}`}
-                          >
-                            {decisionLabel(item.customer_decision)}
-                          </span>
-                        )}
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="whitespace-nowrap px-5 py-4 text-right font-black text-red-300">
-                        {currency(item.unit_price * item.quantity)}
-                      </td>
-                      <td className="px-5 py-4 text-center">
-                      <span
-                        className="inline-flex rounded-full border border-[#c9a52e]/30 bg-[#c9a52e]/10 px-3 py-1 text-xs font-black text-[#c9a52e]"
-                      >
-                        査定待ち
-                      </span>
-                      </td>
-                    </>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        )}
 
         <div className="border-t border-[#2d2a20] bg-[#0f0e0b] px-5 py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -385,13 +305,24 @@ export function AssessmentDecisionPanel({
               </p>
             </div>
             {canRespond && (
-              <button
-                type="submit"
-                disabled={pending || !allSelected}
-                className="rounded-xl bg-[#c9a52e] px-6 py-3 text-sm font-black text-[#0e0c09] transition-colors hover:bg-[#d7b865] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {pending ? '確定中...' : '確定する'}
-              </button>
+              <div className="space-y-2 sm:text-right">
+                {!allSelected && (
+                  <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-black text-amber-200">
+                    未回答のカードが{unansweredCount}件あります
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={pending || !allSelected}
+                  className="w-full rounded-xl bg-[#c9a52e] px-6 py-3 text-sm font-black text-[#0e0c09] transition-colors hover:bg-[#d7b865] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                >
+                  {pending
+                    ? '確定中...'
+                    : rows.length === 0
+                      ? '確認して確定する'
+                      : '確定する'}
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -1,6 +1,19 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+function safeNextPath(value: string | null) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+    return null
+  }
+
+  const pathname = value.split('?')[0]
+  if (pathname === '/login' || pathname === '/register') {
+    return null
+  }
+
+  return value
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   let supabaseResponse = NextResponse.next({ request })
@@ -8,8 +21,7 @@ export async function proxy(request: NextRequest) {
 
   const isAdminRoute =
     pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')
-  const isUserProtectedRoute =
-    pathname.startsWith('/mypage') || pathname.startsWith('/cart')
+  const isUserProtectedRoute = pathname.startsWith('/mypage')
   const isAuthPage =
     pathname === '/login' || pathname === '/register'
 
@@ -75,7 +87,8 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthPage && user) {
-    return NextResponse.redirect(new URL('/mypage', request.url))
+    const next = safeNextPath(request.nextUrl.searchParams.get('next'))
+    return NextResponse.redirect(new URL(next ?? '/mypage', request.url))
   }
 
   supabaseResponse.headers.set('x-pathname', pathname)

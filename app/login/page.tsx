@@ -84,7 +84,7 @@ export default function LoginPage() {
                 type="email"
                 required
                 autoComplete="email"
-                placeholder="example@tcg-royal.jp"
+                placeholder="example@tcg-royal.com"
                 className="h-12 w-full rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] px-4 text-sm font-semibold text-[#f6f0dc] outline-none transition-colors placeholder:text-[#5f5748] focus:border-[#c9a52e] focus:ring-2 focus:ring-[#c9a52e]/15"
               />
             </div>

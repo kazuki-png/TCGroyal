@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import { LoginLink } from './LoginLink'
 import { SiteLogo } from './SiteLogo'
 
 export type SiteBreadcrumb = {
@@ -57,21 +58,27 @@ export function SiteHeader({
         </Link>
         <div className="flex min-w-0 items-center justify-end gap-2">
           {nav}
-          {isAuthenticated || unauthenticatedAction === 'account-icon' ? (
+          {isAuthenticated ? (
             <Link
-              href={isAuthenticated ? '/mypage' : '/login'}
-              aria-label={isAuthenticated ? 'マイページ' : 'ログイン'}
+              href="/mypage"
+              aria-label="マイページ"
               className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#1c1b18] text-[#c9a52e] shadow-[inset_0_0_0_1px_rgba(201,165,46,0.6)] transition-colors hover:bg-[#252420]"
             >
               <AccountIcon />
             </Link>
+          ) : unauthenticatedAction === 'account-icon' ? (
+            <LoginLink
+              ariaLabel="ログイン"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#1c1b18] text-[#c9a52e] shadow-[inset_0_0_0_1px_rgba(201,165,46,0.6)] transition-colors hover:bg-[#252420]"
+            >
+              <AccountIcon />
+            </LoginLink>
           ) : (
-            <Link
-              href="/login"
+            <LoginLink
               className="shrink-0 rounded-full bg-[#1c1b18] px-5 py-2 text-sm font-black text-[#c9a52e] shadow-[inset_0_0_0_1px_rgba(201,165,46,0.4)] transition-colors hover:bg-[#252420]"
             >
               ログイン
-            </Link>
+            </LoginLink>
           )}
           {afterAccount}
         </div>

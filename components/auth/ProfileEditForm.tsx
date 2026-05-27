@@ -440,7 +440,7 @@ export function ProfileEditForm({
             type="email"
             required
             defaultValue={initialData.email}
-            placeholder="example@tcg-royal.jp"
+            placeholder="example@tcg-royal.com"
             autoComplete="email"
             errors={allErrors}
           />
@@ -450,7 +450,7 @@ export function ProfileEditForm({
             type="email"
             required
             defaultValue={initialData.email}
-            placeholder="example@tcg-royal.jp"
+            placeholder="example@tcg-royal.com"
             autoComplete="email"
             errors={allErrors}
           />

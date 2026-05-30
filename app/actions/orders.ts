@@ -12,7 +12,7 @@ import {
 } from '@/lib/email/send'
 import {
   EMAIL_TRIGGER_STATUSES,
-  ORDER_STATUS_FLOW,
+  ORDER_STATUSES,
   isBackwardOrderStatusTransition,
   isForwardOrderStatusTransition,
 } from '@/lib/types'
@@ -313,7 +313,7 @@ export async function updateOrderStatus(
     return { error: '管理者権限が必要です' }
   }
 
-  if (!ORDER_STATUS_FLOW.includes(newStatus)) {
+  if (!ORDER_STATUSES.includes(newStatus)) {
     return { error: '不正なステータスです' }
   }
 
@@ -336,6 +336,10 @@ export async function updateOrderStatus(
     return {}
   }
 
+  if (currentStatus === 'completed' && newStatus === 'cancelled') {
+    return { error: '振り込み完了後の注文はキャンセルできません' }
+  }
+
   if (newStatus === 'pending_approval') {
     return { error: 'お客様対応待ちへ進めるには査定額を保存してください' }
   }
@@ -348,6 +352,7 @@ export async function updateOrderStatus(
   }
 
   if (
+    newStatus !== 'cancelled' &&
     !isForwardOrderStatusTransition(currentStatus, newStatus) &&
     !isBackwardOrderStatusTransition(currentStatus, newStatus)
   ) {

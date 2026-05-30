@@ -6,6 +6,7 @@ export type OrderStatus =
   | 'pending_approval'
   | 'pending_transfer'
   | 'completed'
+  | 'cancelled'
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   unhandled: '未対応',
@@ -15,6 +16,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   pending_approval: 'お客様対応待ち',
   pending_transfer: '振込待ち',
   completed: '完了',
+  cancelled: 'キャンセル済み',
 }
 
 export const ORDER_STATUS_FLOW: OrderStatus[] = [
@@ -27,10 +29,16 @@ export const ORDER_STATUS_FLOW: OrderStatus[] = [
   'completed',
 ]
 
+export const ORDER_STATUSES: OrderStatus[] = [
+  ...ORDER_STATUS_FLOW,
+  'cancelled',
+]
+
 export const EMAIL_TRIGGER_STATUSES: OrderStatus[] = [
   'accepted',
   'pending_approval',
   'completed',
+  'cancelled',
 ]
 
 export function orderStatusIndex(status: OrderStatus) {
@@ -41,14 +49,18 @@ export function isForwardOrderStatusTransition(
   currentStatus: OrderStatus,
   newStatus: OrderStatus
 ) {
-  return orderStatusIndex(newStatus) > orderStatusIndex(currentStatus)
+  const currentIndex = orderStatusIndex(currentStatus)
+  const newIndex = orderStatusIndex(newStatus)
+  return currentIndex >= 0 && newIndex >= 0 && newIndex > currentIndex
 }
 
 export function isBackwardOrderStatusTransition(
   currentStatus: OrderStatus,
   newStatus: OrderStatus
 ) {
-  return orderStatusIndex(newStatus) < orderStatusIndex(currentStatus)
+  const currentIndex = orderStatusIndex(currentStatus)
+  const newIndex = orderStatusIndex(newStatus)
+  return currentIndex >= 0 && newIndex >= 0 && newIndex < currentIndex
 }
 
 export function nextOrderStatuses(currentStatus: OrderStatus) {

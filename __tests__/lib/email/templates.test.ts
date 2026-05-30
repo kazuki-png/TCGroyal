@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   orderSubmittedEmailHtml,
   acceptedEmailHtml,
+  adminNotificationEmailHtml,
   pendingApprovalEmailHtml,
   completedEmailHtml,
 } from '@/lib/email/templates'
@@ -26,6 +27,7 @@ const mockOrder: OrderWithItems = {
       id: 'item-1',
       order_id: '12345678-0000-0000-0000-000000000000',
       card_id: 'card-1',
+      item_type: 'card',
       card_name: 'リザードン',
       grade: 'PSA10',
       quantity: 2,
@@ -86,5 +88,23 @@ describe('completedEmailHtml', () => {
     const html = completedEmailHtml(mockOrder)
     expect(html).toContain('20260521-01')
     expect(html).toContain('50,000')
+  })
+})
+
+describe('adminNotificationEmailHtml', () => {
+  it('キャンセル通知の明細にキャンセル状況が含まれる', () => {
+    const html = adminNotificationEmailHtml('cancellation', {
+      ...mockOrder,
+      order_items: [
+        {
+          ...mockOrder.order_items[0],
+          customer_decision: 'cancelled',
+        },
+      ],
+    })
+
+    expect(html).toContain('ユーザーよりキャンセル申請がありました。')
+    expect(html).toContain('キャンセル状況')
+    expect(html).toContain('キャンセル')
   })
 })

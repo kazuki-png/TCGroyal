@@ -36,7 +36,7 @@ const RANGE_OPTIONS: { key: RangeKey; label: string; shortLabel: string; days: n
 ]
 
 const ACTIVE_STATUSES = ORDER_STATUS_FLOW.filter(
-  (status) => status !== 'completed'
+  (status) => status !== 'completed' && status !== 'cancelled'
 ) as OrderStatus[]
 
 const STATUS_ACCENTS: Record<OrderStatus, string> = {
@@ -47,6 +47,7 @@ const STATUS_ACCENTS: Record<OrderStatus, string> = {
   pending_approval: 'bg-fuchsia-400',
   pending_transfer: 'bg-emerald-400',
   completed: 'bg-lime-400',
+  cancelled: 'bg-zinc-500',
 }
 
 function resolveRange(value: string | string[] | undefined) {
@@ -156,7 +157,9 @@ async function loadSummary(
     .gte('created_at', period.start.toISOString())
     .lt('created_at', period.end.toISOString())
 
-  const rows = (orders ?? []) as DashboardOrder[]
+  const rows = ((orders ?? []) as DashboardOrder[]).filter(
+    (order) => order.status !== 'cancelled'
+  )
   const totalAmount = rows.reduce((sum, order) => sum + (order.total_amount ?? 0), 0)
   const totalQuantity = quantityTotal(rows)
 
@@ -299,7 +302,11 @@ export default async function AdminDashboardPage({
       loadSummary(admin, previousDayPeriod),
       loadSummary(admin, previousWeekPeriod),
       loadSummary(admin, previousMonthPeriod),
-      admin.from('orders').select('status').neq('status', 'completed'),
+      admin
+        .from('orders')
+        .select('status')
+        .neq('status', 'completed')
+        .neq('status', 'cancelled'),
     ])
 
   const statusCounts = new Map<OrderStatus, number>(

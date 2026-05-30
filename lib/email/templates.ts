@@ -12,7 +12,7 @@ type EmailContext = {
 }
 
 const SHIPPING_DESTINATION = [
-  ['宛名', '株式会社フィンテグラホールディングス 買取部'],
+  ['宛名', 'TCG ROYAL 買取部'],
   ['住所', '〒106-0032 東京都港区六本木4-2-14 六本木三河台スクエアビル 3F'],
   ['電話番号', '03-6841-8309'],
 ] as const
@@ -39,10 +39,20 @@ function currentUnitPrice(item: OrderWithItems['order_items'][number]) {
   return item.assessed_unit_price ?? item.unit_price
 }
 
+function cancellationStatusLabel(
+  order: OrderWithItems,
+  item: OrderWithItems['order_items'][number]
+) {
+  if (item.customer_decision === 'cancelled') return 'キャンセル'
+  if (item.customer_decision === 'approved') return '承認'
+  if (order.status === 'cancelled') return '注文キャンセル'
+  return '未回答'
+}
+
 function signatureBlock() {
   return `
     <div class="signature">
-      <p>株式会社フィンテグラホールディングス 買取部</p>
+      <p>TCG ROYAL 買取部</p>
     </div>
   `
 }
@@ -84,7 +94,10 @@ function baseLayout(title: string, body: string): string {
 </html>`
 }
 
-function itemRows(order: OrderWithItems) {
+function itemRows(
+  order: OrderWithItems,
+  options: { showCancellationStatus?: boolean } = {}
+) {
   return order.order_items
     .map(
       (item) => {
@@ -96,6 +109,11 @@ function itemRows(order: OrderWithItems) {
           <td>${item.quantity}</td>
           <td>${yen(unitPrice)}</td>
           <td>${yen(unitPrice * item.quantity)}</td>
+          ${
+            options.showCancellationStatus
+              ? `<td>${escapeHtml(cancellationStatusLabel(order, item))}</td>`
+              : ''
+          }
         </tr>
       `
       }
@@ -103,7 +121,10 @@ function itemRows(order: OrderWithItems) {
     .join('')
 }
 
-function orderItemsTable(order: OrderWithItems) {
+function orderItemsTable(
+  order: OrderWithItems,
+  options: { showCancellationStatus?: boolean } = {}
+) {
   return `
     <table>
       <thead>
@@ -113,9 +134,10 @@ function orderItemsTable(order: OrderWithItems) {
           <th>数量</th>
           <th>単価</th>
           <th>小計</th>
+          ${options.showCancellationStatus ? '<th>キャンセル状況</th>' : ''}
         </tr>
       </thead>
-      <tbody>${itemRows(order)}</tbody>
+      <tbody>${itemRows(order, options)}</tbody>
     </table>
     <p class="amount">合計金額：${yen(order.total_amount)}</p>
   `
@@ -178,7 +200,7 @@ export function acceptedEmailHtml(
     ${shippingDestinationHtml()}
     <div class="box">
       <h3>発送について</h3>
-      <p>・必ず発払い（元払い）にて発送をお願いいたします<br />
+      <p>・送料はTCG Royalが負担しますので、必ず着払いにて発送をお願いいたします<br />
       ・配送会社の指定はございません<br />
       ・発送後は追跡番号の保管をお願いいたします</p>
     </div>
@@ -211,8 +233,7 @@ export function pendingApprovalEmailHtml(
     </div>
     ${mypageLink}
 
-    <p>査定額をご承認いただき次第、最短1営業日以内にご指定口座へお振込みいたします。</p>
-    <p>なお、キャンセルされた商品につきましては、ご返送対応となります。ご返送となる場合の送料は、お客様負担となりますので、あらかじめご了承ください。</p>
+    <p>査定額をご承認いただき次第、最短即日にご指定口座へお振込みいたします。</p>
     <p>ご不明点がございましたら、お気軽にお問い合わせください。</p>
     <p>今後ともよろしくお願いいたします。</p>
     ${signatureBlock()}
@@ -242,6 +263,28 @@ export function completedEmailHtml(
   `
 
   return baseLayout('買取代金をお振込みいたしました - TCG Royal', body)
+}
+
+export function cancelledEmailHtml(
+  order: OrderWithItems,
+  context: EmailContext = {}
+): string {
+  const body = `
+    <p class="lead">${salutation(context.customerName)}</p>
+    <p>以下の買取申し込みのキャンセルを受け付けいたしましたので、お知らせいたします。</p>
+
+    <div class="box">
+      <p><strong>注文番号：</strong>${escapeHtml(order.order_number)}</p>
+    </div>
+    ${orderItemsTable(order)}
+
+    <p>なお、すでに商品をTCG ROYALへ発送済みの場合は、3営業日以内に返送手続きを行わせていただきますので、返送まで今しばらくお待ちいただけますと幸いです。</p>
+    <p>返送料につきましても、TCG ROYALにて負担いたしますのでご安心ください。</p>
+    <p>引き続きTCG ROYALをよろしくお願いいたします。</p>
+    ${signatureBlock()}
+  `
+
+  return baseLayout('買取申し込みのキャンセルを受け付けました - TCG Royal', body)
 }
 
 export function adminNotificationEmailHtml(
@@ -276,7 +319,9 @@ export function adminNotificationEmailHtml(
       <p><strong>ユーザー名：</strong>${escapeHtml(context.customerName || order.user_id)}</p>
       <p><strong>査定結果合計額：</strong>${yen(order.total_amount)}</p>
     </div>
-    ${orderItemsTable(order)}
+    ${orderItemsTable(order, {
+      showCancellationStatus: kind === 'cancellation',
+    })}
     ${adminLink(context.adminUrl)}
   `
 

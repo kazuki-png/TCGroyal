@@ -27,6 +27,18 @@ type ParsedCardRow = {
 
 type InsertCardRow = Omit<ParsedCardRow, 'csvLine'>
 
+export type CsvImportOptions = {
+  updateExisting?: boolean
+  insertNew?: boolean
+  downloadImages?: boolean
+}
+
+const DEFAULT_CSV_IMPORT_OPTIONS: Required<CsvImportOptions> = {
+  updateExisting: true,
+  insertNew: false,
+  downloadImages: true,
+}
+
 export type CsvImportProgress =
   | {
       type: 'start'
@@ -50,6 +62,8 @@ export type CsvImportProgress =
   | {
       type: 'complete'
       inserted: number
+      updated: number
+      skipped: number
       warnings: string[]
       percent: number
       message: string
@@ -299,17 +313,34 @@ function progressPercent(processed: number, total: number) {
   return Math.min(100, Math.round((processed / total) * 100))
 }
 
+function cardIdentityKey(row: {
+  category: CardCategory
+  card_number: string | null
+  grade: string
+  name: string
+}) {
+  return `${row.category}::${row.card_number ?? ''}::${row.grade}::${row.name}`
+}
+
 export async function importCardsCsvContent({
   admin,
   body,
   onProgress,
+  options,
 }: {
   admin: AdminClient
   body: string
   onProgress: (event: CsvImportProgress) => void | Promise<void>
+  options?: CsvImportOptions
 }) {
+  const resolvedOptions = {
+    ...DEFAULT_CSV_IMPORT_OPTIONS,
+    ...options,
+  }
   const parsedRows = parseCardsCsv(body)
-  const downloadTotal = parsedRows.filter((row) => parseWebUrl(row.image_url)).length
+  const downloadTotal = resolvedOptions.downloadImages
+    ? parsedRows.filter((row) => parseWebUrl(row.image_url)).length
+    : 0
   const warnings: string[] = []
   const rows: InsertCardRow[] = []
 
@@ -330,7 +361,7 @@ export async function importCardsCsvContent({
   for (const row of parsedRows) {
     let imageUrl = row.image_url
 
-    if (row.image_url && parseWebUrl(row.image_url)) {
+    if (resolvedOptions.downloadImages && row.image_url && parseWebUrl(row.image_url)) {
       const wait = Math.max(
         0,
         REMOTE_IMAGE_DOWNLOAD_DELAY_MS - (Date.now() - lastDownloadAt)
@@ -383,14 +414,20 @@ export async function importCardsCsvContent({
     processed: rows.length,
     total: rows.length,
     percent: 100,
-    message: '価格を更新しています...',
+    message: 'カード情報を反映しています...',
   })
 
-  // 型番+グレード+名前の3つが一致する既存カードの価格のみ更新（新規挿入なし）
+  // カテゴリ+型番+グレード+名前が一致するカードを既存カードとして扱う。
   const cardNumbers = [...new Set(rows.map((r) => r.card_number).filter(Boolean))] as string[]
   const noNumberNames = [...new Set(rows.filter((r) => !r.card_number).map((r) => r.name))]
 
-  const existingCards: { id: string; card_number: string | null; grade: string; name: string }[] = []
+  const existingCards: {
+    id: string
+    category: CardCategory
+    card_number: string | null
+    grade: string
+    name: string
+  }[] = []
   const PAGE = 1000
 
   // 型番ありカードを型番で一括取得
@@ -399,11 +436,11 @@ export async function importCardsCsvContent({
     while (true) {
       const { data } = await admin
         .from('cards')
-        .select('id, card_number, grade, name')
+        .select('id, category, card_number, grade, name')
         .in('card_number', cardNumbers)
         .range(from, from + PAGE - 1)
       if (!data || data.length === 0) break
-      existingCards.push(...data)
+      existingCards.push(...(data as typeof existingCards))
       if (data.length < PAGE) break
       from += PAGE
     }
@@ -415,25 +452,42 @@ export async function importCardsCsvContent({
     while (true) {
       const { data } = await admin
         .from('cards')
-        .select('id, card_number, grade, name')
+        .select('id, category, card_number, grade, name')
         .is('card_number', null)
         .in('name', noNumberNames)
         .range(from, from + PAGE - 1)
       if (!data || data.length === 0) break
-      existingCards.push(...data)
+      existingCards.push(...(data as typeof existingCards))
       if (data.length < PAGE) break
       from += PAGE
     }
   }
 
   const existingMap = new Map(
-    existingCards.map((c) => [`${c.card_number}::${c.grade}::${c.name}`, c.id])
+    existingCards.map((card) => [cardIdentityKey(card), card.id])
   )
 
-  const toUpdate = rows
-    .filter((r) => existingMap.has(`${r.card_number}::${r.grade}::${r.name}`))
-    .map((r) => ({ id: existingMap.get(`${r.card_number}::${r.grade}::${r.name}`)!, buy_price: r.buy_price }))
-  const skipped = rows.length - toUpdate.length
+  const toUpdate: { id: string; buy_price: number }[] = []
+  const toInsert: InsertCardRow[] = []
+  let skipped = 0
+
+  for (const row of rows) {
+    const existingId = existingMap.get(cardIdentityKey(row))
+    if (existingId) {
+      if (resolvedOptions.updateExisting) {
+        toUpdate.push({ id: existingId, buy_price: row.buy_price })
+      } else {
+        skipped += 1
+      }
+      continue
+    }
+
+    if (resolvedOptions.insertNew) {
+      toInsert.push(row)
+    } else {
+      skipped += 1
+    }
+  }
 
   // 50件ずつ並列更新（逐次だと件数が多い時にタイムアウトする）
   const UPDATE_BATCH = 50
@@ -446,16 +500,27 @@ export async function importCardsCsvContent({
     )
   }
 
+  const INSERT_BATCH = 200
+  for (let i = 0; i < toInsert.length; i += INSERT_BATCH) {
+    const { error } = await admin
+      .from('cards')
+      .insert(toInsert.slice(i, i + INSERT_BATCH))
+    if (error) throw new Error(`カードの新規登録に失敗しました: ${error.message}`)
+  }
+
   const updated = toUpdate.length
+  const inserted = toInsert.length
 
   await onProgress({
     type: 'complete',
-    inserted: updated,
+    inserted,
+    updated,
+    skipped,
     warnings,
     percent: 100,
     message:
       warnings.length > 0
-        ? `取込が完了しました（更新 ${updated}件・スキップ ${skipped}件・警告 ${warnings.length}件）`
-        : `取込が完了しました（更新 ${updated}件・スキップ ${skipped}件）`,
+        ? `取込が完了しました（更新 ${updated}件・新規 ${inserted}件・スキップ ${skipped}件・警告 ${warnings.length}件）`
+        : `取込が完了しました（更新 ${updated}件・新規 ${inserted}件・スキップ ${skipped}件）`,
   })
 }

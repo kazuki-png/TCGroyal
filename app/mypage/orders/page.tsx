@@ -46,7 +46,9 @@ export default async function MypageOrdersPage({
   const actionRows = rows.filter((order) => order.status === 'pending_approval')
   const visibleRows = filter === 'customer-action' ? actionRows : rows
   const totalAmount = rows.reduce((sum, order) => sum + order.total_amount, 0)
-  const activeCount = rows.filter((order) => order.status !== 'completed').length
+  const activeCount = rows.filter(
+    (order) => order.status !== 'completed' && order.status !== 'cancelled'
+  ).length
 
   return (
     <div className="space-y-6">
@@ -63,16 +65,16 @@ export default async function MypageOrdersPage({
               カートから申し込んだ買取依頼の進行状況を確認できます。
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:min-w-[280px]">
-            <div className="rounded-[18px] border border-[#2d2a20] bg-[#0f0e0b] px-4 py-3">
+          <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:min-w-[280px]">
+            <div className="min-w-0 rounded-[18px] border border-[#2d2a20] bg-[#0f0e0b] px-4 py-3">
               <p className="text-xs font-bold text-[#8f8369]">進行中</p>
-              <p className="mt-1 text-2xl font-black text-[#f6f0dc]">
+              <p className="mt-1 break-words text-2xl font-black text-[#f6f0dc]">
                 {activeCount}
               </p>
             </div>
-            <div className="rounded-[18px] border border-[#2d2a20] bg-[#0f0e0b] px-4 py-3">
+            <div className="min-w-0 rounded-[18px] border border-[#2d2a20] bg-[#0f0e0b] px-4 py-3">
               <p className="text-xs font-bold text-[#8f8369]">累計申込額</p>
-              <p className="mt-1 text-2xl font-black text-[#f6f0dc]">
+              <p className="mt-1 break-words text-xl font-black leading-tight text-[#f6f0dc] sm:text-2xl">
                 {currency(totalAmount)}
               </p>
             </div>
@@ -147,16 +149,16 @@ export default async function MypageOrdersPage({
                       申込日時 {formatDateTime(order.created_at)}
                     </p>
                   </div>
-                  <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-4 sm:min-w-[360px]">
-                    <div>
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-3 sm:min-w-[360px] sm:gap-4">
+                    <div className="min-w-0">
                       <p className="text-xs font-bold text-[#8f8369]">商品数</p>
                       <p className="mt-1 text-lg font-black text-[#f6f0dc]">
                         {quantity}点
                       </p>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-bold text-[#8f8369]">買取合計額</p>
-                      <p className="mt-1 text-lg font-black text-red-300">
+                      <p className="mt-1 break-words text-base font-black leading-tight text-red-300 sm:text-lg">
                         {currency(order.total_amount)}
                       </p>
                     </div>

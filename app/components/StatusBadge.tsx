@@ -9,6 +9,7 @@ const COLOR_MAP: Record<OrderStatus, string> = {
   pending_approval: 'bg-orange-100 text-orange-700',
   pending_transfer: 'bg-yellow-100 text-yellow-700',
   completed: 'bg-green-100 text-green-700',
+  cancelled: 'bg-zinc-200 text-zinc-700',
 }
 
 export function StatusBadge({ status }: { status: OrderStatus }) {

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist } from 'next/font/google'
 import { Noto_Serif_JP } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
@@ -16,7 +16,12 @@ const notoSerifJP = Noto_Serif_JP({
 
 export const metadata: Metadata = {
   title: 'TCG Royal - 郵送トレカ買取',
-  description: 'ポケモンカードの郵送買取サービス',
+  description: 'トレーディングカードの郵送買取サービス',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
 }
 
 export default function RootLayout({
@@ -31,7 +36,7 @@ export default function RootLayout({
       style={{ colorScheme: 'dark' }}
       suppressHydrationWarning
     >
-      <body className="min-h-screen bg-[#111110] text-[#ede8d5] antialiased">
+      <body className="min-h-screen overflow-x-hidden bg-[#111110] text-[#ede8d5] antialiased">
         {children}
         <Analytics />
         <SpeedInsights />

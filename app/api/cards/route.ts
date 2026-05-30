@@ -17,6 +17,7 @@ export async function GET(request: Request) {
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? String(DEFAULT_LIMIT), 10)))
   const sort = searchParams.get('sort') ?? 'price-desc'
   const q = searchParams.get('q')?.trim() ?? ''
+  const category = searchParams.get('category')
 
   const supabase = await createClient()
 
@@ -24,7 +25,9 @@ export async function GET(request: Request) {
     .from('cards')
     .select('id,name,category,card_number,grade,buy_price,image_url,created_at,updated_at', { count: 'exact' })
 
-  query = query.eq('category', 'pokemon')
+  if (category === 'pokemon' || category === 'onepiece') {
+    query = query.eq('category', category)
+  }
 
   if (q) {
     const tokens = q

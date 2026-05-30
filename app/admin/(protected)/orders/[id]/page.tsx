@@ -61,7 +61,6 @@ export default async function AdminOrderDetailPage({
     adminClient
       .from('cards')
       .select('id, name, card_number, category, grade, buy_price, image_url')
-      .eq('category', 'pokemon')
       .order('name', { ascending: true })
       .limit(5000),
   ])

@@ -23,6 +23,7 @@ import type { Card, CartItem, HomepageBanner, Profile } from '@/lib/types'
 import unlistedPurchaseRequestImage from '@/public/images/bulk-assessment-request.png'
 
 type SortKey = 'price-desc' | 'price-asc' | 'name'
+type CategoryFilter = Card['category']
 type ViewMode = 'catalog' | 'cart' | 'confirm' | 'complete'
 type CheckoutInfo = {
   lastName: string
@@ -42,6 +43,15 @@ type CheckoutInfo = {
 const CART_STORAGE_KEY = 'tcg_royal_purchase_cart'
 const LOGIN_NEXT_CART_PATH = '/login?next=%2Fcart'
 const REAL_CARDS_PER_PAGE = 23
+const CATEGORY_FILTERS: CategoryFilter[] = ['pokemon', 'onepiece']
+const CATEGORY_FILTER_LABELS: Record<CategoryFilter, string> = {
+  pokemon: 'ポケモン',
+  onepiece: 'ワンピース',
+}
+const INITIAL_CATEGORY_FILTERS: Record<CategoryFilter, boolean> = {
+  pokemon: true,
+  onepiece: true,
+}
 
 const SHIPPING_DESTINATION = [
   ['宛名', 'TCG ROYAL 買取部'],
@@ -926,6 +936,9 @@ export function CartForm({
   const [completedOrderNumber, setCompletedOrderNumber] = useState<string>()
   const [purchaseFlowOpen, setPurchaseFlowOpen] = useState(false)
   const [sort, setSort] = useState<SortKey>('price-desc')
+  const [categoryFilters, setCategoryFilters] = useState<
+    Record<CategoryFilter, boolean>
+  >(() => ({ ...INITIAL_CATEGORY_FILTERS }))
   const [keyword, setKeyword] = useState('')
   const [submittedKeyword, setSubmittedKeyword] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -947,8 +960,19 @@ export function CartForm({
   const listTopRef = useRef<HTMLDivElement>(null)
 
   const repeatedImageUrls = useMemo(() => duplicatedImageUrls(displayCards), [displayCards])
+  const selectedCategories = useMemo(
+    () => CATEGORY_FILTERS.filter((category) => categoryFilters[category]),
+    [categoryFilters]
+  )
+  const selectedCategoryKey = selectedCategories.join(',')
+  const selectedCategorySummary =
+    selectedCategories.length === 0
+      ? '未選択'
+      : selectedCategories
+          .map((category) => CATEGORY_FILTER_LABELS[category])
+          .join('・')
   const totalPages = Math.max(1, Math.ceil(totalCards / REAL_CARDS_PER_PAGE))
-  const catalogImageBatchKey = `${currentPage}:${sort}:${submittedKeyword}`
+  const catalogImageBatchKey = `${currentPage}:${sort}:${selectedCategoryKey}:${submittedKeyword}`
   const catalogImagesReady =
     viewMode === 'catalog' &&
     !cardsLoading &&
@@ -956,6 +980,7 @@ export function CartForm({
   const appliedKeyword = submittedKeyword.trim()
   const hasSearchConditions =
     appliedKeyword.length > 0 ||
+    selectedCategories.length !== CATEGORY_FILTERS.length ||
     sort !== 'price-desc'
 
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0)
@@ -1076,20 +1101,43 @@ export function CartForm({
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const nextKeyword = keyword.trim()
+    if (nextKeyword === submittedKeyword && currentPage === 1) {
+      if (!cardsLoading) setReadyCatalogImageBatchKey(catalogImageBatchKey)
+      return
+    }
+
     setCardsLoading(true)
     setCurrentPage(1)
-    setSubmittedKeyword(keyword.trim())
+    setSubmittedKeyword(nextKeyword)
+  }
+
+  const toggleCategoryFilter = (category: CategoryFilter) => {
+    if (categoryFilters[category] && selectedCategories.length === 1) return
+
+    setCardsLoading(true)
+    setCurrentPage(1)
+    setCategoryFilters((current) => ({
+      ...current,
+      [category]: !current[category],
+    }))
   }
 
   useEffect(() => {
+    const activeCategories = selectedCategoryKey
+      .split(',')
+      .filter(Boolean) as CategoryFilter[]
+
     const controller = new AbortController()
 
     const params = new URLSearchParams({
       page: String(currentPage),
       limit: String(REAL_CARDS_PER_PAGE),
       sort,
-      category: 'pokemon',
     })
+    if (activeCategories.length === 1) {
+      params.set('category', activeCategories[0])
+    }
     if (submittedKeyword) {
       const normalizedQ = submittedKeyword
         .normalize('NFKC')
@@ -1127,7 +1175,7 @@ export function CartForm({
       })
 
     return () => controller.abort()
-  }, [currentPage, sort, submittedKeyword])
+  }, [currentPage, selectedCategoryKey, sort, submittedKeyword])
 
   useEffect(() => {
     if (viewMode !== 'catalog' || cardsLoading) return
@@ -1143,6 +1191,7 @@ export function CartForm({
     setCardsLoading(true)
     setKeyword('')
     setSubmittedKeyword('')
+    setCategoryFilters({ ...INITIAL_CATEGORY_FILTERS })
     setSort('price-desc')
     setCurrentPage(1)
   }
@@ -1832,7 +1881,7 @@ export function CartForm({
       <div className="space-y-5 py-5" ref={listTopRef}>
         {hasRegisteredCards && (
           <>
-            <div className="grid gap-3 md:grid-cols-[auto_1fr] md:items-center">
+            <div className="grid gap-3 md:grid-cols-[auto_auto_1fr] md:items-center">
               <button
                 type="button"
                 aria-expanded={purchaseFlowOpen}
@@ -1851,6 +1900,43 @@ export function CartForm({
               >
                 買取の流れについて
               </button>
+              <div className="grid grid-cols-2 gap-2 rounded-[18px] border border-[#2d2a20] bg-[#15130f] p-1">
+                {CATEGORY_FILTERS.map((category) => {
+                  const selected = categoryFilters[category]
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      role="switch"
+                      aria-checked={selected}
+                      onClick={() => {
+                        toggleCategoryFilter(category)
+                      }}
+                      className={`flex h-11 items-center justify-between gap-3 rounded-[14px] border px-3 text-xs font-black transition-colors ${
+                        selected
+                          ? 'border-[#c9a52e] bg-[#c9a52e]/15 text-[#f6f0dc] shadow-[0_0_18px_rgba(201,165,46,0.22)]'
+                          : 'border-transparent text-[#7a6e55] hover:bg-[#252420] hover:text-[#c9a52e]'
+                      }`}
+                    >
+                      <span>{CATEGORY_FILTER_LABELS[category]}</span>
+                      <span
+                        aria-hidden="true"
+                        className={`inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors ${
+                          selected ? 'bg-[#c9a52e]' : 'bg-[#3a3528]'
+                        }`}
+                      >
+                        <span
+                          className={`h-5 w-5 rounded-full shadow-sm transition-transform ${
+                            selected
+                              ? 'translate-x-5 bg-[#0e0c09]'
+                              : 'translate-x-0 bg-[#8f8369]'
+                          }`}
+                        />
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
               <select
                 value={sort}
                 onChange={(event) => {
@@ -1858,7 +1944,7 @@ export function CartForm({
                   setSort(event.target.value as SortKey)
                   setCurrentPage(1)
                 }}
-                className="h-10 flex-1 rounded-full border border-[#2d2a20] bg-[#1c1b18] px-3 text-sm font-black text-[#ede8d5] outline-none transition-colors focus:border-[#c9a52e]"
+                className="h-10 flex-1 rounded-full border border-[#2d2a20] bg-[#1c1b18] px-3 text-base font-black text-[#ede8d5] outline-none transition-colors focus:border-[#c9a52e] sm:text-sm"
                 aria-label="並び替え"
               >
                 <option value="price-desc">価格が高い順</option>
@@ -1872,7 +1958,7 @@ export function CartForm({
                 value={keyword}
                 onChange={(event) => setKeyword(event.target.value)}
                 placeholder="名前・番号で検索"
-                className="h-11 min-w-0 flex-1 rounded-[14px] border border-[#2d2a20] bg-[#1c1b18] px-3 text-sm font-semibold text-[#ede8d5] outline-none placeholder:text-[#5a5243] transition-colors focus:border-[#c9a52e]"
+                className="h-11 min-w-0 flex-1 rounded-[14px] border border-[#2d2a20] bg-[#1c1b18] px-3 text-base font-semibold text-[#ede8d5] outline-none placeholder:text-[#5a5243] transition-colors focus:border-[#c9a52e] sm:text-sm"
               />
               <button
                 type="submit"
@@ -1908,6 +1994,9 @@ export function CartForm({
               )}
             </div>
             <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-[#7a6e55]">
+              <span className="rounded-full bg-[#252420] px-3 py-1">
+                カテゴリ: {selectedCategorySummary}
+              </span>
               <span className="rounded-full bg-[#252420] px-3 py-1">
                 並び順: {SORT_LABEL[sort]}
               </span>

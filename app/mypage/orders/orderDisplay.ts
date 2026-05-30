@@ -8,6 +8,7 @@ export const CUSTOMER_STATUS_LABELS: Record<OrderStatus, string> = {
   pending_approval: 'お客様対応待ち',
   pending_transfer: '振込待ち',
   completed: '振り込み完了',
+  cancelled: 'キャンセル済み',
 }
 
 export function customerStatusLabel(status: OrderStatus) {
@@ -15,9 +16,15 @@ export function customerStatusLabel(status: OrderStatus) {
 }
 
 export function customerStatusClass(status: OrderStatus) {
-  return status === 'completed'
-    ? 'bg-emerald-400 text-[#06160c] ring-1 ring-emerald-200/40'
-    : 'bg-red-500 text-white ring-1 ring-red-200/30'
+  if (status === 'completed') {
+    return 'bg-emerald-400 text-[#06160c] ring-1 ring-emerald-200/40'
+  }
+
+  if (status === 'cancelled') {
+    return 'bg-zinc-500 text-white ring-1 ring-zinc-300/30'
+  }
+
+  return 'bg-red-500 text-white ring-1 ring-red-200/30'
 }
 
 export function formatDateTime(value: string) {

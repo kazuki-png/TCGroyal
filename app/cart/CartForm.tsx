@@ -44,7 +44,7 @@ const LOGIN_NEXT_CART_PATH = '/login?next=%2Fcart'
 const REAL_CARDS_PER_PAGE = 23
 
 const SHIPPING_DESTINATION = [
-  ['宛名', '株式会社フィンテグラホールディングス 買取部'],
+  ['宛名', 'TCG ROYAL 買取部'],
   ['住所', '〒106-0032 東京都港区六本木4-2-14 六本木三河台スクエアビル 3F'],
   ['電話番号', '03-6841-8309'],
 ] as const
@@ -53,8 +53,7 @@ const SHIPPING_NOTE_SECTIONS = [
   {
     title: '発送方法について',
     paragraphs: [
-      '商品発送時の送料は、お客様ご負担の「元払い」にてお願いいたします。',
-      '着払いで発送された荷物につきましては、お受け取りできかねますので予めご了承ください。',
+      '送料はTCG Royalが負担しますので、必ず着払いにて発送をお願いいたします。',
       'なお、配送業者の指定はございません。',
     ],
   },
@@ -82,14 +81,14 @@ const SHIPPING_NOTE_SECTIONS = [
       '減額対象外としている商品については、原則として査定額の変更はございません。',
       'ただし、著しい傷・破損・状態不良など、当社基準を満たさない場合には減額となる可能性がございます。',
       'その他の商品につきましては、査定結果をご確認いただいたうえで、商品ごとに「買取承認」または「返却」をご選択いただけます。',
-      'なお、返却をご希望の場合の送料はお客様負担となります。',
+      'なお、返却をご希望の場合の返送料も当社が負担いたします。',
     ],
   },
   {
     title: 'キャンセルについて',
     paragraphs: [
-      '査定結果がお申し込み時の査定額と同額である商品については、キャンセルを承ることができません。',
-      'また、キャンセル商品の返送にかかる送料につきましても、お客様負担となりますのでご了承ください。',
+      'キャンセルは振り込み完了まで、どの段階でも可能となっております。',
+      'キャンセル時の返送料も当社が負担いたします。',
     ],
   },
   {
@@ -116,15 +115,14 @@ const PURCHASE_FLOW_STEPS = [
   },
   {
     title: 'ご入金',
-    body: 'お客様による査定金額のご承諾後、最短1営業日以内にご指定の銀行口座へお振込みいたします。',
+    body: 'お客様による査定金額のご承諾後、最短即日にご指定の銀行口座へお振込みいたします。',
   },
 ] as const
 
 const PURCHASE_FLOW_FAQS = [
   {
     question: '発送後のキャンセルは可能ですか？',
-    answer:
-      '査定結果にご納得いただけない場合は、キャンセル可能です。返送料はお客様負担となります。ただし、査定金額がカート追加時の金額から減額されていない場合は、原則キャンセルをお受けできません。',
+    answer: 'はい、可能です。返送料も無料となっております。',
   },
   {
     question: '本査定・振込までにどのくらい時間がかかりますか？',
@@ -1964,7 +1962,7 @@ export function CartForm({
                 type="button"
                 onClick={() => addToCart(UNLISTED_CARD, 1)}
                 disabled={unlistedInCart}
-                className={`mt-auto w-full rounded-xl px-4 py-2 text-sm font-black text-white shadow-sm sm:w-auto sm:self-end sm:px-8 ${
+                className={`mt-auto h-14 w-full rounded-[16px] px-5 text-base font-black text-white shadow-sm ${
                   unlistedInCart ? 'bg-zinc-500' : 'bg-[#16a9f2]'
                 }`}
               >
@@ -2017,7 +2015,7 @@ export function CartForm({
                     {card.buy_price.toLocaleString()}
                   </p>
                   <div
-                    className="mt-auto flex flex-col gap-2 pt-3 sm:flex-row sm:flex-wrap sm:items-center"
+                    className="mt-auto flex flex-col gap-2 pt-3"
                     onClick={(event) => event.stopPropagation()}
                     onKeyDown={(event) => event.stopPropagation()}
                   >
@@ -2033,7 +2031,7 @@ export function CartForm({
                     <button
                       type="button"
                       onClick={() => addToCart(card)}
-                      className="h-10 min-w-20 flex-1 rounded-xl bg-[#16a9f2] px-3 text-sm font-black text-white shadow-sm"
+                      className="h-14 w-full rounded-[16px] bg-[#16a9f2] px-5 text-base font-black text-white shadow-sm"
                     >
                       追加
                     </button>

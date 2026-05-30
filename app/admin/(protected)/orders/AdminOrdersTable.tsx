@@ -88,7 +88,8 @@ function orderActionStatuses(status: OrderStatus) {
   if (
     status === 'inspecting' ||
     status === 'pending_approval' ||
-    status === 'completed'
+    status === 'completed' ||
+    status === 'cancelled'
   ) {
     return []
   }

@@ -44,6 +44,8 @@ type CsvImportStreamEvent =
   | {
       type: 'complete'
       inserted: number
+      updated: number
+      skipped: number
       warnings: string[]
       percent: number
       message: string
@@ -700,6 +702,64 @@ export function CardsAdminClient({
               サンプルCSVをダウンロード
             </a>
             <form onSubmit={handleCsvImport} className="space-y-4">
+              <div className="rounded-xl border border-zinc-800 bg-black/70 p-4">
+                <p className="text-sm font-black text-zinc-100">取込時の挙動</p>
+                <p className="mt-1 text-xs font-semibold text-zinc-500">
+                  デフォルトは既存カードの価格更新のみで、新規カードはスキップします。
+                </p>
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  <label className="flex gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-sm font-black text-zinc-100">
+                    <input type="hidden" name="updateExisting" value="false" />
+                    <input
+                      name="updateExisting"
+                      type="checkbox"
+                      value="true"
+                      defaultChecked
+                      disabled={csvImport.busy}
+                      className="mt-1 h-4 w-4 accent-red-600"
+                    />
+                    <span>
+                      既存カードを更新
+                      <span className="mt-1 block text-xs font-semibold text-zinc-500">
+                        カテゴリ・カード名・型番・グレードが一致する行の価格を更新します。
+                      </span>
+                    </span>
+                  </label>
+                  <label className="flex gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-sm font-black text-zinc-100">
+                    <input type="hidden" name="insertNew" value="false" />
+                    <input
+                      name="insertNew"
+                      type="checkbox"
+                      value="true"
+                      disabled={csvImport.busy}
+                      className="mt-1 h-4 w-4 accent-red-600"
+                    />
+                    <span>
+                      新規カードをDBに保存する
+                      <span className="mt-1 block text-xs font-semibold text-zinc-500">
+                        一致する既存カードがない行を新規カードとして登録します。
+                      </span>
+                    </span>
+                  </label>
+                  <label className="flex gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-sm font-black text-zinc-100">
+                    <input type="hidden" name="downloadImages" value="false" />
+                    <input
+                      name="downloadImages"
+                      type="checkbox"
+                      value="true"
+                      defaultChecked
+                      disabled={csvImport.busy}
+                      className="mt-1 h-4 w-4 accent-red-600"
+                    />
+                    <span>
+                      画像URLをStorageに保存
+                      <span className="mt-1 block text-xs font-semibold text-zinc-500">
+                        Web上の画像を取得し、カード画像Bucketに保存したURLを登録します。
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              </div>
               <input
                 name="csv"
                 type="file"
@@ -727,7 +787,7 @@ export function CardsAdminClient({
                   />
                   {csvImport.busy && (
                     <p className="mt-2 text-xs font-black text-zinc-500">
-                      画像URLはトラフィックを抑えるため、間隔を空けて順番に取得しています。
+                      画像URLをStorageに保存する場合は、トラフィックを抑えるため間隔を空けて順番に取得します。
                     </p>
                   )}
                   {csvImport.error && (

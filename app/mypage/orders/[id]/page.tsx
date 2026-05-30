@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AssessmentDecisionPanel } from './AssessmentDecisionPanel'
+import { CancelOrderButton } from './CancelOrderButton'
 import {
   customerStatusClass,
   customerStatusLabel,
@@ -62,6 +63,7 @@ export default async function OrderDetailPage({
   const row = order as OrderRow
   const items = row.order_items ?? []
   const status = row.status as OrderStatus
+  const canCancel = status !== 'completed' && status !== 'cancelled'
   const assessmentReady =
     Boolean(row.assessment_saved_at) ||
     items.some((item) => Boolean(item.customer_decision))
@@ -125,6 +127,12 @@ export default async function OrderDetailPage({
             </div>
           ))}
         </dl>
+
+        {canCancel && (
+          <div className="mt-6">
+            <CancelOrderButton orderId={row.id} />
+          </div>
+        )}
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[360px_1fr]">

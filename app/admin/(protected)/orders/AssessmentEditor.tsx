@@ -907,7 +907,7 @@ export function AssessmentEditor({
           </p>
         )}
 
-        {hasUnlistedItems && (
+        {hasUnlistedItems && editable && (
           <div className="rounded-2xl border border-[#c9a52e]/30 bg-[#0f0e0b] p-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
               <div>
@@ -918,8 +918,8 @@ export function AssessmentEditor({
                   到着した商品を確認し、既存カードの選択または手動入力で査定結果を追加してください。該当カードがない場合はカード0枚のまま保存できます。
                 </p>
               </div>
-              <span className="rounded-full border border-[#c9a52e]/40 bg-[#c9a52e]/10 px-3 py-1 text-xs font-black text-[#d7b865]">
-                {unlistedItems.length}件
+              <span className="inline-flex min-w-[5rem] shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[#c9a52e]/40 bg-[#c9a52e]/10 px-4 py-2 text-sm font-black leading-none text-[#d7b865]">
+                {manualUnlistedItems.length}枚
               </span>
             </div>
 

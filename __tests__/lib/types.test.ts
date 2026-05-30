@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   canEditOrderAssessment,
   ORDER_STATUS_FLOW,
+  ORDER_STATUSES,
   ORDER_STATUS_LABELS,
   EMAIL_TRIGGER_STATUSES,
 } from '@/lib/types'
@@ -25,7 +26,7 @@ describe('ORDER_STATUS_FLOW', () => {
 
 describe('ORDER_STATUS_LABELS', () => {
   it('全てのステータスにラベルがある', () => {
-    for (const status of ORDER_STATUS_FLOW) {
+    for (const status of ORDER_STATUSES) {
       expect(ORDER_STATUS_LABELS[status]).toBeDefined()
       expect(typeof ORDER_STATUS_LABELS[status]).toBe('string')
     }
@@ -41,14 +42,15 @@ describe('ORDER_STATUS_LABELS', () => {
 })
 
 describe('EMAIL_TRIGGER_STATUSES', () => {
-  it('accepted, pending_approval, completedを含む', () => {
+  it('accepted, pending_approval, completed, cancelledを含む', () => {
     expect(EMAIL_TRIGGER_STATUSES).toContain('accepted')
     expect(EMAIL_TRIGGER_STATUSES).toContain('pending_approval')
     expect(EMAIL_TRIGGER_STATUSES).toContain('completed')
+    expect(EMAIL_TRIGGER_STATUSES).toContain('cancelled')
   })
 
-  it('3つのトリガーステータスを持つ', () => {
-    expect(EMAIL_TRIGGER_STATUSES).toHaveLength(3)
+  it('4つのトリガーステータスを持つ', () => {
+    expect(EMAIL_TRIGGER_STATUSES).toHaveLength(4)
   })
 
   it('unhandledはトリガーにならない', () => {

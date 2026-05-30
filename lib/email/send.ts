@@ -2,6 +2,7 @@ import { getResend } from './resend'
 import {
   acceptedEmailHtml,
   adminNotificationEmailHtml,
+  cancelledEmailHtml,
   completedEmailHtml,
   orderSubmittedEmailHtml,
   pendingApprovalEmailHtml,
@@ -364,6 +365,21 @@ export async function sendStatusEmail(
       }),
     }, {
       emailType: 'status_completed',
+      orderId: order.id,
+      orderNumber: order.order_number,
+      userId: order.user_id,
+      status,
+    })
+  } else if (status === 'cancelled') {
+    await sendEmail({
+      to: toEmail,
+      subject: '【TCG Royal】買取申し込みのキャンセルを受け付けました',
+      html: cancelledEmailHtml(order, {
+        customerName: customerName(order),
+        mypageUrl: mypageOrderUrl(order),
+      }),
+    }, {
+      emailType: 'status_cancelled',
       orderId: order.id,
       orderNumber: order.order_number,
       userId: order.user_id,

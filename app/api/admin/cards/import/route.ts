@@ -29,6 +29,12 @@ function streamEvent(event: CsvImportProgress | { type: 'error'; message: string
   return `${JSON.stringify(event)}\n`
 }
 
+function booleanOption(formData: FormData, name: string, fallback: boolean) {
+  const value = formData.getAll(name).map(String).at(-1)
+  if (value === undefined) return fallback
+  return value === 'true' || value === '1' || value === 'on'
+}
+
 export async function POST(request: Request) {
   const isAdmin = await requireAdmin()
   if (!isAdmin) {
@@ -42,6 +48,11 @@ export async function POST(request: Request) {
   }
 
   const body = await file.text()
+  const options = {
+    updateExisting: booleanOption(formData, 'updateExisting', true),
+    insertNew: booleanOption(formData, 'insertNew', false),
+    downloadImages: booleanOption(formData, 'downloadImages', true),
+  }
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
@@ -55,6 +66,7 @@ export async function POST(request: Request) {
           admin: createAdminClient(),
           body,
           onProgress: send,
+          options,
         })
         revalidatePath('/admin/cards')
         revalidatePath('/cart')

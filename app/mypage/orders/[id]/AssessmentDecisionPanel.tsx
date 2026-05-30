@@ -84,6 +84,7 @@ export function AssessmentDecisionPanel({
 }) {
   const router = useRouter()
   const canRespond = assessmentReady && status === 'pending_approval'
+  const isCancelled = status === 'cancelled'
   const [decisions, setDecisions] = useState<Record<string, Decision | ''>>(() =>
     Object.fromEntries(
       items.map((item) => [item.id, item.customer_decision ?? ''])
@@ -177,7 +178,12 @@ export function AssessmentDecisionPanel({
             査定対象カードはありません。内容をご確認のうえ確定してください。
           </p>
         )}
-        {!assessmentReady && (
+        {isCancelled && (
+          <p className="mt-1 text-sm font-semibold text-[#8f8369]">
+            この買取申し込みはキャンセル済みです。
+          </p>
+        )}
+        {!assessmentReady && !isCancelled && (
           <p className="mt-1 text-sm font-semibold text-[#8f8369]">
             当社査定額は査定完了後に表示されます。現在は査定待ちです。
           </p>

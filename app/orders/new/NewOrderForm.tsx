@@ -5,13 +5,16 @@ import { useRouter } from 'next/navigation'
 import { createOrder } from '@/app/actions/orders'
 import type { Card, CartItem } from '@/lib/types'
 
+const CATEGORY_LABELS: Record<Card['category'], string> = {
+  pokemon: 'ポケモン',
+  onepiece: 'ワンピース',
+}
+
 export function NewOrderForm({ cards }: { cards: Card[] }) {
   const router = useRouter()
   const [cart, setCart] = useState<CartItem[]>([])
   const [error, setError] = useState<string>()
   const [pending, startTransition] = useTransition()
-
-  const filtered = cards.filter((c) => c.category === 'pokemon')
 
   const addToCart = (card: Card) => {
     setCart((prev) => {
@@ -72,11 +75,11 @@ export function NewOrderForm({ cards }: { cards: Card[] }) {
         <div className="rounded-2xl border border-zinc-200 bg-white p-6">
           <h2 className="mb-4 text-lg font-semibold">カードを選択</h2>
 
-          {filtered.length === 0 ? (
+          {cards.length === 0 ? (
             <p className="py-8 text-center text-zinc-400">カードが登録されていません</p>
           ) : (
             <div className="space-y-2">
-              {filtered.map((card) => (
+              {cards.map((card) => (
                 <div
                   key={card.id}
                   className="flex items-center justify-between rounded-xl border border-zinc-100 p-4 hover:border-zinc-300 transition-colors"
@@ -84,7 +87,7 @@ export function NewOrderForm({ cards }: { cards: Card[] }) {
                   <div>
                     <p className="font-medium text-zinc-900">{card.name}</p>
                     <p className="text-sm text-zinc-500">
-                      ポケモン / {card.grade}
+                      {CATEGORY_LABELS[card.category]} / {card.grade}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">

@@ -102,7 +102,6 @@ export default async function HomePage() {
       supabase
         .from('cards')
         .select('*')
-        .eq('category', 'pokemon')
         .order('buy_price', { ascending: false })
         .limit(32),
     ])

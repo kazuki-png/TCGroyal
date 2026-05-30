@@ -232,7 +232,7 @@ export function HomeCardSection({ cards }: { cards: Card[] }) {
   const [page, setPage] = useState(1)
   const repeatedImageUrls = useMemo(() => duplicatedImageUrls(cards), [cards])
 
-  const filtered = cards.filter((c) => c.category === 'pokemon')
+  const filtered = cards
   const totalPages = Math.max(1, Math.ceil(filtered.length / CARDS_PER_PAGE))
   const pageCards = filtered.slice((page - 1) * CARDS_PER_PAGE, page * CARDS_PER_PAGE)
 

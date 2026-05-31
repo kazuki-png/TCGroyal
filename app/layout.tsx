@@ -15,8 +15,8 @@ const notoSerifJP = Noto_Serif_JP({
 })
 
 export const metadata: Metadata = {
-  title: 'TCG Royal - 郵送トレカ買取',
-  description: 'トレーディングカードの郵送買取サービス',
+  title: 'TCG Royal - PSA10特化郵送買取',
+  description: 'トレーディングカードのPSA10特化郵送買取サービス',
 }
 
 export const viewport: Viewport = {

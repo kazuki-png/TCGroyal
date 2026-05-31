@@ -1,3 +1,4 @@
+import { isAdminHostAllowedForRequest } from '@/lib/admin/hostAccess'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -24,6 +25,10 @@ function escapeCsv(value: string | number | null | undefined): string {
 }
 
 export async function GET(request: Request) {
+  if (!isAdminHostAllowedForRequest(request)) {
+    return Response.json({ error: 'Not found' }, { status: 404 })
+  }
+
   const supabase = await createClient()
   const {
     data: { user },

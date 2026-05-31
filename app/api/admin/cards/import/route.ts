@@ -1,4 +1,5 @@
 import { revalidatePath } from 'next/cache'
+import { isAdminHostAllowedForRequest } from '@/lib/admin/hostAccess'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -36,6 +37,10 @@ function booleanOption(formData: FormData, name: string, fallback: boolean) {
 }
 
 export async function POST(request: Request) {
+  if (!isAdminHostAllowedForRequest(request)) {
+    return Response.json({ message: 'Not found' }, { status: 404 })
+  }
+
   const isAdmin = await requireAdmin()
   if (!isAdmin) {
     return Response.json({ message: 'Unauthorized' }, { status: 401 })

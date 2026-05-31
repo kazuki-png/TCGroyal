@@ -1,5 +1,10 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import {
+  isAdminApiPathname,
+  isAdminHostAllowed,
+  isAdminPagePathname,
+} from '@/lib/admin/hostAccess'
 
 function safeNextPath(value: string | null) {
   if (!value || !value.startsWith('/') || value.startsWith('//')) {
@@ -16,11 +21,21 @@ function safeNextPath(value: string | null) {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const isAdminPageRoute = isAdminPagePathname(pathname)
+  const isAdminApiRoute = isAdminApiPathname(pathname)
+
+  if (
+    (isAdminPageRoute || isAdminApiRoute) &&
+    !isAdminHostAllowed(request.headers.get('host') ?? request.nextUrl.host)
+  ) {
+    return new NextResponse(null, { status: 404 })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
   supabaseResponse.headers.set('x-pathname', pathname)
 
   const isAdminRoute =
-    pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')
+    isAdminPageRoute && !pathname.startsWith('/admin/login')
   const isUserProtectedRoute = pathname.startsWith('/mypage')
   const isAuthPage =
     pathname === '/login' || pathname === '/register'

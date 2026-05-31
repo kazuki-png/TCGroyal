@@ -1,6 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { isAdminHostAllowedFromHeaders } from '@/lib/admin/serverHostAccess'
 import { createClient } from '@/lib/supabase/server'
 
 export async function login(
@@ -24,6 +25,10 @@ export async function adminLogin(
   _prevState: { error?: string } | undefined,
   formData: FormData
 ): Promise<{ error?: string }> {
+  if (!(await isAdminHostAllowedFromHeaders())) {
+    return { error: 'このドメインからは管理画面にアクセスできません' }
+  }
+
   const email = formData.get('email') as string
   const password = formData.get('password') as string
 
@@ -83,6 +88,10 @@ export async function logout(): Promise<void> {
 }
 
 export async function adminLogout(): Promise<void> {
+  if (!(await isAdminHostAllowedFromHeaders())) {
+    redirect('/')
+  }
+
   const supabase = await createClient()
   await supabase.auth.signOut()
   redirect('/admin/login')

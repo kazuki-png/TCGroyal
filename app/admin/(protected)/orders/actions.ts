@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { isAdminHostAllowedFromHeaders } from '@/lib/admin/serverHostAccess'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
@@ -37,6 +38,10 @@ type ManualUnlistedAssessment = {
 const CARD_GRADES: CardGrade[] = ['PSA10', 'PSA9', 'PSA8']
 
 async function requireAdmin() {
+  if (!(await isAdminHostAllowedFromHeaders())) {
+    redirect('/')
+  }
+
   const supabase = await createClient()
   const {
     data: { user },

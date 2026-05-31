@@ -1,3 +1,4 @@
+import { isAdminHostAllowedForRequest } from '@/lib/admin/hostAccess'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -22,9 +23,13 @@ async function requireKycReviewer() {
 
 // GET: 短時間 signed URL を発行して返す（URLはDBに保存しない）
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ documentId: string }> }
 ) {
+  if (!isAdminHostAllowedForRequest(request)) {
+    return Response.json({ error: 'Not found' }, { status: 404 })
+  }
+
   const reviewer = await requireKycReviewer()
   if (!reviewer) {
     return Response.json({ error: '閲覧権限がありません' }, { status: 403 })
@@ -68,9 +73,13 @@ export async function GET(
 
 // DELETE: ストレージから原本を削除し、メタデータを論理削除する
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ documentId: string }> }
 ) {
+  if (!isAdminHostAllowedForRequest(request)) {
+    return Response.json({ error: 'Not found' }, { status: 404 })
+  }
+
   const reviewer = await requireKycReviewer()
   if (!reviewer) {
     return Response.json({ error: '操作権限がありません' }, { status: 403 })

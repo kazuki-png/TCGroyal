@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { requireAdminHostForPage } from '@/lib/admin/serverHostAccess'
 import { createClient } from '@/lib/supabase/server'
 import { adminLogout } from '@/app/actions/auth'
 import { AdminShell } from './AdminShell'
@@ -8,6 +9,8 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
+  await requireAdminHostForPage()
+
   const supabase = await createClient()
   const {
     data: { user },

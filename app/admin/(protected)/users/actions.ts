@@ -2,10 +2,15 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { isAdminHostAllowedFromHeaders } from '@/lib/admin/serverHostAccess'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 async function requireAdmin() {
+  if (!(await isAdminHostAllowedFromHeaders())) {
+    redirect('/')
+  }
+
   const supabase = await createClient()
   const {
     data: { user },

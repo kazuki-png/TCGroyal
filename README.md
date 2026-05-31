@@ -25,6 +25,9 @@ Multiple hosts can be comma-separated. Include a port, such as
 `localhost:3000`, when the port should be matched exactly. Leave the variable
 unset to keep admin access unrestricted by host.
 
+Security operations, admin account changes, and backup policy are documented in
+[`SECURITY_OPERATIONS.md`](./SECURITY_OPERATIONS.md).
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More

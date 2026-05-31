@@ -1,6 +1,10 @@
 import { isAdminHostAllowedForRequest } from '@/lib/admin/hostAccess'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import {
+  checkRequestRateLimit,
+  rateLimitResponse,
+} from '@/lib/security/rateLimit'
 
 const SIGNED_URL_EXPIRY_SECONDS = 5 * 60 // 5分
 
@@ -28,6 +32,14 @@ export async function GET(
 ) {
   if (!isAdminHostAllowedForRequest(request)) {
     return Response.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const rateLimit = checkRequestRateLimit(request, 'api:admin-kyc-view', {
+    limit: 60,
+    windowMs: 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit)
   }
 
   const reviewer = await requireKycReviewer()
@@ -78,6 +90,14 @@ export async function DELETE(
 ) {
   if (!isAdminHostAllowedForRequest(request)) {
     return Response.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const rateLimit = checkRequestRateLimit(request, 'api:admin-kyc-delete', {
+    limit: 20,
+    windowMs: 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit)
   }
 
   const reviewer = await requireKycReviewer()

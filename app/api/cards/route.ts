@@ -1,4 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
+import {
+  checkRequestRateLimit,
+  rateLimitResponse,
+} from '@/lib/security/rateLimit'
 
 const DEFAULT_LIMIT = 12
 const SEARCH_TOKEN_LIMIT = 6
@@ -12,6 +16,14 @@ function normalizeSearchToken(value: string) {
 }
 
 export async function GET(request: Request) {
+  const rateLimit = checkRequestRateLimit(request, 'api:cards', {
+    limit: 120,
+    windowMs: 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit)
+  }
+
   const { searchParams } = new URL(request.url)
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? String(DEFAULT_LIMIT), 10)))

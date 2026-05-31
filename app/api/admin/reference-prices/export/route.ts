@@ -1,6 +1,10 @@
 import { isAdminHostAllowedForRequest } from '@/lib/admin/hostAccess'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import {
+  checkRequestRateLimit,
+  rateLimitResponse,
+} from '@/lib/security/rateLimit'
 
 type Row = {
   category: string
@@ -27,6 +31,14 @@ function escapeCsv(value: string | number | null | undefined): string {
 export async function GET(request: Request) {
   if (!isAdminHostAllowedForRequest(request)) {
     return Response.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const rateLimit = checkRequestRateLimit(request, 'api:admin-reference-export', {
+    limit: 30,
+    windowMs: 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit)
   }
 
   const supabase = await createClient()

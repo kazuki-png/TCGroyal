@@ -3,11 +3,20 @@
 import { redirect } from 'next/navigation'
 import { isAdminHostAllowedFromHeaders } from '@/lib/admin/serverHostAccess'
 import { createClient } from '@/lib/supabase/server'
+import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 
 export async function login(
   _prevState: { error?: string } | undefined,
   formData: FormData
 ): Promise<{ error?: string }> {
+  const rateLimit = await checkServerActionRateLimit('action:login', {
+    limit: 10,
+    windowMs: 15 * 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    return { error: 'ログイン試行が多すぎます。しばらく待ってから再度お試しください' }
+  }
+
   const email = formData.get('email') as string
   const password = formData.get('password') as string
 
@@ -25,6 +34,14 @@ export async function adminLogin(
   _prevState: { error?: string } | undefined,
   formData: FormData
 ): Promise<{ error?: string }> {
+  const rateLimit = await checkServerActionRateLimit('action:admin-login', {
+    limit: 10,
+    windowMs: 15 * 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    return { error: 'ログイン試行が多すぎます。しばらく待ってから再度お試しください' }
+  }
+
   if (!(await isAdminHostAllowedFromHeaders())) {
     return { error: 'このドメインからは管理画面にアクセスできません' }
   }

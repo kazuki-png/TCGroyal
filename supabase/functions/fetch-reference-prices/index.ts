@@ -22,6 +22,22 @@ function randomDelay() {
   return sleep(1000 + Math.random() * 4000)
 }
 
+function psaGradeFromTags(tags: unknown[]) {
+  for (const tag of tags) {
+    const record = tag as Record<string, unknown>
+    const candidates = [record.label, record.slug]
+
+    for (const candidate of candidates) {
+      if (typeof candidate !== 'string') continue
+      const normalized = candidate.trim().toUpperCase()
+      const match = normalized.match(/^PSA(10|9|8)$/)
+      if (match) return `PSA${match[1]}`
+    }
+  }
+
+  return null
+}
+
 // =============================================
 // シンソク (JSON API)
 // =============================================
@@ -49,11 +65,8 @@ async function fetchShinsoku(
     for (const item of items) {
       const i = item as Record<string, unknown>
       const tags = Array.isArray(i.tags) ? i.tags : []
-      const gradeLabel =
-        tags.length > 0 && typeof (tags[0] as Record<string, unknown>).label === 'string'
-          ? ((tags[0] as Record<string, unknown>).label as string)
-          : 'PSA10'
-      if (!gradeLabel.startsWith('PSA')) continue
+      const gradeLabel = psaGradeFromTags(tags)
+      if (!gradeLabel) continue
       const price = Number(i.postal_purchase_price_s)
       if (!price || price <= 0) continue
 

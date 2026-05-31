@@ -116,11 +116,11 @@ export function AdminShell({
         </div>
       )}
 
-      <div className="md:flex">
+      <div className="min-w-0 md:flex">
         <aside className="hidden min-h-screen w-[230px] shrink-0 md:block">
           <SidebarContent userEmail={userEmail} footer={footer} />
         </aside>
-        <main className="min-h-screen flex-1 bg-black px-4 py-6 md:px-8 lg:px-10">
+        <main className="min-h-screen min-w-0 flex-1 bg-black px-4 py-6 md:px-8 lg:px-10">
           {children}
         </main>
       </div>

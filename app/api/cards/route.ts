@@ -3,6 +3,7 @@ import {
   checkRequestRateLimit,
   rateLimitResponse,
 } from '@/lib/security/rateLimit'
+import { visiblePriceUpdatedAfter } from '@/lib/cards/visibility'
 
 const DEFAULT_LIMIT = 12
 const SEARCH_TOKEN_LIMIT = 6
@@ -35,7 +36,8 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from('cards')
-    .select('id,name,category,card_number,grade,buy_price,image_url,created_at,updated_at', { count: 'exact' })
+    .select('id,name,category,card_number,grade,buy_price,image_url,buy_price_updated_at,created_at,updated_at', { count: 'exact' })
+    .gte('buy_price_updated_at', visiblePriceUpdatedAfter())
 
   if (category === 'pokemon' || category === 'onepiece') {
     query = query.eq('category', category)

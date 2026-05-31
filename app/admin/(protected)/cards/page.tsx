@@ -1,6 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Card } from '@/lib/types'
 import {
+  type CardUserVisibility,
+  visiblePriceUpdatedAfter,
+} from '@/lib/cards/visibility'
+import {
   CardsAdminClient,
   type CardSortDirection,
   type CardSortKey,
@@ -45,6 +49,12 @@ function normalizeDirection(value: string | string[] | undefined): CardSortDirec
   return first(value) === 'asc' ? 'asc' : 'desc'
 }
 
+function normalizeVisibility(value: string | string[] | undefined): CardUserVisibility {
+  const raw = first(value)
+  if (raw === 'visible' || raw === 'hidden') return raw
+  return 'all'
+}
+
 function normalizePrice(value: string) {
   const price = Number.parseInt(value.replace(/[^\d]/g, ''), 10)
   return Number.isFinite(price) ? price : null
@@ -61,6 +71,7 @@ export default async function AdminCardsPage({
     grade?: string | string[]
     price_min?: string | string[]
     price_max?: string | string[]
+    visibility?: string | string[]
     sort?: string | string[]
     dir?: string | string[]
     saved?: string | string[]
@@ -77,6 +88,7 @@ export default async function AdminCardsPage({
     grade: first(params.grade).trim(),
     priceMin: first(params.price_min).trim(),
     priceMax: first(params.price_max).trim(),
+    visibility: normalizeVisibility(params.visibility),
     sort: normalizeSort(params.sort),
     dir: normalizeDirection(params.dir),
   }
@@ -98,6 +110,14 @@ export default async function AdminCardsPage({
   if (filters.grade) cardsQuery = cardsQuery.eq('grade', filters.grade)
   if (priceMin !== null) cardsQuery = cardsQuery.gte('buy_price', priceMin)
   if (priceMax !== null) cardsQuery = cardsQuery.lte('buy_price', priceMax)
+  if (filters.visibility === 'visible') {
+    cardsQuery = cardsQuery.gte('buy_price_updated_at', visiblePriceUpdatedAfter())
+  }
+  if (filters.visibility === 'hidden') {
+    cardsQuery = cardsQuery.or(
+      `buy_price_updated_at.is.null,buy_price_updated_at.lt.${visiblePriceUpdatedAfter()}`
+    )
+  }
 
   cardsQuery = cardsQuery
     .order(filters.sort, { ascending: filters.dir === 'asc' })

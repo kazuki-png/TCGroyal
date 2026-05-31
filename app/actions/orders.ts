@@ -18,6 +18,7 @@ import {
 } from '@/lib/types'
 import { loadOrderForNotification } from '@/lib/orders/notification'
 import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
+import { visiblePriceUpdatedAfter } from '@/lib/cards/visibility'
 import type { CartItem, OrderStatus } from '@/lib/types'
 
 const UUID_PATTERN =
@@ -32,6 +33,7 @@ type AuthoritativeCard = {
   name: string
   grade: string
   buy_price: number
+  buy_price_updated_at: string | null
 }
 
 type PreparedOrderItem = {
@@ -149,7 +151,8 @@ export async function createOrder(
   const { data: cards, error: cardsError } = cardIds.length
     ? await adminClient
         .from('cards')
-        .select('id, name, grade, buy_price')
+        .select('id, name, grade, buy_price, buy_price_updated_at')
+        .gte('buy_price_updated_at', visiblePriceUpdatedAfter())
         .in('id', cardIds)
     : { data: [], error: null }
 
@@ -162,7 +165,7 @@ export async function createOrder(
   )
 
   if (cardMap.size !== cardIds.length) {
-    return { error: 'カートに現在取り扱いのないカードが含まれています' }
+    return { error: 'カートに現在取り扱い対象外、または価格更新期限切れのカードが含まれています。カード一覧を更新してください' }
   }
 
   const orderItems: PreparedOrderItem[] = cardIds.map((cardId) => {

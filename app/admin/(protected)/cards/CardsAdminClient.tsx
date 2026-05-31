@@ -5,6 +5,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import type { Card } from '@/lib/types'
+import {
+  cardHiddenReason,
+  isCardVisibleToUsers,
+  type CardUserVisibility,
+} from '@/lib/cards/visibility'
 import { createCard, deleteCard, updateCard } from './actions'
 
 type CategoryFilter = 'all' | 'pokemon' | 'onepiece'
@@ -17,6 +22,7 @@ export type CardTableFilters = {
   grade: string
   priceMin: string
   priceMax: string
+  visibility: CardUserVisibility
   sort: CardSortKey
   dir: CardSortDirection
 }
@@ -74,6 +80,12 @@ const CATEGORY_TABS: { key: CategoryFilter; label: string }[] = [
   { key: 'pokemon', label: 'ポケモン' },
   { key: 'onepiece', label: 'ワンピース' },
 ]
+
+const VISIBILITY_LABELS: Record<CardUserVisibility, string> = {
+  all: 'すべて',
+  visible: 'ユーザー表示中',
+  hidden: 'ユーザー非表示',
+}
 
 const SAMPLE_CSV = [
   'name,category,card_number,grade,buy_price,image_url',
@@ -257,6 +269,7 @@ export function CardsAdminClient({
     if (next.grade) params.set('grade', next.grade)
     if (next.priceMin) params.set('price_min', next.priceMin)
     if (next.priceMax) params.set('price_max', next.priceMax)
+    if (next.visibility !== 'all') params.set('visibility', next.visibility)
     if (next.sort !== 'created_at') params.set('sort', next.sort)
     if (next.dir !== 'desc') params.set('dir', next.dir)
     const query = params.toString()
@@ -402,7 +415,7 @@ export function CardsAdminClient({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <section className="bg-zinc-950 px-5 py-5 text-white">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
@@ -469,7 +482,7 @@ export function CardsAdminClient({
       <form
         action="/admin/cards"
         method="get"
-        className="grid gap-3 rounded-2xl border border-zinc-800 bg-zinc-950 p-4 text-white md:grid-cols-2 xl:grid-cols-6"
+        className="grid gap-3 rounded-2xl border border-zinc-800 bg-zinc-950 p-4 text-white md:grid-cols-2 xl:grid-cols-7"
       >
         {category !== 'all' && <input type="hidden" name="category" value={category} />}
         <input type="hidden" name="sort" value={filters.sort} />
@@ -521,6 +534,18 @@ export function CardsAdminClient({
             className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm font-semibold text-white outline-none"
           />
         </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-black text-zinc-400">ユーザー表示</span>
+          <select
+            name="visibility"
+            defaultValue={filters.visibility}
+            className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm font-semibold text-white outline-none"
+          >
+            <option value="all">{VISIBILITY_LABELS.all}</option>
+            <option value="visible">{VISIBILITY_LABELS.visible}</option>
+            <option value="hidden">{VISIBILITY_LABELS.hidden}</option>
+          </select>
+        </label>
         <div className="flex items-end gap-2">
           <button
             type="submit"
@@ -529,7 +554,7 @@ export function CardsAdminClient({
             絞り込み
           </button>
           <Link
-            href={hrefFor({ name: '', cardNumber: '', grade: '', priceMin: '', priceMax: '', page: 1 })}
+            href={hrefFor({ name: '', cardNumber: '', grade: '', priceMin: '', priceMax: '', visibility: 'all', page: 1 })}
             className="flex h-10 items-center rounded-lg border border-zinc-700 px-4 text-xs font-black text-zinc-300 hover:bg-zinc-900"
           >
             クリア
@@ -537,105 +562,131 @@ export function CardsAdminClient({
         </div>
       </form>
 
-      <div className="overflow-x-auto bg-zinc-950 text-white">
-        <table className="w-full min-w-[960px]">
+      <div className="w-full max-w-full overflow-x-auto overscroll-x-contain rounded-2xl border border-zinc-800 bg-zinc-950 pb-2 text-white">
+        <table className="w-full min-w-[1320px] table-fixed">
+          <colgroup>
+            <col className="w-[120px]" />
+            <col className="w-[340px]" />
+            <col className="w-[120px]" />
+            <col className="w-[140px]" />
+            <col className="w-[110px]" />
+            <col className="w-[150px]" />
+            <col className="w-[170px]" />
+            <col className="w-[150px]" />
+            <col className="w-[120px]" />
+          </colgroup>
           <thead className="bg-[#222221]">
             <tr className="text-left text-xs text-zinc-400">
-              <th className="px-4 py-3 font-black">画像</th>
+              <th className="whitespace-nowrap px-4 py-3 font-black">画像</th>
               <th className="px-4 py-3 font-black">
                 <Link href={sortHref('name')} className="hover:text-white">
                   カード名{sortMark('name')}
                 </Link>
               </th>
-              <th className="px-4 py-3 font-black">カテゴリ</th>
-              <th className="px-4 py-3 font-black">
+              <th className="whitespace-nowrap px-4 py-3 font-black">カテゴリ</th>
+              <th className="whitespace-nowrap px-4 py-3 font-black">
                 <Link href={sortHref('card_number')} className="hover:text-white">
                   型番{sortMark('card_number')}
                 </Link>
               </th>
-              <th className="px-4 py-3 font-black">
+              <th className="whitespace-nowrap px-4 py-3 font-black">
                 <Link href={sortHref('grade')} className="hover:text-white">
                   グレード{sortMark('grade')}
                 </Link>
               </th>
-              <th className="px-4 py-3 text-right font-black">
+              <th className="whitespace-nowrap px-4 py-3 text-right font-black">
                 <Link href={sortHref('buy_price')} className="hover:text-white">
                   買取価格{sortMark('buy_price')}
                 </Link>
               </th>
-              <th className="px-4 py-3 font-black">
+              <th className="whitespace-nowrap px-4 py-3 font-black">
                 <Link href={sortHref('buy_price_updated_at')} className="hover:text-white">
                   価格更新日時{sortMark('buy_price_updated_at')}
                 </Link>
               </th>
-              <th className="px-4 py-3 text-right font-black">操作</th>
+              <th className="whitespace-nowrap px-4 py-3 font-black">ユーザー表示</th>
+              <th className="whitespace-nowrap px-4 py-3 text-right font-black">操作</th>
             </tr>
           </thead>
           <tbody>
-            {cards.map((card) => (
-              <tr key={card.id} className="border-t border-zinc-800">
-                <td className="px-4 py-3">
-                  {card.image_url ? (
-                    <button
-                      type="button"
-                      onClick={() => setPreview(card)}
-                      className="relative block h-16 w-12 overflow-hidden rounded border border-zinc-700 bg-zinc-900"
-                    >
-                      <Image
-                        src={card.image_url}
-                        alt={card.name}
-                        fill
-                        sizes="48px"
-                        className="object-cover"
-                      />
-                    </button>
-                  ) : (
-                    <div className="h-16 w-12 rounded border border-zinc-800 bg-zinc-900" />
-                  )}
-                </td>
-                <td className="px-4 py-3 text-sm font-black">{card.name}</td>
-                <td className="px-4 py-3">
-                  <span className={`rounded-full px-2 py-1 text-xs font-black ${categoryBadge(card.category)}`}>
-                    {CATEGORY_LABELS[card.category]}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-sm text-zinc-300">{card.card_number ?? '-'}</td>
-                <td className="px-4 py-3 text-sm text-zinc-300">{card.grade}</td>
-                <td className="px-4 py-3 text-right text-sm font-black">{currency(card.buy_price)}</td>
-                <td className="px-4 py-3 text-sm text-zinc-400">
-                  {card.buy_price_updated_at
-                    ? new Date(card.buy_price_updated_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-                    : '-'}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setEditing(card)}
-                      className="h-8 rounded border border-zinc-600 px-3 text-xs font-black hover:bg-zinc-900"
-                    >
-                      編集
-                    </button>
-                    <form
-                      action={deleteCard}
-                      onSubmit={(event) => {
-                        if (!window.confirm('本当に削除しますか？')) {
-                          event.preventDefault()
-                        }
-                      }}
-                    >
-                      <input type="hidden" name="card_id" value={card.id} />
+            {cards.map((card) => {
+              const visibleToUsers = isCardVisibleToUsers(card)
+              return (
+                <tr key={card.id} className="border-t border-zinc-800">
+                  <td className="px-4 py-3">
+                    {card.image_url ? (
                       <button
-                        type="submit"
-                        className="h-8 rounded border border-red-900 px-3 text-xs font-black text-red-200 hover:bg-red-950"
+                        type="button"
+                        onClick={() => setPreview(card)}
+                        className="relative block h-16 w-12 overflow-hidden rounded border border-zinc-700 bg-zinc-900"
                       >
-                        削除
+                        <Image
+                          src={card.image_url}
+                          alt={card.name}
+                          fill
+                          sizes="48px"
+                          className="object-cover"
+                        />
                       </button>
-                    </form>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                    ) : (
+                      <div className="h-16 w-12 rounded border border-zinc-800 bg-zinc-900" />
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-black">{card.name}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <span className={`rounded-full px-2 py-1 text-xs font-black ${categoryBadge(card.category)}`}>
+                      {CATEGORY_LABELS[card.category]}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-zinc-300">{card.card_number ?? '-'}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-zinc-300">{card.grade}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-black">{currency(card.buy_price)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-zinc-400">
+                    {card.buy_price_updated_at
+                      ? new Date(card.buy_price_updated_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                      : '-'}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <span
+                      className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black ${
+                        visibleToUsers
+                          ? 'bg-emerald-500/15 text-emerald-200'
+                          : 'bg-zinc-700 text-zinc-200'
+                      }`}
+                    >
+                      {visibleToUsers ? '表示中' : cardHiddenReason(card)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditing(card)}
+                        className="h-8 rounded border border-zinc-600 px-3 text-xs font-black hover:bg-zinc-900"
+                      >
+                        編集
+                      </button>
+                      <form
+                        action={deleteCard}
+                        onSubmit={(event) => {
+                          if (!window.confirm('本当に削除しますか？')) {
+                            event.preventDefault()
+                          }
+                        }}
+                      >
+                        <input type="hidden" name="card_id" value={card.id} />
+                        <button
+                          type="submit"
+                          className="h-8 rounded border border-red-900 px-3 text-xs font-black text-red-200 hover:bg-red-950"
+                        >
+                          削除
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

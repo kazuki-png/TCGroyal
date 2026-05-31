@@ -1,6 +1,11 @@
 import { revalidatePath } from 'next/cache'
+import { isAdminHostAllowedForRequest } from '@/lib/admin/hostAccess'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import {
+  checkRequestRateLimit,
+  rateLimitResponse,
+} from '@/lib/security/rateLimit'
 import {
   importCardsCsvContent,
   type CsvImportProgress,
@@ -36,6 +41,18 @@ function booleanOption(formData: FormData, name: string, fallback: boolean) {
 }
 
 export async function POST(request: Request) {
+  if (!isAdminHostAllowedForRequest(request)) {
+    return Response.json({ message: 'Not found' }, { status: 404 })
+  }
+
+  const rateLimit = checkRequestRateLimit(request, 'api:admin-cards-import', {
+    limit: 10,
+    windowMs: 15 * 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit)
+  }
+
   const isAdmin = await requireAdmin()
   if (!isAdmin) {
     return Response.json({ message: 'Unauthorized' }, { status: 401 })

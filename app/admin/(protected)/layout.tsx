@@ -1,13 +1,30 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
+import { requireAdminHostForPage } from '@/lib/admin/serverHostAccess'
 import { createClient } from '@/lib/supabase/server'
 import { adminLogout } from '@/app/actions/auth'
 import { AdminShell } from './AdminShell'
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
+}
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  await requireAdminHostForPage()
+
   const supabase = await createClient()
   const {
     data: { user },

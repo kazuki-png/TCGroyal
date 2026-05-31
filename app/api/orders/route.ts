@@ -1,7 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import {
+  checkRequestRateLimit,
+  rateLimitResponse,
+} from '@/lib/security/rateLimit'
 
 export async function GET(request: Request) {
+  const rateLimit = checkRequestRateLimit(request, 'api:orders', {
+    limit: 60,
+    windowMs: 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit)
+  }
+
   const { searchParams } = new URL(request.url)
   const isAdmin = searchParams.get('admin') === 'true'
 

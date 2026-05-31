@@ -1,10 +1,22 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import {
+  checkRequestRateLimit,
+  rateLimitResponse,
+} from '@/lib/security/rateLimit'
 
 export async function GET(
-  _req: Request,
+  request: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
+  const rateLimit = checkRequestRateLimit(request, 'api:orders-id', {
+    limit: 120,
+    windowMs: 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit)
+  }
+
   const { id } = await ctx.params
   const supabase = await createClient()
   const {

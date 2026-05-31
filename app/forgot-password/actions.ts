@@ -3,6 +3,7 @@
 import { headers } from 'next/headers'
 import { sendPasswordResetEmail } from '@/lib/email/send'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 
 export type ForgotPasswordState = {
   error?: string
@@ -130,6 +131,14 @@ export async function forgotPasswordAction(
   _prev: ForgotPasswordState | undefined,
   formData: FormData
 ): Promise<ForgotPasswordState> {
+  const rateLimit = await checkServerActionRateLimit('action:forgot-password', {
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    return { error: 'リクエストが多すぎます。しばらく待ってから再度お試しください' }
+  }
+
   const email = (formData.get('email') as string).trim()
 
   if (!email) {

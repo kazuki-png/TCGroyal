@@ -17,6 +17,7 @@ import {
   isForwardOrderStatusTransition,
 } from '@/lib/types'
 import { loadOrderForNotification } from '@/lib/orders/notification'
+import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 import type { CartItem, OrderStatus } from '@/lib/types'
 
 const UUID_PATTERN =
@@ -92,6 +93,14 @@ export async function createOrder(
     note?: string
   }
 ): Promise<{ error?: string; redirectTo?: string; orderNumber?: string }> {
+  const rateLimit = await checkServerActionRateLimit('action:create-order', {
+    limit: 20,
+    windowMs: 60 * 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    return { error: '申し込みが多すぎます。しばらく待ってから再度お試しください' }
+  }
+
   if (items.length === 0) {
     return { error: 'カードを選択してください' }
   }
@@ -294,6 +303,14 @@ export async function updateOrderStatus(
   newStatus: OrderStatus,
   reason?: string
 ): Promise<{ error?: string }> {
+  const rateLimit = await checkServerActionRateLimit('action:admin-mutation', {
+    limit: 300,
+    windowMs: 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    return { error: 'リクエストが多すぎます。しばらく待ってから再度お試しください' }
+  }
+
   const supabase = await createClient()
   const {
     data: { user },

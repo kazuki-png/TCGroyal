@@ -2,8 +2,10 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { isAdminHostAllowedFromHeaders } from '@/lib/admin/serverHostAccess'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 import {
   logEmailDebug,
   sendAdminOrderNotification,
@@ -37,6 +39,18 @@ type ManualUnlistedAssessment = {
 const CARD_GRADES: CardGrade[] = ['PSA10', 'PSA9', 'PSA8']
 
 async function requireAdmin() {
+  const rateLimit = await checkServerActionRateLimit('action:admin-mutation', {
+    limit: 300,
+    windowMs: 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    redirect('/admin')
+  }
+
+  if (!(await isAdminHostAllowedFromHeaders())) {
+    redirect('/')
+  }
+
   const supabase = await createClient()
   const {
     data: { user },

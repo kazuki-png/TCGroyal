@@ -2,8 +2,10 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { isAdminHostAllowedFromHeaders } from '@/lib/admin/serverHostAccess'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 
 const BANNER_BUCKET = 'site-banners'
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
@@ -15,6 +17,18 @@ const ALLOWED_IMAGE_TYPES = new Set([
 ])
 
 async function requireAdmin() {
+  const rateLimit = await checkServerActionRateLimit('action:admin-mutation', {
+    limit: 300,
+    windowMs: 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    redirect('/admin')
+  }
+
+  if (!(await isAdminHostAllowedFromHeaders())) {
+    redirect('/')
+  }
+
   const supabase = await createClient()
   const {
     data: { user },

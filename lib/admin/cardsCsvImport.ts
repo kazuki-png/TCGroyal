@@ -1,4 +1,8 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
+import {
+  fetchPublicRemoteUrl,
+  parsePublicHttpUrl,
+} from '@/lib/security/safeRemoteFetch'
 
 const CARD_BUCKET = 'card-images'
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
@@ -120,14 +124,7 @@ function parseCsvLine(line: string) {
 }
 
 function parseWebUrl(value: string | null) {
-  if (!value) return null
-
-  try {
-    const url = new URL(value)
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url : null
-  } catch {
-    return null
-  }
+  return parsePublicHttpUrl(value)
 }
 
 function normalizedImageType(value: string | null) {
@@ -198,19 +195,9 @@ async function uploadCardImageBuffer(
 }
 
 async function fetchRemoteImage(url: URL) {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => {
-    controller.abort()
-  }, REMOTE_IMAGE_TIMEOUT_MS)
-
-  try {
-    return await fetch(url, {
-      redirect: 'follow',
-      signal: controller.signal,
-    })
-  } finally {
-    clearTimeout(timeout)
-  }
+  return fetchPublicRemoteUrl(url, {
+    timeoutMs: REMOTE_IMAGE_TIMEOUT_MS,
+  })
 }
 
 async function downloadRemoteCardImage(admin: AdminClient, imageUrl: string) {

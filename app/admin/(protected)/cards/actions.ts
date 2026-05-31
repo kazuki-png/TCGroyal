@@ -2,8 +2,14 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { isAdminHostAllowedFromHeaders } from '@/lib/admin/serverHostAccess'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import {
+  fetchPublicRemoteUrl,
+  parsePublicHttpUrl,
+} from '@/lib/security/safeRemoteFetch'
+import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 
 const CARD_BUCKET = 'card-images'
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
@@ -18,6 +24,18 @@ type CardCategory = 'pokemon' | 'onepiece'
 type CardGrade = 'PSA10' | 'PSA9' | 'PSA8'
 
 async function requireAdmin() {
+  const rateLimit = await checkServerActionRateLimit('action:admin-mutation', {
+    limit: 300,
+    windowMs: 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    redirect('/admin')
+  }
+
+  if (!(await isAdminHostAllowedFromHeaders())) {
+    redirect('/')
+  }
+
   const supabase = await createClient()
   const {
     data: { user },
@@ -157,27 +175,16 @@ async function uploadCardImageBuffer(
   return publicUrl
 }
 
-function parseWebUrl(value: string | null) {
-  if (!value) return null
-
-  try {
-    const url = new URL(value)
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url : null
-  } catch {
-    return null
-  }
-}
-
 async function uploadRemoteCardImage(
   admin: ReturnType<typeof createAdminClient>,
   imageUrl: string
 ) {
-  const url = parseWebUrl(imageUrl)
+  const url = parsePublicHttpUrl(imageUrl)
   if (!url) return imageUrl
 
   let response: Response
   try {
-    response = await fetch(url, { redirect: 'follow' })
+    response = await fetchPublicRemoteUrl(url)
   } catch {
     redirectCards('error', `画像URLの取得に失敗しました: ${imageUrl}`)
   }

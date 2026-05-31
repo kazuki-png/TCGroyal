@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 
 const MAX_ID_IMAGE_SIZE = 5 * 1024 * 1024
 const ALLOWED_ID_IMAGE_TYPES = new Set([
@@ -41,6 +42,14 @@ export async function registerAction(
   _prev: RegisterState | undefined,
   formData: FormData
 ): Promise<RegisterState> {
+  const rateLimit = await checkServerActionRateLimit('action:register', {
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+  })
+  if (!rateLimit.allowed) {
+    return { error: '登録リクエストが多すぎます。しばらく待ってから再度お試しください' }
+  }
+
   const admin = createAdminClient()
   const email = value(formData, 'email')
   const password = String(formData.get('password') ?? '')

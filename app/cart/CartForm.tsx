@@ -1814,9 +1814,6 @@ export function CartForm({
         <section className="mt-5 rounded-[20px] border border-[#2d2a20] bg-[#171511] p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
             <label className="block flex-1">
-              <span className="mb-1.5 block text-sm font-black text-[#f6f0dc]">
-                クーポンコード
-              </span>
               <input
                 type="text"
                 value={couponCode}
@@ -1826,7 +1823,7 @@ export function CartForm({
                   setCouponMessage(undefined)
                   setCouponError(undefined)
                 }}
-                placeholder="コードを入力"
+                placeholder="クーポンコードを入力"
                 className="h-12 w-full rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] px-4 text-base font-black uppercase text-[#f6f0dc] outline-none placeholder:text-[#5c5444] focus:border-[#c9a52e]"
               />
             </label>

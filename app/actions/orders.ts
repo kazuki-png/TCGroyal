@@ -17,8 +17,16 @@ import {
   isForwardOrderStatusTransition,
 } from '@/lib/types'
 import { loadOrderForNotification } from '@/lib/orders/notification'
+import {
+  cancelReviewCouponEmailForOrder,
+  scheduleReviewCouponEmailForCompletedOrder,
+} from '@/lib/orders/reviewCouponNotification'
 import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 import { visiblePriceUpdatedAfter } from '@/lib/cards/visibility'
+import {
+  recordCouponRedemption,
+  validateCouponForUser,
+} from '@/lib/coupons'
 import type { CartItem, OrderStatus } from '@/lib/types'
 
 const UUID_PATTERN =
@@ -93,7 +101,8 @@ export async function createOrder(
     bank_account_no: string
     bank_holder: string
     note?: string
-  }
+  },
+  couponCode?: string
 ): Promise<{ error?: string; redirectTo?: string; orderNumber?: string }> {
   const rateLimit = await checkServerActionRateLimit('action:create-order', {
     limit: 20,
@@ -200,6 +209,19 @@ export async function createOrder(
     (sum, item) => sum + item.unit_price * item.quantity,
     0
   )
+  const couponResult = await validateCouponForUser(
+    adminClient,
+    user.id,
+    couponCode
+  )
+
+  if (couponResult.error) {
+    return { error: couponResult.error }
+  }
+
+  const appliedCoupon = couponResult.coupon
+  const couponAmount = appliedCoupon?.amount ?? 0
+  const orderTotalAmount = totalAmount + couponAmount
 
   let order: { id: string; order_number: string } | null = null
   let orderError: { code?: string; message?: string } | null = null
@@ -212,7 +234,11 @@ export async function createOrder(
         order_number: orderNumber,
         user_id: user.id,
         status: 'unhandled',
-        total_amount: totalAmount,
+        total_amount: orderTotalAmount,
+        coupon_id: appliedCoupon?.id ?? null,
+        coupon_code: appliedCoupon?.code ?? null,
+        coupon_comment: appliedCoupon?.comment ?? null,
+        coupon_amount: couponAmount,
         note: bankInfo.note ?? null,
         ...bankInfo,
       })
@@ -232,6 +258,26 @@ export async function createOrder(
   if (orderError || !order) {
     console.error('createOrder order insert failed', orderError)
     return { error: '注文の作成に失敗しました' }
+  }
+
+  if (appliedCoupon) {
+    const { error: redemptionError } = await recordCouponRedemption({
+      admin: adminClient,
+      coupon: appliedCoupon,
+      orderId: order.id,
+      userId: user.id,
+    })
+
+    if (redemptionError) {
+      console.error('createOrder coupon redemption failed', redemptionError)
+      await adminClient.from('orders').delete().eq('id', order.id)
+      return {
+        error:
+          redemptionError.code === DUPLICATE_KEY_ERROR_CODE
+            ? 'このクーポンコードはすでに利用済みです'
+            : 'クーポンの適用に失敗しました。もう一度お試しください',
+      }
+    }
   }
 
   const { error: itemsError } = await adminClient
@@ -379,9 +425,16 @@ export async function updateOrderStatus(
     return { error: '無効なステータス変更です' }
   }
 
+  const orderUpdates: Record<string, string | null> = { status: newStatus }
+  if (newStatus === 'completed') {
+    orderUpdates.completed_at = new Date().toISOString()
+  } else if (currentStatus === 'completed') {
+    orderUpdates.completed_at = null
+  }
+
   const { error: updateError } = await adminClient
     .from('orders')
-    .update({ status: newStatus })
+    .update(orderUpdates)
     .eq('id', orderId)
 
   if (updateError) {
@@ -442,6 +495,15 @@ export async function updateOrderStatus(
             notificationOrder,
             newStatus
           ).catch(console.error)
+
+          if (newStatus === 'completed') {
+            await scheduleReviewCouponEmailForCompletedOrder({
+              admin: adminClient,
+              order: notificationOrder,
+              toEmail: authUser.user.email,
+              context: 'updateOrderStatus',
+            }).catch(console.error)
+          }
         } else {
           logEmailDebug('updateOrderStatus-user-email-skipped', {
             orderId: notificationOrder.id,
@@ -480,6 +542,14 @@ export async function updateOrderStatus(
       newStatus,
       reason: 'status has no email trigger',
     })
+  }
+
+  if (currentStatus === 'completed' && newStatus !== 'completed') {
+    await cancelReviewCouponEmailForOrder({
+      admin: adminClient,
+      orderId,
+      context: 'updateOrderStatus',
+    }).catch(console.error)
   }
 
   revalidatePath(`/admin/orders/${orderId}`)

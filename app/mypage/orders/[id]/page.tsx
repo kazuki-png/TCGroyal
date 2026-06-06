@@ -18,6 +18,9 @@ type OrderRow = {
   status: OrderStatus
   total_amount: number
   assessment_saved_at: string | null
+  coupon_code: string | null
+  coupon_comment: string | null
+  coupon_amount: number | null
   created_at: string
   order_items: OrderItemRow[] | null
 }
@@ -47,7 +50,7 @@ export default async function OrderDetailPage({
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, order_number, status, total_amount, assessment_saved_at, created_at, order_items(id, card_name, item_type, grade, quantity, unit_price, assessed_unit_price, customer_decision, customer_decided_at, requested_note)')
+    .select('id, order_number, status, total_amount, assessment_saved_at, coupon_code, coupon_comment, coupon_amount, created_at, order_items(id, card_name, item_type, grade, quantity, unit_price, assessed_unit_price, customer_decision, customer_decided_at, requested_note)')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
@@ -64,6 +67,15 @@ export default async function OrderDetailPage({
   const items = row.order_items ?? []
   const status = row.status as OrderStatus
   const canCancel = status !== 'completed' && status !== 'cancelled'
+  const couponAmount = Math.max(0, Number(row.coupon_amount ?? 0))
+  const coupon =
+    couponAmount > 0 && row.coupon_code
+      ? {
+          code: row.coupon_code,
+          comment: row.coupon_comment ?? '',
+          amount: couponAmount,
+        }
+      : undefined
   const assessmentReady =
     Boolean(row.assessment_saved_at) ||
     items.some((item) => Boolean(item.customer_decision))
@@ -161,6 +173,7 @@ export default async function OrderDetailPage({
           status={status}
           assessmentReady={assessmentReady}
           items={items}
+          coupon={coupon}
         />
       </section>
     </div>

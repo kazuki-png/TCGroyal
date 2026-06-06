@@ -7,6 +7,11 @@ import type { OrderStatus } from '@/lib/types'
 import type { OrderItemRow } from '../orderDisplay'
 
 type Decision = 'approved' | 'cancelled'
+type CouponSummary = {
+  code: string
+  comment: string
+  amount: number
+}
 
 function currency(value: number) {
   return `¥${value.toLocaleString('ja-JP')}`
@@ -76,11 +81,13 @@ export function AssessmentDecisionPanel({
   status,
   assessmentReady,
   items,
+  coupon,
 }: {
   orderId: string
   status: OrderStatus
   assessmentReady: boolean
   items: OrderItemRow[]
+  coupon?: CouponSummary
 }) {
   const router = useRouter()
   const canRespond = assessmentReady && status === 'pending_approval'
@@ -115,16 +122,31 @@ export function AssessmentDecisionPanel({
     if (item.decision !== 'approved') return sum
     return sum + item.assessedSubtotal
   }, 0)
+  const couponAmount = Math.max(0, Number(coupon?.amount ?? 0))
+  const hasApprovedItem = rows.some((item) => item.decision === 'approved')
+  const allCancelled =
+    rows.length > 0 && rows.every((item) => item.decision === 'cancelled')
+  const displayCouponAmount =
+    assessmentReady && couponAmount > 0 && rows.length > 0
+      ? canRespond
+        ? hasApprovedItem
+          ? couponAmount
+          : 0
+        : allCancelled
+          ? 0
+          : couponAmount
+      : 0
   const displayTotal = canRespond
-    ? acceptedTotal
+    ? acceptedTotal + displayCouponAmount
     : rows.reduce((sum, item) => {
         if (item.customer_decision === 'cancelled') return sum
         return sum + item.assessedSubtotal
-      }, 0)
-  const submittedTotal = rows.reduce(
+      }, displayCouponAmount)
+  const submittedItemsTotal = rows.reduce(
     (sum, item) => sum + item.unit_price * item.quantity,
     0
   )
+  const submittedTotal = submittedItemsTotal + couponAmount
 
   const choose = (itemId: string, decision: Decision) => {
     setDecisions((current) => ({
@@ -211,89 +233,119 @@ export function AssessmentDecisionPanel({
         )}
 
         {rows.length > 0 && (
-        <div className="grid gap-3 p-4 md:grid-cols-2 2xl:grid-cols-3">
-          {rows.map((item) => (
-            <article
-              key={item.id}
-              className="rounded-[18px] border border-[#2d2a20] bg-[#0f0e0b] p-4"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <h3 className="break-words text-base font-black leading-relaxed text-[#f6f0dc] [overflow-wrap:anywhere]">
-                    {item.card_name}
-                  </h3>
-                  <p className="mt-1 text-xs font-semibold text-[#8f8369]">
-                    {item.grade} / {item.quantity}点
-                  </p>
-                </div>
-                {assessmentReady ? (
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-black ${reductionBadgeClass(item.isReduced)}`}
-                  >
-                    {item.isReduced ? '減額あり' : '減額なし'}
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-[#2d2a20] px-3 py-1 text-xs font-black text-[#c9a52e]">
-                    査定待ち
-                  </span>
-                )}
-              </div>
-              {item.item_type === 'unlisted' && item.requested_note && (
-                <p className="mt-3 text-xs font-semibold text-[#8f8369]">
-                  {item.requested_note}
-                </p>
-              )}
-              <dl className="mt-4 grid grid-cols-1 gap-3 text-xs min-[390px]:grid-cols-3">
-                <div>
-                  <dt className="text-[#8f8369]">申込時単価</dt>
-                  <dd className="mt-1 break-words font-black text-[#ede8d5] [overflow-wrap:anywhere]">
-                    {currency(item.unit_price)}
-                  </dd>
-                </div>
-                {assessmentReady ? (
-                  <>
-                    <div>
-                      <dt className="text-[#8f8369]">当社査定額</dt>
-                      <dd className="mt-1 break-words font-black text-[#f6f0dc] [overflow-wrap:anywhere]">
-                        {currency(item.assessedUnitPrice)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[#8f8369]">小計</dt>
-                      <dd className="mt-1 break-words font-black text-red-300 [overflow-wrap:anywhere]">
-                        {currency(item.assessedSubtotal)}
-                      </dd>
-                    </div>
-                  </>
-                ) : (
-                  <div className="col-span-2">
-                    <dt className="text-[#8f8369]">状態</dt>
-                    <dd className="mt-1 font-black text-[#c9a52e]">
-                      査定待ち
-                    </dd>
+          <div className="grid gap-3 p-4 md:grid-cols-2 2xl:grid-cols-3">
+            {rows.map((item) => (
+              <article
+                key={item.id}
+                className="rounded-[18px] border border-[#2d2a20] bg-[#0f0e0b] p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="break-words text-base font-black leading-relaxed text-[#f6f0dc] [overflow-wrap:anywhere]">
+                      {item.card_name}
+                    </h3>
+                    <p className="mt-1 text-xs font-semibold text-[#8f8369]">
+                      {item.grade} / {item.quantity}点
+                    </p>
                   </div>
-                )}
-              </dl>
-              {assessmentReady && (
-                <div className="mt-4">
-                  {canRespond ? (
-                    <DecisionButtons
-                      value={item.decision as Decision | ''}
-                      onChange={(decision) => choose(item.id, decision)}
-                      disabled={pending}
-                    />
-                  ) : (
+                  {assessmentReady ? (
                     <span
-                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${decisionBadgeClass(item.customer_decision)}`}
+                      className={`rounded-full px-3 py-1 text-xs font-black ${reductionBadgeClass(item.isReduced)}`}
                     >
-                      {decisionLabel(item.customer_decision)}
+                      {item.isReduced ? '減額あり' : '減額なし'}
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-[#2d2a20] px-3 py-1 text-xs font-black text-[#c9a52e]">
+                      査定待ち
                     </span>
                   )}
                 </div>
+                {item.item_type === 'unlisted' && item.requested_note && (
+                  <p className="mt-3 text-xs font-semibold text-[#8f8369]">
+                    {item.requested_note}
+                  </p>
+                )}
+                <dl className="mt-4 grid grid-cols-1 gap-3 text-xs min-[390px]:grid-cols-3">
+                  <div>
+                    <dt className="text-[#8f8369]">申込時単価</dt>
+                    <dd className="mt-1 break-words font-black text-[#ede8d5] [overflow-wrap:anywhere]">
+                      {currency(item.unit_price)}
+                    </dd>
+                  </div>
+                  {assessmentReady ? (
+                    <>
+                      <div>
+                        <dt className="text-[#8f8369]">当社査定額</dt>
+                        <dd className="mt-1 break-words font-black text-[#f6f0dc] [overflow-wrap:anywhere]">
+                          {currency(item.assessedUnitPrice)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-[#8f8369]">小計</dt>
+                        <dd className="mt-1 break-words font-black text-red-300 [overflow-wrap:anywhere]">
+                          {currency(item.assessedSubtotal)}
+                        </dd>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="col-span-2">
+                      <dt className="text-[#8f8369]">状態</dt>
+                      <dd className="mt-1 font-black text-[#c9a52e]">
+                        査定待ち
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+                {assessmentReady && (
+                  <div className="mt-4">
+                    {canRespond ? (
+                      <DecisionButtons
+                        value={item.decision as Decision | ''}
+                        onChange={(decision) => choose(item.id, decision)}
+                        disabled={pending}
+                      />
+                    ) : (
+                      <span
+                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${decisionBadgeClass(item.customer_decision)}`}
+                      >
+                        {decisionLabel(item.customer_decision)}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+
+        {coupon && (
+          <div className="px-4 pb-4">
+            <div className="rounded-[18px] border border-[#c9a52e]/35 bg-[#c9a52e]/10 px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-black text-[#8f8369]">
+                    適用クーポン
+                  </p>
+                  <p className="mt-1 text-sm font-black text-[#f6f0dc]">
+                    {coupon.code}
+                  </p>
+                </div>
+                <p className="text-lg font-black text-[#c9a52e]">
+                  +{currency(couponAmount)}
+                </p>
+              </div>
+              {coupon.comment && (
+                <p className="mt-2 text-sm font-semibold leading-6 text-[#d7ceb8]">
+                  {coupon.comment}
+                </p>
               )}
-            </article>
-          ))}
-        </div>
+              {canRespond && rows.length > 0 && !hasApprovedItem && (
+                <p className="mt-2 text-xs font-bold text-[#8f8369]">
+                  承認する商品がある場合、合計額へ加算されます。
+                </p>
+              )}
+            </div>
+          </div>
         )}
 
         <div className="border-t border-[#2d2a20] bg-[#0f0e0b] px-5 py-4">

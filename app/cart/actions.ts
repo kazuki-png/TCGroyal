@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { validateCouponForUser, type AppliedCoupon } from '@/lib/coupons'
 
 const MAX_ID_IMAGE_SIZE = 5 * 1024 * 1024
 const ALLOWED_ID_IMAGE_TYPES = new Set([
@@ -17,6 +18,11 @@ export type CheckoutProfileUpdateState = {
   error?: string
   errors?: Record<string, string>
   success?: string
+}
+
+export type CouponApplyState = {
+  error?: string
+  coupon?: AppliedCoupon
 }
 
 function value(formData: FormData, name: string) {
@@ -223,4 +229,28 @@ export async function updateCheckoutProfileAction(
   revalidatePath('/mypage/profile')
 
   return { success: '保存しました' }
+}
+
+export async function applyCouponCodeAction(
+  code: string
+): Promise<CouponApplyState> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'クーポンを利用するにはログインが必要です' }
+  }
+
+  const result = await validateCouponForUser(
+    createAdminClient(),
+    user.id,
+    code
+  )
+
+  if (result.error) return { error: result.error }
+  if (!result.coupon) return { error: 'クーポンコードを入力してください' }
+
+  return { coupon: result.coupon }
 }

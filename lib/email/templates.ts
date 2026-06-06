@@ -125,6 +125,16 @@ function orderItemsTable(
   order: OrderWithItems,
   options: { showCancellationStatus?: boolean } = {}
 ) {
+  const couponAmount = Math.max(0, Number(order.coupon_amount ?? 0))
+  const couponHtml =
+    couponAmount > 0 && order.coupon_code
+      ? `<p><strong>クーポンコード：</strong>${escapeHtml(order.coupon_code)} / <strong>増額：</strong>${yen(couponAmount)}${
+          order.coupon_comment
+            ? `<br /><strong>コメント：</strong>${escapeHtml(order.coupon_comment)}`
+            : ''
+        }</p>`
+      : ''
+
   return `
     <table>
       <thead>
@@ -139,6 +149,7 @@ function orderItemsTable(
       </thead>
       <tbody>${itemRows(order, options)}</tbody>
     </table>
+    ${couponHtml}
     <p class="amount">合計金額：${yen(order.total_amount)}</p>
   `
 }
@@ -263,6 +274,32 @@ export function completedEmailHtml(
   `
 
   return baseLayout('買取代金をお振込みいたしました - TCG Royal', body)
+}
+
+export function reviewCouponEmailHtml(customerName?: string): string {
+  const lineUrl = 'https://lin.ee/Q6CsfJkl'
+  const body = `
+    <p class="lead">${salutation(customerName)}</p>
+    <p>この度はTCG ROYALの郵送買取をご利用いただき、誠にありがとうございました！</p>
+
+    <p>もしよろしければ、Xにてサービスのご感想をご投稿いただけますと幸いです。<br />
+    ご投稿いただいた方には、次回の買取で使える「500円増額クーポン」をプレゼントしております🎁</p>
+
+    <div class="box">
+      <h3>参加方法</h3>
+      <p>① XでTCG ROYALの郵送買取について投稿し、必ず「#TCGROYAL郵送買取」のハッシュタグを付ける</p>
+      <p>② 郵送買取一覧ページより、買取申込いただいた注文の「申し込んだカードの内訳」画面をスクリーンショットし、投稿に添付</p>
+      <p>③ X投稿URLを<a href="${escapeHtml(lineUrl)}">TCG ROYAL公式LINE</a>に送信</p>
+      <p>④ 確認後、クーポンコードをお送りいたします！</p>
+    </div>
+
+    <p>簡単なご感想だけでも大歓迎です！<br />
+    今後ともTCG ROYALをよろしくお願いいたします。</p>
+
+    ${signatureBlock()}
+  `
+
+  return baseLayout('Xレビューでお得なクーポンGET！ - TCG ROYAL', body)
 }
 
 export function cancelledEmailHtml(

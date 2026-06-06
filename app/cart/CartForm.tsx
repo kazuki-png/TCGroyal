@@ -14,7 +14,11 @@ import {
 } from 'react'
 import { createOrder } from '@/app/actions/orders'
 import { HomeBannerCarousel } from '@/app/components/HomeBannerCarousel'
-import { updateCheckoutProfileAction } from './actions'
+import {
+  applyCouponCodeAction,
+  updateCheckoutProfileAction,
+  type CouponApplyState,
+} from './actions'
 import {
   CART_OPEN_REQUEST_EVENT,
   CART_TOTAL_QUANTITY_EVENT,
@@ -934,6 +938,11 @@ export function CartForm({
   }>()
   const [agreementChecked, setAgreementChecked] = useState(false)
   const [completedOrderNumber, setCompletedOrderNumber] = useState<string>()
+  const [couponCode, setCouponCode] = useState('')
+  const [appliedCoupon, setAppliedCoupon] =
+    useState<CouponApplyState['coupon']>()
+  const [couponMessage, setCouponMessage] = useState<string>()
+  const [couponError, setCouponError] = useState<string>()
   const [purchaseFlowOpen, setPurchaseFlowOpen] = useState(false)
   const [sort, setSort] = useState<SortKey>('price-desc')
   const [categoryFilters, setCategoryFilters] = useState<
@@ -985,6 +994,8 @@ export function CartForm({
 
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0)
   const totalAmount = orderItemsTotal(cart)
+  const couponAmount = appliedCoupon?.amount ?? 0
+  const finalTotalAmount = totalAmount + couponAmount
   const unlistedInCart = cart.some((item) => item.card.id === UNLISTED_CARD.id)
 
   const getSelectedQuantity = (cardId: string) => selectedQuantities[cardId] ?? 1
@@ -1313,6 +1324,31 @@ export function CartForm({
     })
   }
 
+  const handleApplyCoupon = () => {
+    setCouponError(undefined)
+    setCouponMessage(undefined)
+
+    const code = couponCode.trim()
+    if (!code) {
+      setAppliedCoupon(undefined)
+      setCouponError('クーポンコードを入力してください')
+      return
+    }
+
+    startTransition(async () => {
+      const result = await applyCouponCodeAction(code)
+      if (result.error || !result.coupon) {
+        setAppliedCoupon(undefined)
+        setCouponError(result.error ?? 'クーポンコードを確認できませんでした')
+        return
+      }
+
+      setCouponCode(result.coupon.code)
+      setAppliedCoupon(result.coupon)
+      setCouponMessage('クーポンを適用しました')
+    })
+  }
+
   const handleFinalSubmit = () => {
     setError(undefined)
     if (!agreementChecked) {
@@ -1324,15 +1360,23 @@ export function CartForm({
       setViewMode('cart')
       return
     }
+    if (couponCode.trim() && !appliedCoupon) {
+      setCouponError('クーポンコードを適用してから申し込みを確定してください')
+      return
+    }
 
     startTransition(async () => {
-      const res = await createOrder(cart, {
-        bank_name: checkoutInfo.bankName,
-        bank_branch: checkoutInfo.branchName,
-        bank_account_no: checkoutInfo.accountNumber,
-        bank_holder: checkoutInfo.accountHolderKana,
-        note: checkoutSnapshotNote(checkoutInfo),
-      })
+      const res = await createOrder(
+        cart,
+        {
+          bank_name: checkoutInfo.bankName,
+          bank_branch: checkoutInfo.branchName,
+          bank_account_no: checkoutInfo.accountNumber,
+          bank_holder: checkoutInfo.accountHolderKana,
+          note: checkoutSnapshotNote(checkoutInfo),
+        },
+        appliedCoupon ? couponCode.trim() : undefined
+      )
       if (res?.error) {
         setError(res.error)
         return
@@ -1341,6 +1385,10 @@ export function CartForm({
       clearStoredCart()
       setCart([])
       setSelectedQuantities({})
+      setCouponCode('')
+      setAppliedCoupon(undefined)
+      setCouponMessage(undefined)
+      setCouponError(undefined)
       setCompletedOrderNumber(res?.orderNumber)
       setViewMode('complete')
       showCartTop()
@@ -1734,15 +1782,88 @@ export function CartForm({
               <tfoot className="border-t border-[#2d2a20] bg-[#211f18]">
                 <tr>
                   <td className="px-2 py-3 text-right text-xs font-black text-[#8f8369] sm:px-4" colSpan={3}>
-                    合計
+                    小計
                   </td>
                   <td className="whitespace-nowrap px-2 py-3 text-right text-sm font-black text-[#f6f0dc] sm:px-4 sm:text-base">
                     <span className="text-[0.8em]">¥</span>{totalAmount.toLocaleString()}
                   </td>
                 </tr>
+                {appliedCoupon && (
+                  <tr className="border-t border-[#2d2a20]">
+                    <td className="px-2 py-3 text-right text-xs font-black text-[#8f8369] sm:px-4" colSpan={3}>
+                      クーポン増額
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-3 text-right text-sm font-black text-[#c9a52e] sm:px-4 sm:text-base">
+                      +<span className="text-[0.8em]">¥</span>{couponAmount.toLocaleString()}
+                    </td>
+                  </tr>
+                )}
+                <tr className="border-t border-[#2d2a20]">
+                  <td className="px-2 py-3 text-right text-xs font-black text-[#8f8369] sm:px-4" colSpan={3}>
+                    合計
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-3 text-right text-base font-black text-red-300 sm:px-4 sm:text-lg">
+                    <span className="text-[0.8em]">¥</span>{finalTotalAmount.toLocaleString()}
+                  </td>
+                </tr>
               </tfoot>
             </table>
           </div>
+        </section>
+
+        <section className="mt-5 rounded-[20px] border border-[#2d2a20] bg-[#171511] p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+            <label className="block flex-1">
+              <span className="mb-1.5 block text-sm font-black text-[#f6f0dc]">
+                クーポンコード
+              </span>
+              <input
+                type="text"
+                value={couponCode}
+                onChange={(event) => {
+                  setCouponCode(event.target.value)
+                  setAppliedCoupon(undefined)
+                  setCouponMessage(undefined)
+                  setCouponError(undefined)
+                }}
+                placeholder="コードを入力"
+                className="h-12 w-full rounded-[16px] border border-[#3a3528] bg-[#0f0e0b] px-4 text-base font-black uppercase text-[#f6f0dc] outline-none placeholder:text-[#5c5444] focus:border-[#c9a52e]"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={handleApplyCoupon}
+              disabled={pending}
+              className="h-12 rounded-[16px] bg-[#c9a52e] px-8 text-sm font-black text-[#0e0c09] transition-colors hover:bg-[#d7b865] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              適用
+            </button>
+          </div>
+          {appliedCoupon && (
+            <div className="mt-3 rounded-[16px] border border-[#c9a52e]/35 bg-[#c9a52e]/10 px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2 text-sm font-black text-[#f6f0dc]">
+                <span>{appliedCoupon.code}</span>
+                <span className="rounded-full bg-[#c9a52e] px-3 py-1 text-xs text-[#0e0c09]">
+                  +¥{appliedCoupon.amount.toLocaleString('ja-JP')}
+                </span>
+              </div>
+              {appliedCoupon.comment && (
+                <p className="mt-2 text-sm font-semibold leading-6 text-[#d7ceb8]">
+                  {appliedCoupon.comment}
+                </p>
+              )}
+            </div>
+          )}
+          {couponMessage && (
+            <p className="mt-2 text-sm font-black text-emerald-300">
+              {couponMessage}
+            </p>
+          )}
+          {couponError && (
+            <p className="mt-2 text-sm font-black text-red-300">
+              {couponError}
+            </p>
+          )}
         </section>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">

@@ -19,6 +19,10 @@ type CouponRow = {
   is_active: boolean
 }
 
+const DUPLICATE_KEY_ERROR_CODE = '23505'
+const IN_PROGRESS_COUPON_ORDER_MESSAGE =
+  'このクーポンを使用した申込中の買取があります。'
+
 export function normalizeCouponCode(value: string | null | undefined) {
   return (value ?? '').trim().toUpperCase()
 }
@@ -82,26 +86,99 @@ export async function validateCouponForUser(
         error: 'このクーポンコードはすでに利用済みです',
       }
     }
+
+    const { data: inProgressOrder, error: inProgressOrderError } = await admin
+      .from('orders')
+      .select('id')
+      .eq('coupon_id', coupon.id)
+      .eq('user_id', userId)
+      .neq('status', 'completed')
+      .neq('status', 'cancelled')
+      .limit(1)
+      .maybeSingle()
+
+    if (inProgressOrderError) {
+      console.error(
+        'validateCouponForUser in-progress order load failed',
+        inProgressOrderError
+      )
+      return { coupon: null, error: 'クーポン利用状況の確認に失敗しました' }
+    }
+
+    if (inProgressOrder) {
+      return {
+        coupon: null,
+        error: IN_PROGRESS_COUPON_ORDER_MESSAGE,
+      }
+    }
   }
 
   return { coupon }
 }
 
-export async function recordCouponRedemption({
-  admin,
-  coupon,
-  orderId,
-  userId,
-}: {
-  admin: AdminClient
-  coupon: AppliedCoupon
+export async function recordCouponRedemptionForCompletedOrder(
+  admin: AdminClient,
   orderId: string
-  userId: string
-}) {
-  return admin.from('coupon_redemptions').insert({
-    coupon_id: coupon.id,
-    user_id: userId,
-    order_id: orderId,
-    one_use_per_user: coupon.one_use_per_user,
-  })
+): Promise<{ error?: string }> {
+  const { data: order, error: orderError } = await admin
+    .from('orders')
+    .select('id, user_id, coupon_id, status')
+    .eq('id', orderId)
+    .maybeSingle()
+
+  if (orderError) {
+    console.error('recordCouponRedemptionForCompletedOrder order load failed', {
+      orderId,
+      error: orderError,
+    })
+    return { error: 'クーポン利用済み記録の確認に失敗しました' }
+  }
+
+  if (!order || order.status !== 'completed' || !order.coupon_id) {
+    return {}
+  }
+
+  const { data: coupon, error: couponError } = await admin
+    .from('coupons')
+    .select('id, one_use_per_user')
+    .eq('id', order.coupon_id)
+    .maybeSingle()
+
+  if (couponError) {
+    console.error('recordCouponRedemptionForCompletedOrder coupon load failed', {
+      orderId,
+      couponId: order.coupon_id,
+      error: couponError,
+    })
+    return { error: 'クーポン利用済み記録の確認に失敗しました' }
+  }
+
+  if (!coupon?.one_use_per_user) {
+    return {}
+  }
+
+  const { error: redemptionError } = await admin
+    .from('coupon_redemptions')
+    .insert({
+      coupon_id: order.coupon_id,
+      user_id: order.user_id,
+      order_id: order.id,
+      one_use_per_user: true,
+    })
+
+  if (!redemptionError || redemptionError.code === DUPLICATE_KEY_ERROR_CODE) {
+    return {}
+  }
+
+  console.error(
+    'recordCouponRedemptionForCompletedOrder redemption insert failed',
+    {
+      orderId,
+      couponId: order.coupon_id,
+      userId: order.user_id,
+      error: redemptionError,
+    }
+  )
+
+  return { error: 'クーポン利用済み記録に失敗しました' }
 }

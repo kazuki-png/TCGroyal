@@ -24,7 +24,7 @@ import {
 import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 import { visiblePriceUpdatedAfter } from '@/lib/cards/visibility'
 import {
-  recordCouponRedemption,
+  recordCouponRedemptionForCompletedOrder,
   validateCouponForUser,
 } from '@/lib/coupons'
 import type { CartItem, OrderStatus } from '@/lib/types'
@@ -260,26 +260,6 @@ export async function createOrder(
     return { error: '注文の作成に失敗しました' }
   }
 
-  if (appliedCoupon) {
-    const { error: redemptionError } = await recordCouponRedemption({
-      admin: adminClient,
-      coupon: appliedCoupon,
-      orderId: order.id,
-      userId: user.id,
-    })
-
-    if (redemptionError) {
-      console.error('createOrder coupon redemption failed', redemptionError)
-      await adminClient.from('orders').delete().eq('id', order.id)
-      return {
-        error:
-          redemptionError.code === DUPLICATE_KEY_ERROR_CODE
-            ? 'このクーポンコードはすでに利用済みです'
-            : 'クーポンの適用に失敗しました。もう一度お試しください',
-      }
-    }
-  }
-
   const { error: itemsError } = await adminClient
     .from('order_items')
     .insert(orderItems.map((item) => ({ ...item, order_id: order.id })))
@@ -448,6 +428,19 @@ export async function updateOrderStatus(
     changed_by: user.id,
     note: rollbackReason || null,
   })
+
+  if (newStatus === 'completed') {
+    const redemptionResult = await recordCouponRedemptionForCompletedOrder(
+      adminClient,
+      orderId
+    )
+    if (redemptionResult.error) {
+      console.error('updateOrderStatus coupon redemption failed', {
+        orderId,
+        error: redemptionResult.error,
+      })
+    }
+  }
 
   const shouldSendUserEmail = EMAIL_TRIGGER_STATUSES.includes(newStatus)
   const shouldSendAdminEmail = newStatus === 'pending_transfer'

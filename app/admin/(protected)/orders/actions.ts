@@ -16,6 +16,7 @@ import {
   cancelReviewCouponEmailForOrder,
   scheduleReviewCouponEmailForCompletedOrder,
 } from '@/lib/orders/reviewCouponNotification'
+import { recordCouponRedemptionForCompletedOrder } from '@/lib/coupons'
 import {
   EMAIL_TRIGGER_STATUSES,
   ORDER_STATUSES,
@@ -525,6 +526,19 @@ export async function setOrderStatus(
     changed_by: user.id,
     note: rollbackReason || null,
   })
+
+  if (newStatus === 'completed') {
+    const redemptionResult = await recordCouponRedemptionForCompletedOrder(
+      admin,
+      orderId
+    )
+    if (redemptionResult.error) {
+      console.error('adminOrders-setOrderStatus coupon redemption failed', {
+        orderId,
+        error: redemptionResult.error,
+      })
+    }
+  }
 
   await notifyStatusChange(admin, orderId, newStatus)
 

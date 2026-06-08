@@ -10,7 +10,7 @@ export function Price({ content }: PriceProps) {
   return (
     <section
       id="price"
-      className="bg-[var(--lp-background)] py-80 border-t border-b border-[#333333] max-md:overflow-hidden max-md:py-60"
+      className="bg-background py-80 border-t border-b border-[#333333] max-md:overflow-hidden max-md:py-60"
     >
       <div className="relative flex flex-col items-center gap-50 mx-250 max-md:mx-auto max-md:gap-40 max-md:px-40 max-[450px]:gap-32 max-[450px]:px-15">
         <div className="relative flex justify-center w-full">
@@ -18,26 +18,26 @@ export function Price({ content }: PriceProps) {
             なぜ<span className="title-gradient">高価買取</span>が可能なのか？
           </h2>
           <div
-            className="pointer-events-none absolute top-[-40px] right-[60px] w-[154px] h-[110px] max-md:top-[-40px] max-md:right-0 max-md:h-[100px] max-md:w-[130px] max-[450px]:hidden"
+            className="pointer-events-none absolute top-[-4rem] right-[6rem] w-[15.4rem] h-[11rem] max-md:top-[-4rem] max-md:right-0 max-md:h-[10rem] max-md:w-[13rem] max-[450px]:hidden"
             aria-hidden
           >
             <Image
               src="/lp/images/price_coin.png"
               alt=""
               fill
-              sizes="(max-width: 450px) 0px, (max-width: 768px) 130px, 205px"
+              sizes="(max-width: 450px) 0px, (max-width: 768px) 13rem, 20.5rem"
               className="object-contain"
             />
           </div>
         </div>
 
-        <div className="relative flex flex-col items-center w-full gap-30 rounded-[16px] border-2 border-[#333333] bg-[#050505] px-50 py-30 max-md:gap-24 max-md:rounded-[12px] max-md:px-40 max-md:py-25 max-[450px]:gap-20 max-[450px]:px-30">
-          <div className="relative w-[200px] h-[160px] max-md:h-[160px] max-md:w-[190px] max-[450px]:h-[120px] max-[450px]:w-[140px]">
+        <div className="relative flex flex-col items-center w-full gap-30 rounded-[1.6rem] border-2 border-[#333333] bg-[#050505] px-50 py-30 max-md:gap-24 max-md:rounded-[1.2rem] max-md:px-40 max-md:py-25 max-[450px]:gap-20 max-[450px]:px-30">
+          <div className="relative w-[20rem] h-[16rem] max-md:h-[16rem] max-md:w-[19rem] max-[450px]:h-[12rem] max-[450px]:w-[14rem]">
             <Image
               src="/lp/images/price_earth.png"
               alt=""
               fill
-              sizes="(max-width: 450px) 140px, (max-width: 768px) 190px, 240px"
+              sizes="(max-width: 450px) 14rem, (max-width: 768px) 19rem, 24rem"
               className="object-contain"
             />
           </div>

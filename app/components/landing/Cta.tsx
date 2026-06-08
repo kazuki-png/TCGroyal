@@ -29,11 +29,11 @@ export function Cta({ content }: CtaProps) {
               </span>
             </h2>
             <span
-              className="inline-flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[5px] bg-white max-md:h-50 max-md:w-50 max-[450px]:hidden"
+              className="inline-flex h-[5rem] w-[5rem] shrink-0 items-center justify-center rounded-[0.5rem] bg-white max-md:h-50 max-md:w-50 max-[450px]:hidden"
               aria-hidden
             >
               <svg
-                className="w-[30px] max-md:w-26"
+                className="w-[3rem] max-md:w-26"
                 viewBox="0 0 53 40"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
@@ -51,7 +51,7 @@ export function Cta({ content }: CtaProps) {
         </div>
 
         <div className="flex w-full flex-col items-center gap-56 max-md:gap-40 max-[450px]:gap-32">
-          <div className="flex w-[400px] max-w-full flex-col gap-20 max-md:w-[320px] max-[450px]:gap-12">
+          <div className="flex w-[40rem] max-w-full flex-col gap-20 max-md:w-[32rem] max-[450px]:gap-12">
             <CtaPrimaryButton className={`w-full ${ctaButtonResponsiveClass}`} />
             <CtaLineButton className={`w-full ${ctaButtonResponsiveClass}`} />
           </div>

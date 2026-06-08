@@ -6,7 +6,7 @@ type ReasonProps = {
 };
 
 function ReasonIconGraphic({ icon }: { icon: ReasonIcon }) {
-  const className = "h-[42px] w-[42px] max-md:h-32 max-md:w-32 max-[450px]:h-28 max-[450px]:w-28";
+  const className = "h-[4.2rem] w-[4.2rem] max-md:h-32 max-md:w-32 max-[450px]:h-28 max-[450px]:w-28";
 
   switch (icon) {
     case "medal":
@@ -70,7 +70,7 @@ function ReasonCard({ reason }: { reason: ReasonItem }) {
 
       <div className="flex items-start gap-15 max-md:gap-12 max-[450px]:gap-10">
         <div
-          className="flex h-[64px] w-[64px] items-center justify-center rounded-full bg-[#CCA766] max-md:h-50 max-md:w-50 max-[450px]:h-44 max-[450px]:w-44"
+          className="flex h-[6.4rem] w-[6.4rem] items-center justify-center rounded-full bg-[#CCA766] max-md:h-50 max-md:w-50 max-[450px]:h-44 max-[450px]:w-44"
         >
           <ReasonIconGraphic icon={reason.icon} />
         </div>
@@ -81,7 +81,7 @@ function ReasonCard({ reason }: { reason: ReasonItem }) {
             Reason.{reason.number}
           </p>
 
-          <h3 className="font-serif text-22 font-bold leading-[1.3] text-white max-md:text-22 max-[450px]:text-[19px]">
+          <h3 className="font-serif text-22 font-bold leading-[1.3] text-white max-md:text-22 max-[450px]:text-[1.9rem]">
             <ReasonTitle title={reason.title} />
           </h3>
 
@@ -100,16 +100,16 @@ export function Reason({ reasons }: ReasonProps) {
   return (
     <section
       id="reasons"
-      className="relative overflow-hidden bg-[var(--lp-background)] py-80 max-md:py-60"
+      className="relative overflow-hidden bg-background py-80 max-md:py-60"
       aria-labelledby="reasons-heading"
     >
       <div className="relative flex flex-col items-center gap-50 px-180 max-md:gap-40 max-md:px-25 max-[450px]:gap-32 max-[450px]:px-15">
         <h2
           id="reasons-heading"
-          className="relative z-10 font-serif text-[36px] font-bold leading-[1] text-center text-white max-md:text-[33px] max-md:leading-[1.2] max-[450px]:text-[26px]"
+          className="relative z-10 font-serif text-[3.6rem] font-bold leading-[1] text-center text-white max-md:text-[3.3rem] max-md:leading-[1.2] max-[450px]:text-[2.6rem]"
         >
           TCG ROYAL郵送買取が選ばれる<br />
-          <span className="text-[60px] leading-[1] text-[var(--lp-gold)] title-gradient max-md:text-[42px] max-[450px]:text-[36px]">5</span>つの理由
+          <span className="text-[6rem] leading-[1] text-gold title-gradient max-md:text-[4.2rem] max-[450px]:text-[3.6rem]">5</span>つの理由
         </h2>
 
         <div className="relative z-10 grid w-full grid-cols-2 gap-y-14 gap-x-20 max-md:grid-cols-1 max-md:gap-y-12 max-[450px]:gap-y-10">
@@ -119,20 +119,20 @@ export function Reason({ reasons }: ReasonProps) {
         </div>
 
         <div
-          className="pointer-events-none absolute top-[-30px] h-[240px] w-[180px] left-[58%] -translate-x-1/2 max-md:top-[-40px] max-md:h-[200px] max-md:w-[140px] max-md:left-auto max-md:right-0 max-md:translate-x-0 max-[450px]:hidden"
+          className="pointer-events-none absolute top-[-3rem] h-[24rem] w-[18rem] left-[58%] -translate-x-1/2 max-md:top-[-4rem] max-md:h-[20rem] max-md:w-[14rem] max-md:left-auto max-md:right-0 max-md:translate-x-0 max-[450px]:hidden"
           aria-hidden
         >
           <Image
             src="/lp/images/star.png"
             alt=""
             fill
-            sizes="(max-width: 450px) 0px, (max-width: 768px) 140px, 250px"
+            sizes="(max-width: 450px) 0px, (max-width: 768px) 14rem, 25rem"
             className="object-contain opacity-68"
           />
         </div>
 
-        <div className="absolute top-[-80px] right-[0] h-[256px] w-[256px] rounded-full bg-[#A68A281A] blur-[80px] max-md:h-[160px] max-md:w-[160px] max-md:blur-[50px] max-[450px]:hidden" />
-        <div className="absolute bottom-[-80px] left-0 h-[256px] w-[256px] rounded-full bg-[#A0A0A01A] blur-[80px] max-md:h-[160px] max-md:w-[160px] max-md:blur-[50px] max-[450px]:hidden" />
+        <div className="absolute top-[-8rem] right-[0] h-[25.6rem] w-[25.6rem] rounded-full bg-[#A68A281A] blur-[8rem] max-md:h-[16rem] max-md:w-[16rem] max-md:blur-[5rem] max-[450px]:hidden" />
+        <div className="absolute bottom-[-8rem] left-0 h-[25.6rem] w-[25.6rem] rounded-full bg-[#A0A0A01A] blur-[8rem] max-md:h-[16rem] max-md:w-[16rem] max-md:blur-[5rem] max-[450px]:hidden" />
 
       </div>
     </section>

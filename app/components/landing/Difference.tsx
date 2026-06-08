@@ -32,10 +32,10 @@ export function Difference({ content }: DifferenceProps) {
   return (
     <section
       id="difference"
-      className="bg-[var(--lp-background)] py-80 max-md:overflow-hidden max-md:py-60"
+      className="bg-background py-80 max-md:overflow-hidden max-md:py-60"
       aria-labelledby="difference-heading"
     >
-      <div className="flex flex-col gap-50 px-[250px] max-md:px-25 max-md:gap-40 max-[450px]:px-15">
+      <div className="flex flex-col gap-50 px-[25rem] max-md:px-25 max-md:gap-40 max-[450px]:px-15">
         <div className="relative text-center">
           <h2
             id="difference-heading"

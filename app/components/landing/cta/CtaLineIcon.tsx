@@ -2,7 +2,7 @@
   className?: string;
 };
 
-export function CtaLineIcon({ className = "w-[20px]" }: CtaLineIconProps) {
+export function CtaLineIcon({ className = "w-[2rem]" }: CtaLineIconProps) {
   return (
     <svg className={className} viewBox="0 0 28 28" fill="none" aria-hidden>
       <path

@@ -13,7 +13,7 @@ export function PriceBulletList({
     >
       {bullets.map((bullet) => (
         <li key={bullet} className="flex items-center gap-8">
-          <span className="text-[var(--lp-gold)]">・</span>
+          <span className="text-gold">・</span>
           {bullet}
         </li>
       ))}

@@ -137,12 +137,20 @@ export interface Order {
   user_id: string
   status: OrderStatus
   total_amount: number
+  coupon_id?: string | null
+  coupon_code?: string | null
+  coupon_comment?: string | null
+  coupon_amount?: number | null
   bank_name: string | null
   bank_branch: string | null
   bank_account_no: string | null
   bank_holder: string | null
   note: string | null
   assessment_saved_at: string | null
+  completed_at?: string | null
+  review_request_email_scheduled_at?: string | null
+  review_request_email_resend_id?: string | null
+  review_request_email_sent_at?: string | null
   created_at: string
   updated_at: string
 }

@@ -3,6 +3,8 @@ import { Geist } from 'next/font/google'
 import { Noto_Serif_JP } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import { TestEnvironmentBadge } from './components/TestEnvironmentBadge'
+import { getEnvironmentLabel } from '@/lib/environment'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
@@ -29,6 +31,8 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const environmentLabel = getEnvironmentLabel()
+
   return (
     <html
       lang="ja"
@@ -37,7 +41,10 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-screen overflow-x-hidden bg-[#111110] text-[#ede8d5] antialiased">
-        {children}
+        {environmentLabel && <TestEnvironmentBadge label={environmentLabel} />}
+        <div className={environmentLabel ? 'pt-8 sm:pt-9' : undefined}>
+          {children}
+        </div>
         <Analytics />
         <SpeedInsights />
       </body>

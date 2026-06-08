@@ -19,6 +19,9 @@ export type AdminOrderRow = {
   orderNumber: string
   status: OrderStatus
   assessmentSavedAt: string | null
+  couponCode: string | null
+  couponComment: string | null
+  couponAmount: number
   totalAmount: number
   itemCount: number
   createdAt: string
@@ -207,6 +210,19 @@ export function AdminOrdersTable({
                     .join(' / ') || '-'}
                 </dd>
               </div>
+              {selected.couponAmount > 0 && selected.couponCode && (
+                <div>
+                  <dt className="text-zinc-500">クーポン</dt>
+                  <dd className="mt-1 font-black">
+                    {selected.couponCode} / +{currency(selected.couponAmount)}
+                  </dd>
+                  {selected.couponComment && (
+                    <p className="mt-1 text-xs font-semibold text-zinc-500">
+                      {selected.couponComment}
+                    </p>
+                  )}
+                </div>
+              )}
             </dl>
           </section>
 
@@ -215,6 +231,7 @@ export function AdminOrdersTable({
             orderId={selected.id}
             status={selected.status}
             assessmentSavedAt={selected.assessmentSavedAt}
+            couponAmount={selected.couponAmount}
             items={selected.items}
             cardOptions={cardOptions}
             nextStatuses={orderActionStatuses(selected.status)}

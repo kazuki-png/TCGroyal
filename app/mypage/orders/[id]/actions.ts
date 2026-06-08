@@ -42,7 +42,7 @@ export async function submitAssessmentDecision(
   const admin = createAdminClient()
   const { data: order } = await admin
     .from('orders')
-    .select('id, user_id, status, assessment_saved_at, order_items(id, quantity, unit_price, assessed_unit_price)')
+    .select('id, user_id, status, assessment_saved_at, coupon_amount, order_items(id, quantity, unit_price, assessed_unit_price)')
     .eq('id', orderId)
     .single()
 
@@ -94,7 +94,7 @@ export async function submitAssessmentDecision(
     }
   }
 
-  const finalTotal = items.reduce((sum, item) => {
+  const approvedItemsTotal = items.reduce((sum, item) => {
     if (decisionMap.get(item.id) !== 'approved') return sum
     return sum + item.quantity * (item.assessed_unit_price ?? item.unit_price)
   }, 0)
@@ -106,6 +106,11 @@ export async function submitAssessmentDecision(
     items.every((item) => decisionMap.get(item.id) === 'cancelled')
 
   const nextStatus: OrderStatus = allCancelled ? 'cancelled' : 'pending_transfer'
+  const couponAmount =
+    allCancelled || items.length === 0
+      ? 0
+      : Math.max(0, Number(order.coupon_amount ?? 0))
+  const finalTotal = approvedItemsTotal + couponAmount
   const { error: orderError } = await admin
     .from('orders')
     .update({

@@ -13,6 +13,11 @@ import {
 } from '@/lib/email/send'
 import { loadOrderForNotification } from '@/lib/orders/notification'
 import {
+  cancelReviewCouponEmailForOrder,
+  scheduleReviewCouponEmailForCompletedOrder,
+} from '@/lib/orders/reviewCouponNotification'
+import { recordCouponRedemptionForCompletedOrder } from '@/lib/coupons'
+import {
   EMAIL_TRIGGER_STATUSES,
   ORDER_STATUSES,
   canEditOrderAssessment,
@@ -139,6 +144,15 @@ async function notifyStatusChange(
         notificationOrder,
         status
       ).catch(console.error)
+
+      if (status === 'completed') {
+        await scheduleReviewCouponEmailForCompletedOrder({
+          admin,
+          order: notificationOrder,
+          toEmail: authUser.user.email,
+          context: 'adminOrders-notifyStatusChange',
+        }).catch(console.error)
+      }
     } else {
       logEmailDebug('adminOrders-user-email-skipped', {
         orderId: notificationOrder.id,
@@ -180,7 +194,7 @@ export async function saveOrderAssessment(
   const admin = createAdminClient()
   const { data: order } = await admin
     .from('orders')
-    .select('id, user_id, status, assessment_saved_at, order_items(id, quantity, unit_price, item_type)')
+    .select('id, user_id, status, assessment_saved_at, coupon_amount, order_items(id, quantity, unit_price, item_type)')
     .eq('id', orderId)
     .single()
 
@@ -406,7 +420,8 @@ export async function saveOrderAssessment(
     (sum, item) => sum + item.assessedUnitPrice,
     0
   )
-  const assessedTotal = listedAssessedTotal + manualAssessedTotal
+  const couponAmount = Math.max(0, Number(order.coupon_amount ?? 0))
+  const assessedTotal = listedAssessedTotal + manualAssessedTotal + couponAmount
   const nextStatus: OrderStatus = 'pending_approval'
 
   const { error: orderError } = await admin
@@ -490,9 +505,16 @@ export async function setOrderStatus(
     return { error: '無効なステータス変更です' }
   }
 
+  const orderUpdates: Record<string, string | null> = { status: newStatus }
+  if (newStatus === 'completed') {
+    orderUpdates.completed_at = new Date().toISOString()
+  } else if (currentStatus === 'completed') {
+    orderUpdates.completed_at = null
+  }
+
   const { error } = await admin
     .from('orders')
-    .update({ status: newStatus })
+    .update(orderUpdates)
     .eq('id', orderId)
 
   if (error) return { error: 'ステータスの更新に失敗しました' }
@@ -505,7 +527,28 @@ export async function setOrderStatus(
     note: rollbackReason || null,
   })
 
+  if (newStatus === 'completed') {
+    const redemptionResult = await recordCouponRedemptionForCompletedOrder(
+      admin,
+      orderId
+    )
+    if (redemptionResult.error) {
+      console.error('adminOrders-setOrderStatus coupon redemption failed', {
+        orderId,
+        error: redemptionResult.error,
+      })
+    }
+  }
+
   await notifyStatusChange(admin, orderId, newStatus)
+
+  if (currentStatus === 'completed' && newStatus !== 'completed') {
+    await cancelReviewCouponEmailForOrder({
+      admin,
+      orderId,
+      context: 'adminOrders-setOrderStatus',
+    }).catch(console.error)
+  }
 
   revalidatePath('/admin/orders')
   revalidatePath(`/admin/orders/${orderId}`)

@@ -571,6 +571,7 @@ export function AssessmentEditor({
   orderId,
   status,
   assessmentSavedAt,
+  couponAmount = 0,
   items,
   cardOptions = [],
   nextStatuses = [],
@@ -579,6 +580,7 @@ export function AssessmentEditor({
   orderId: string
   status: OrderStatus
   assessmentSavedAt?: string | null
+  couponAmount?: number
   items: AssessmentEditorItem[]
   cardOptions?: AssessmentCardOption[]
   nextStatuses?: OrderStatus[]
@@ -652,11 +654,11 @@ export function AssessmentEditor({
   )
   const assessedTotal = rows.reduce(
     (sum, item) => sum + item.assessedSubtotal,
-    manualRows.reduce((sum, item) => sum + item.assessedSubtotal, 0)
+    manualRows.reduce((sum, item) => sum + item.assessedSubtotal, couponAmount)
   )
   const originalTotal = items.reduce(
     (sum, item) => sum + item.unit_price * item.quantity,
-    0
+    couponAmount
   )
   const hasUnlistedItems = unlistedItems.length > 0
 
@@ -808,6 +810,14 @@ export function AssessmentEditor({
             <p className="text-xs text-[#d7b865]">査定合計</p>
             <p className="font-black text-[#f6f0dc]">{currency(assessedTotal)}</p>
           </div>
+          {couponAmount > 0 && (
+            <div className="col-span-2 rounded-xl border border-[#c9a52e]/30 bg-zinc-950 px-3 py-2">
+              <p className="text-xs text-[#d7b865]">クーポン増額</p>
+              <p className="font-black text-[#f6f0dc]">
+                +{currency(couponAmount)}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

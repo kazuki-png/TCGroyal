@@ -17,8 +17,16 @@ import {
   isForwardOrderStatusTransition,
 } from '@/lib/types'
 import { loadOrderForNotification } from '@/lib/orders/notification'
+import {
+  cancelReviewCouponEmailForOrder,
+  scheduleReviewCouponEmailForCompletedOrder,
+} from '@/lib/orders/reviewCouponNotification'
 import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 import { visiblePriceUpdatedAfter } from '@/lib/cards/visibility'
+import {
+  recordCouponRedemptionForCompletedOrder,
+  validateCouponForUser,
+} from '@/lib/coupons'
 import type { CartItem, OrderStatus } from '@/lib/types'
 
 const UUID_PATTERN =
@@ -93,7 +101,8 @@ export async function createOrder(
     bank_account_no: string
     bank_holder: string
     note?: string
-  }
+  },
+  couponCode?: string
 ): Promise<{ error?: string; redirectTo?: string; orderNumber?: string }> {
   const rateLimit = await checkServerActionRateLimit('action:create-order', {
     limit: 20,
@@ -200,6 +209,19 @@ export async function createOrder(
     (sum, item) => sum + item.unit_price * item.quantity,
     0
   )
+  const couponResult = await validateCouponForUser(
+    adminClient,
+    user.id,
+    couponCode
+  )
+
+  if (couponResult.error) {
+    return { error: couponResult.error }
+  }
+
+  const appliedCoupon = couponResult.coupon
+  const couponAmount = appliedCoupon?.amount ?? 0
+  const orderTotalAmount = totalAmount + couponAmount
 
   let order: { id: string; order_number: string } | null = null
   let orderError: { code?: string; message?: string } | null = null
@@ -212,7 +234,11 @@ export async function createOrder(
         order_number: orderNumber,
         user_id: user.id,
         status: 'unhandled',
-        total_amount: totalAmount,
+        total_amount: orderTotalAmount,
+        coupon_id: appliedCoupon?.id ?? null,
+        coupon_code: appliedCoupon?.code ?? null,
+        coupon_comment: appliedCoupon?.comment ?? null,
+        coupon_amount: couponAmount,
         note: bankInfo.note ?? null,
         ...bankInfo,
       })
@@ -379,9 +405,16 @@ export async function updateOrderStatus(
     return { error: '無効なステータス変更です' }
   }
 
+  const orderUpdates: Record<string, string | null> = { status: newStatus }
+  if (newStatus === 'completed') {
+    orderUpdates.completed_at = new Date().toISOString()
+  } else if (currentStatus === 'completed') {
+    orderUpdates.completed_at = null
+  }
+
   const { error: updateError } = await adminClient
     .from('orders')
-    .update({ status: newStatus })
+    .update(orderUpdates)
     .eq('id', orderId)
 
   if (updateError) {
@@ -395,6 +428,19 @@ export async function updateOrderStatus(
     changed_by: user.id,
     note: rollbackReason || null,
   })
+
+  if (newStatus === 'completed') {
+    const redemptionResult = await recordCouponRedemptionForCompletedOrder(
+      adminClient,
+      orderId
+    )
+    if (redemptionResult.error) {
+      console.error('updateOrderStatus coupon redemption failed', {
+        orderId,
+        error: redemptionResult.error,
+      })
+    }
+  }
 
   const shouldSendUserEmail = EMAIL_TRIGGER_STATUSES.includes(newStatus)
   const shouldSendAdminEmail = newStatus === 'pending_transfer'
@@ -442,6 +488,15 @@ export async function updateOrderStatus(
             notificationOrder,
             newStatus
           ).catch(console.error)
+
+          if (newStatus === 'completed') {
+            await scheduleReviewCouponEmailForCompletedOrder({
+              admin: adminClient,
+              order: notificationOrder,
+              toEmail: authUser.user.email,
+              context: 'updateOrderStatus',
+            }).catch(console.error)
+          }
         } else {
           logEmailDebug('updateOrderStatus-user-email-skipped', {
             orderId: notificationOrder.id,
@@ -480,6 +535,14 @@ export async function updateOrderStatus(
       newStatus,
       reason: 'status has no email trigger',
     })
+  }
+
+  if (currentStatus === 'completed' && newStatus !== 'completed') {
+    await cancelReviewCouponEmailForOrder({
+      admin: adminClient,
+      orderId,
+      context: 'updateOrderStatus',
+    }).catch(console.error)
   }
 
   revalidatePath(`/admin/orders/${orderId}`)

@@ -14,6 +14,9 @@ type OrderRow = {
   status: OrderStatus
   total_amount: number | null
   assessment_saved_at: string | null
+  coupon_code: string | null
+  coupon_comment: string | null
+  coupon_amount: number | null
   bank_name: string | null
   bank_branch: string | null
   bank_account_no: string | null
@@ -77,6 +80,9 @@ export default async function AdminOrdersPage({
     orderNumber: displayOrderNumber(order),
     status: order.status,
     assessmentSavedAt: order.assessment_saved_at,
+    couponCode: order.coupon_code,
+    couponComment: order.coupon_comment,
+    couponAmount: Math.max(0, Number(order.coupon_amount ?? 0)),
     totalAmount: order.total_amount ?? 0,
     itemCount: order.order_items?.length ?? 0,
     createdAt: order.created_at,

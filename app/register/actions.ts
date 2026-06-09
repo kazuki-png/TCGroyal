@@ -22,6 +22,19 @@ function value(formData: FormData, name: string) {
   return String(formData.get(name) ?? '').trim()
 }
 
+function safeRegisterDestination(value: string) {
+  if (!value.startsWith('/') || value.startsWith('//')) {
+    return '/mypage'
+  }
+
+  const pathname = value.split('?')[0]
+  if (pathname === '/login' || pathname === '/register') {
+    return '/mypage'
+  }
+
+  return value
+}
+
 function validateIdImage(file: File | null) {
   if (!file || file.size === 0) {
     return '身分証画像をアップロードしてください'
@@ -154,5 +167,6 @@ export async function registerAction(
     }
   }
 
-  redirect('/mypage')
+  const next = (formData.get('next') as string | null)?.trim() ?? ''
+  redirect(safeRegisterDestination(next))
 }

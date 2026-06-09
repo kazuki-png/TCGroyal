@@ -279,7 +279,7 @@ function validate(fd: FormData): Record<string, string> {
   return errors
 }
 
-export function RegisterForm() {
+export function RegisterForm({ nextPath = '' }: { nextPath?: string }) {
   const formRef = useRef<HTMLFormElement>(null)
   const [serverState, setServerState] = useState<RegisterState>()
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({})
@@ -435,6 +435,8 @@ export function RegisterForm() {
       noValidate
       className="mx-auto w-full max-w-md border-y border-[#2d2a20] bg-[#12100c] px-4 pb-6 pt-4 text-[#ede8d5] shadow-[0_24px_80px_rgba(0,0,0,0.35)] md:max-w-5xl md:rounded-[28px] md:border md:px-6 md:pb-8 md:pt-6"
     >
+      {nextPath && <input type="hidden" name="next" value={nextPath} />}
+
       {serverState?.error && (
         <div className="mb-4 rounded-[16px] border border-red-300/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
           {serverState.error}

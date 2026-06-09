@@ -51,13 +51,14 @@ export default async function MypageLayout({
 }) {
   const headersList = await headers()
   const pathname = headersList.get('x-pathname') ?? '/mypage'
+  const pathWithSearch = headersList.get('x-path-with-search') ?? pathname
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect(`/login?next=${encodeURIComponent(pathname)}`)
+    redirect(`/login?next=${encodeURIComponent(pathWithSearch)}`)
   }
 
   return (

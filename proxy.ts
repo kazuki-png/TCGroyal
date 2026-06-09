@@ -21,6 +21,7 @@ function safeNextPath(value: string | null) {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const pathWithSearch = `${pathname}${request.nextUrl.search}`
   const isAdminPageRoute = isAdminPagePathname(pathname)
   const isAdminApiRoute = isAdminApiPathname(pathname)
 
@@ -33,6 +34,7 @@ export async function proxy(request: NextRequest) {
 
   let supabaseResponse = NextResponse.next({ request })
   supabaseResponse.headers.set('x-pathname', pathname)
+  supabaseResponse.headers.set('x-path-with-search', pathWithSearch)
 
   const isAdminRoute =
     isAdminPageRoute && !pathname.startsWith('/admin/login')
@@ -65,6 +67,7 @@ export async function proxy(request: NextRequest) {
           )
           supabaseResponse = NextResponse.next({ request })
           supabaseResponse.headers.set('x-pathname', pathname)
+          supabaseResponse.headers.set('x-path-with-search', pathWithSearch)
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -97,7 +100,7 @@ export async function proxy(request: NextRequest) {
 
   if (isUserProtectedRoute && !user) {
     const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('next', pathname)
+    loginUrl.searchParams.set('next', pathWithSearch)
     return NextResponse.redirect(loginUrl)
   }
 
@@ -107,6 +110,7 @@ export async function proxy(request: NextRequest) {
   }
 
   supabaseResponse.headers.set('x-pathname', pathname)
+  supabaseResponse.headers.set('x-path-with-search', pathWithSearch)
   return supabaseResponse
 }
 

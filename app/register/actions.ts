@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 
 const MAX_ID_IMAGE_SIZE = 5 * 1024 * 1024
@@ -139,5 +140,19 @@ export async function registerAction(
     }
   }
 
-  redirect('/login?registered=1')
+  const supabase = await createClient()
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  if (signInError) {
+    await admin.auth.admin.deleteUser(userId)
+    return {
+      error:
+        '登録は完了できませんでした。もう一度お試しください。',
+    }
+  }
+
+  redirect('/mypage')
 }

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { visiblePriceUpdatedAfter } from '@/lib/cards/visibility'
 import { HomeBannerCarousel } from './components/HomeBannerCarousel'
 import { HomeCardSection } from './components/HomeCardSection'
+import { LandingHeaderLink } from './components/LandingHeaderLink'
 import { SiteFooter } from './components/SiteFooter'
 import { SiteHeader } from './components/SiteHeader'
 import type { Card, HomepageBanner } from '@/lib/types'
@@ -118,15 +119,7 @@ export default async function HomePage() {
         isAuthenticated={Boolean(user)}
         borderClassName="border-b border-[#2d2a20]"
         priorityLogo
-        logoAdjacent={
-          <Link
-            href="/yuso-kaitori"
-            className="inline-flex max-w-[28vw] shrink items-center justify-center truncate rounded-full border border-[#c9a52e]/45 bg-[#1c1b18] px-3 py-2 text-xs font-black text-[#c9a52e] shadow-[inset_0_0_0_1px_rgba(201,165,46,0.08)] transition-colors hover:border-[#d7b865] hover:bg-[#252420] hover:text-[#f1d77a] sm:max-w-none sm:px-4 sm:text-sm"
-          >
-            <span className="hidden lg:inline">TCG ROYAL 郵送買取が選ばれる理由</span>
-            <span className="lg:hidden">選ばれる理由</span>
-          </Link>
-        }
+        logoAdjacent={<LandingHeaderLink />}
       />
 
       <HomeBannerCarousel banners={banners} />

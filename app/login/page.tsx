@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useActionState } from 'react'
+import { Suspense, useActionState, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { SiteFooter } from '@/app/components/SiteFooter'
@@ -32,6 +32,50 @@ function NextInput() {
   const next = searchParams.get('next') ?? ''
   if (!next) return null
   return <input type="hidden" name="next" value={next} />
+}
+
+function registerHrefFor(value: string) {
+  if (!value.startsWith('/') || value.startsWith('//')) return '/register'
+
+  const pathname = value.split('?')[0]
+  if (pathname === '/login' || pathname === '/register') return '/register'
+
+  return `/register?next=${encodeURIComponent(value)}`
+}
+
+function RegisterLink({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+  href?: string
+}) {
+  return (
+    <Suspense>
+      <RegisterLinkInner className={className}>{children}</RegisterLinkInner>
+    </Suspense>
+  )
+}
+
+function RegisterLinkInner({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  const searchParams = useSearchParams()
+  const next = searchParams.get('next') ?? ''
+
+  return (
+    <Link
+      href={registerHrefFor(next)}
+      className={className}
+    >
+      {children}
+    </Link>
+  )
 }
 
 export default function LoginPage() {
@@ -137,12 +181,12 @@ export default function LoginPage() {
           <p className="mt-3 text-center text-xs font-semibold text-[#8f8369]">
             郵送買取のご利用には登録が必要です。
           </p>
-          <Link
+          <RegisterLink
             href="/register"
             className="mt-5 flex h-12 w-full items-center justify-center rounded-[18px] border border-[#c9a52e]/50 bg-[#171511] text-base font-black text-[#c9a52e] transition-colors hover:border-[#d7b865] hover:bg-[#211f18]"
           >
             新規登録
-          </Link>
+          </RegisterLink>
         </section>
       </main>
       <SiteFooter />

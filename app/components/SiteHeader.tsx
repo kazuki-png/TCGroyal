@@ -29,6 +29,7 @@ function AccountIcon() {
 
 export function SiteHeader({
   isAuthenticated,
+  logoAdjacent,
   nav,
   afterAccount,
   breadcrumbs,
@@ -38,6 +39,7 @@ export function SiteHeader({
   unauthenticatedAction = 'login',
 }: {
   isAuthenticated: boolean
+  logoAdjacent?: ReactNode
   nav?: ReactNode
   afterAccount?: ReactNode
   breadcrumbs?: SiteBreadcrumb[]
@@ -53,9 +55,12 @@ export function SiteHeader({
       <div
         className={`mx-auto flex ${maxWidthClassName} items-center justify-between gap-4`}
       >
-        <Link href="/" aria-label="TCG Royal" className="inline-flex shrink-0">
-          <SiteLogo priority={priorityLogo} />
-        </Link>
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <Link href="/" aria-label="TCG Royal" className="inline-flex shrink-0">
+            <SiteLogo priority={priorityLogo} />
+          </Link>
+          {logoAdjacent}
+        </div>
         <div className="flex min-w-0 items-center justify-end gap-2">
           {nav}
           {isAuthenticated ? (

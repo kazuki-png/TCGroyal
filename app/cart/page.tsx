@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { SiteFooter } from '@/app/components/SiteFooter'
+import { LandingHeaderLink } from '@/app/components/LandingHeaderLink'
 import { SiteHeader } from '@/app/components/SiteHeader'
 import { CartHeaderLink } from './CartHeaderLink'
 import { CartForm } from './CartForm'
@@ -30,6 +31,7 @@ export default async function CartPage() {
         isAuthenticated={Boolean(user)}
         priorityLogo
         borderClassName="border-b border-[#2d2a20]"
+        logoAdjacent={<LandingHeaderLink />}
         breadcrumbs={[
           { href: '/', label: 'トップ' },
           { label: 'カート買取' },

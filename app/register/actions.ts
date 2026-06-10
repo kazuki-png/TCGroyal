@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 
 const MAX_ID_IMAGE_SIZE = 5 * 1024 * 1024
@@ -19,6 +20,19 @@ export type RegisterState = {
 
 function value(formData: FormData, name: string) {
   return String(formData.get(name) ?? '').trim()
+}
+
+function safeRegisterDestination(value: string) {
+  if (!value.startsWith('/') || value.startsWith('//')) {
+    return '/mypage'
+  }
+
+  const pathname = value.split('?')[0]
+  if (pathname === '/login' || pathname === '/register') {
+    return '/mypage'
+  }
+
+  return value
 }
 
 function validateIdImage(file: File | null) {
@@ -139,5 +153,20 @@ export async function registerAction(
     }
   }
 
-  redirect('/login?registered=1')
+  const supabase = await createClient()
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  if (signInError) {
+    await admin.auth.admin.deleteUser(userId)
+    return {
+      error:
+        '登録は完了できませんでした。もう一度お試しください。',
+    }
+  }
+
+  const next = (formData.get('next') as string | null)?.trim() ?? ''
+  redirect(safeRegisterDestination(next))
 }

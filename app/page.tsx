@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { visiblePriceUpdatedAfter } from '@/lib/cards/visibility'
 import { HomeBannerCarousel } from './components/HomeBannerCarousel'
 import { HomeCardSection } from './components/HomeCardSection'
+import { LandingHeaderLink } from './components/LandingHeaderLink'
 import { SiteFooter } from './components/SiteFooter'
 import { SiteHeader } from './components/SiteHeader'
 import type { Card, HomepageBanner } from '@/lib/types'
@@ -118,6 +119,7 @@ export default async function HomePage() {
         isAuthenticated={Boolean(user)}
         borderClassName="border-b border-[#2d2a20]"
         priorityLogo
+        logoAdjacent={<LandingHeaderLink />}
       />
 
       <HomeBannerCarousel banners={banners} />

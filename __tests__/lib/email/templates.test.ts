@@ -58,7 +58,8 @@ describe('acceptedEmailHtml', () => {
 
   it('発送先住所が含まれる', () => {
     const html = acceptedEmailHtml(mockOrder)
-    expect(html).toContain('東京都港区六本木4-2-14')
+    expect(html).toContain('東京都新宿区西新宿1丁目14-5')
+    expect(html).toContain('03-6900-4003')
   })
 
   it('有効なHTMLドキュメントである', () => {

@@ -1,4 +1,5 @@
 import type { OrderWithItems } from '@/lib/types'
+import { SHIPPING_DESTINATION } from '@/lib/shipping'
 
 export type AdminNotificationKind =
   | 'new_order'
@@ -10,12 +11,6 @@ type EmailContext = {
   mypageUrl?: string
   adminUrl?: string
 }
-
-const SHIPPING_DESTINATION = [
-  ['宛名', 'TCG ROYAL 買取部'],
-  ['住所', '〒106-0032 東京都港区六本木4-2-14 六本木三河台スクエアビル 3F'],
-  ['電話番号', '03-6841-8309'],
-] as const
 
 function escapeHtml(value: unknown) {
   return String(value ?? '')

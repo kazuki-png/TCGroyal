@@ -23,6 +23,7 @@ import {
   CART_OPEN_REQUEST_EVENT,
   CART_TOTAL_QUANTITY_EVENT,
 } from './CartHeaderLink'
+import { SHIPPING_DESTINATION } from '@/lib/shipping'
 import type { Card, CartItem, HomepageBanner, Profile } from '@/lib/types'
 import unlistedPurchaseRequestImage from '@/public/images/bulk-assessment-request.png'
 
@@ -56,12 +57,6 @@ const INITIAL_CATEGORY_FILTERS: Record<CategoryFilter, boolean> = {
   pokemon: true,
   onepiece: true,
 }
-
-const SHIPPING_DESTINATION = [
-  ['宛名', 'TCG ROYAL 買取部'],
-  ['住所', '〒106-0032 東京都港区六本木4-2-14 六本木三河台スクエアビル 3F'],
-  ['電話番号', '03-6841-8309'],
-] as const
 
 const SHIPPING_NOTE_SECTIONS = [
   {

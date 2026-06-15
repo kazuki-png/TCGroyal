@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { BRAND_NAME } from '@/lib/brand'
 import { createClient } from '@/lib/supabase/server'
 import { SiteFooter } from './SiteFooter'
 import { SiteHeader } from './SiteHeader'
@@ -193,7 +194,7 @@ export async function LegalPage({
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
         <article className="rounded-[28px] border border-[#2d2a20] bg-[#12100c] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
           <p className="text-xs font-black uppercase tracking-[0.22em] text-[#ede8d5]">
-            TCG Royal
+            {BRAND_NAME}
           </p>
           <h1 className="mt-3 text-3xl font-black text-[#f6f0dc] sm:text-4xl">
             {title}

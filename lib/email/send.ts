@@ -1,6 +1,13 @@
 import { getResend } from './resend'
 import { getEnvironmentLabel } from '@/lib/environment'
 import {
+  BRAND_LINE_ACCOUNT,
+  BRAND_NAME,
+  BRAND_PURCHASE_DEPARTMENT,
+  BRAND_PURCHASE_SERVICE,
+  BRAND_REVIEW_HASHTAG,
+} from '@/lib/brand'
+import {
   acceptedEmailHtml,
   adminNotificationEmailHtml,
   cancelledEmailHtml,
@@ -16,7 +23,7 @@ import type { OrderStatus, OrderWithItems } from '@/lib/types'
 type EmailDebugDetails = Record<string, unknown>
 
 const EMAIL_DEBUG_PREFIX = '[email-debug]'
-const DEFAULT_RESEND_FROM_EMAIL = 'TCG Royal <onboarding@resend.dev>'
+const DEFAULT_RESEND_FROM_EMAIL = `${BRAND_NAME} <onboarding@resend.dev>`
 
 function fromEmail() {
   return process.env.RESEND_FROM_EMAIL?.trim() || DEFAULT_RESEND_FROM_EMAIL
@@ -329,7 +336,7 @@ function passwordResetEmailHtml(resetUrl: string) {
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>TCG Royal パスワード再設定</title>
+  <title>${BRAND_NAME} パスワード再設定</title>
   <style>
     body { margin: 0; padding: 0; background: #0b0a08; color: #ede8d5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .container { max-width: 640px; margin: 0 auto; padding: 32px 20px; }
@@ -345,16 +352,16 @@ function passwordResetEmailHtml(resetUrl: string) {
 <body>
   <div class="container">
     <div class="panel">
-      <div class="brand">TCG Royal</div>
+      <div class="brand">${BRAND_NAME}</div>
       <h1>パスワード再設定のご案内</h1>
-      <p>TCG Royal アカウントのパスワード再設定を受け付けました。以下のボタンから新しいパスワードを設定してください。</p>
+      <p>${BRAND_NAME} アカウントのパスワード再設定を受け付けました。以下のボタンから新しいパスワードを設定してください。</p>
       <p><a class="button" href="${escapedResetUrl}">パスワードを再設定する</a></p>
       <p>このメールに心当たりがない場合は、何も操作せず破棄してください。</p>
       <p class="note">ボタンが開けない場合は、以下のURLをブラウザに貼り付けてください。<br />${escapedResetUrl}</p>
     </div>
     <div class="footer">
       <p>このメールは自動送信されています。返信は受け付けておりません。</p>
-      <p>© TCG Royal</p>
+      <p>© ${BRAND_NAME}</p>
     </div>
   </div>
 </body>
@@ -369,19 +376,19 @@ export async function sendPasswordResetEmail(
     await sendEmail(
       {
         to: toEmail,
-        subject: '【TCG Royal】パスワード再設定のご案内',
+        subject: `【${BRAND_NAME}】パスワード再設定のご案内`,
         html: passwordResetEmailHtml(resetUrl),
         text: [
-          'TCG Royal パスワード再設定のご案内',
+          `${BRAND_NAME} パスワード再設定のご案内`,
           '',
-          'TCG Royal アカウントのパスワード再設定を受け付けました。',
+          `${BRAND_NAME} アカウントのパスワード再設定を受け付けました。`,
           '以下のURLから新しいパスワードを設定してください。',
           '',
           resetUrl,
           '',
           'このメールに心当たりがない場合は、何も操作せず破棄してください。',
           '',
-          'TCG Royal',
+          BRAND_NAME,
         ].join('\n'),
       },
       {
@@ -409,27 +416,27 @@ export async function sendReviewCouponEmail(
   return sendEmail(
     {
       to: toEmail,
-      subject: '【TCG ROYAL】Xレビューでお得なクーポンGET！',
+      subject: `【${BRAND_NAME}】Xレビューでお得なクーポンGET！`,
       html: reviewCouponEmailHtml(customerName),
       scheduledAt,
       text: [
         displayName ? `${displayName}様` : 'お客様',
         '',
-        'この度はTCG ROYALの郵送買取をご利用いただき、誠にありがとうございました！',
+        `この度は${BRAND_PURCHASE_SERVICE}をご利用いただき、誠にありがとうございました！`,
         '',
         'もしよろしければ、Xにてサービスのご感想をご投稿いただけますと幸いです。',
         'ご投稿いただいた方には、次回の買取で使える「500円増額クーポン」をプレゼントしております🎁',
         '',
         '【参加方法】',
-        '① XでTCG ROYALの郵送買取について投稿し、必ず「#TCGROYAL郵送買取」のハッシュタグを付ける',
+        `① Xで${BRAND_PURCHASE_SERVICE}について投稿し、必ず「${BRAND_REVIEW_HASHTAG}」のハッシュタグを付ける`,
         '② 郵送買取一覧ページより、買取申込いただいた注文の「申し込んだカードの内訳」画面をスクリーンショットし、投稿に添付',
-        `③ X投稿URLをTCG ROYAL公式LINEに送信: ${lineUrl}`,
+        `③ X投稿URLを${BRAND_LINE_ACCOUNT}に送信: ${lineUrl}`,
         '④ 確認後、クーポンコードをお送りいたします！',
         '',
         '簡単なご感想だけでも大歓迎です！',
-        '今後ともTCG ROYALをよろしくお願いいたします。',
+        `今後とも${BRAND_NAME}をよろしくお願いいたします。`,
         '',
-        'TCG ROYAL買取部',
+        BRAND_PURCHASE_DEPARTMENT,
       ].join('\n'),
     },
     {
@@ -451,7 +458,7 @@ export async function sendOrderSubmittedEmail(
 
   await sendEmail({
     to: toEmail,
-    subject: '【TCG Royal】買取申込を受け付けました',
+    subject: `【${BRAND_NAME}】買取申込を受け付けました`,
     html: orderSubmittedEmailHtml(order, {
       customerName: customerName(order),
       mypageUrl: mypageOrderUrl(order),
@@ -480,7 +487,7 @@ export async function sendStatusEmail(
   if (status === 'accepted') {
     await sendEmail({
       to: toEmail,
-      subject: '【TCG Royal】お申し込み内容を確認・承認しました',
+      subject: `【${BRAND_NAME}】お申し込み内容を確認・承認しました`,
       html: acceptedEmailHtml(order, {
         customerName: customerName(order),
         mypageUrl: mypageOrderUrl(order),
@@ -495,7 +502,7 @@ export async function sendStatusEmail(
   } else if (status === 'pending_approval') {
     await sendEmail({
       to: toEmail,
-      subject: '【TCG Royal】査定結果のご確認・ご承認のお願い',
+      subject: `【${BRAND_NAME}】査定結果のご確認・ご承認のお願い`,
       html: pendingApprovalEmailHtml(order, {
         customerName: customerName(order),
         mypageUrl: mypageOrderUrl(order),
@@ -525,7 +532,7 @@ export async function sendStatusEmail(
   } else if (status === 'cancelled') {
     await sendEmail({
       to: toEmail,
-      subject: '【TCG Royal】買取申し込みのキャンセルを受け付けました',
+      subject: `【${BRAND_NAME}】買取申し込みのキャンセルを受け付けました`,
       html: cancelledEmailHtml(order, {
         customerName: customerName(order),
         mypageUrl: mypageOrderUrl(order),

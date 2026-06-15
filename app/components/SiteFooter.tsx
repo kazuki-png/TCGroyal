@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { BRAND_NAME } from '@/lib/brand'
 
 export function SiteFooter() {
   return (
@@ -31,7 +32,7 @@ export function SiteFooter() {
           </a>
         </nav>
         <p className="shrink-0 text-[10px] font-semibold text-[#5d543f]">
-          © 2026 TCG Royal All Rights Reserved.
+          © 2026 {BRAND_NAME} All Rights Reserved.
         </p>
       </div>
     </footer>

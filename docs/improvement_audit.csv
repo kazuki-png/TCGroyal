@@ -42,7 +42,7 @@
 "システムの改善点","中","APIエラーハンドリング","一部の非同期送信は失敗を握りつぶしている","PVやメールなどの不具合が利用者には影響しない一方で運用者が気付きにくい","ユーザー非表示のままVercel LogsやSupabaseログに構造化エラーを残す","app/components/PageViewTracker.tsx; lib/email/send.ts"
 "その他","高","本番リンク未確定","LINE査定・オンラインストア・買取の流れの正式URLが未確定","実装だけでは完了できない外部依存が残っている","公開前チェックリストに正式URL設定を入れる","app/page.tsx; app/cart/CartForm.tsx"
 "その他","高","プライバシー・法務","PV計測と本人確認画像と銀行情報を扱う","プライバシーポリシーと社内運用ルールが実装と一致していないとリスクが高い","取得項目・利用目的・保持期間・削除依頼対応を文書化する","app/api/page-view/route.ts; supabase/migrations/001_init.sql"
-"その他","中","ドキュメント","READMEがcreate-next-appの初期文面のまま残っている","開発者や運用者がセットアップ・管理者作成・Supabase移行手順を追いにくい","READMEをTCG Royal用に更新し.env・migration・admin作成・Vercel設定を明記する","README.md; .env.example; supabase/migrations"
+"その他","中","ドキュメント","READMEがcreate-next-appの初期文面のまま残っている","開発者や運用者がセットアップ・管理者作成・Supabase移行手順を追いにくい","READMEをTCG ROYAL用に更新し.env・migration・admin作成・Vercel設定を明記する","README.md; .env.example; supabase/migrations"
 "その他","中","運用監視","CSV取込や注文作成やステータス変更の運用監視が明示されていない","本番障害時にどこで失敗したか追いにくい","重要操作に構造化ログと管理画面の失敗履歴を追加する","app/api/admin/cards/import/route.ts; app/actions/orders.ts; app/admin/(protected)/orders/actions.ts"
 "その他","中","アクセシビリティ","アイコンボタンやカルーセルやモーダルが多い","キーボード操作とスクリーンリーダーで使いづらい箇所が出やすい","aria-label・focus trap・Esc close・autoplay pauseを全モーダルとカルーセルで確認する","app/components/SiteHeader.tsx; app/components/HomeBannerCarousel.tsx; app/admin/(protected)/cards/CardsAdminClient.tsx"
 "その他","低","SEO・SNS表示","メタデータやOG表示の作り込みは限定的に見える","共有時の見え方や検索流入で損をする可能性がある","トップ・カート買取・ログイン周辺のtitle description og:imageを整備する","app/layout.tsx; app/page.tsx"

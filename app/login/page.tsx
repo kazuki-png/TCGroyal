@@ -3,6 +3,7 @@
 import { Suspense, useActionState, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { BRAND_NAME } from '@/lib/brand'
 import { SiteFooter } from '@/app/components/SiteFooter'
 import { SiteHeader } from '@/app/components/SiteHeader'
 import { loginAction } from './actions'
@@ -97,7 +98,7 @@ export default function LoginPage() {
             Login
           </p>
           <h1 className="mt-3 text-center text-2xl font-black leading-snug text-[#f6f0dc]">
-            TCG ROYALのアカウントを
+            {BRAND_NAME}のアカウントを
             <br />
             お持ちの方
           </h1>
@@ -174,7 +175,7 @@ export default function LoginPage() {
           </div>
 
           <h2 className="text-center text-xl font-black leading-snug text-[#f6f0dc]">
-            TCG ROYALのアカウントを
+            {BRAND_NAME}のアカウントを
             <br />
             お持ちではない方
           </h2>

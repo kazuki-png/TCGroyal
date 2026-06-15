@@ -1,4 +1,4 @@
--- TCG Royal cart dummy cards
+-- TCG ROYAL cart dummy cards
 -- Supabase SQL Editor or psql で必要な時だけ実行してください。
 -- 同じ name/category/card_number/grade の行は重複投入しません。
 

@@ -325,7 +325,7 @@ export default async function AdminDashboardPage({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.22em] text-[#c9a52e]">
-              TCG Royal Admin
+              TCG ROYAL Admin
             </p>
             <h1 className="mt-2 text-3xl font-black tracking-normal text-white md:text-4xl">
               ダッシュボード

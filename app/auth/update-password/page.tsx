@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { BRAND_NAME } from '@/lib/brand'
 import { SiteFooter } from '@/app/components/SiteFooter'
 import { SiteHeader } from '@/app/components/SiteHeader'
 import { UpdatePasswordForm } from './UpdatePasswordForm'
@@ -25,7 +26,7 @@ export default async function UpdatePasswordPage() {
             <h1 className="text-2xl font-bold tracking-tight text-white">
               新しいパスワードの設定
             </h1>
-            <p className="mt-2 text-zinc-400">TCG Royal</p>
+            <p className="mt-2 text-zinc-400">{BRAND_NAME}</p>
           </div>
 
           <UpdatePasswordForm />

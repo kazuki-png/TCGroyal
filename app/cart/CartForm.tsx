@@ -62,7 +62,7 @@ const SHIPPING_NOTE_SECTIONS = [
   {
     title: '発送方法について',
     paragraphs: [
-      '送料はTCG Royalが負担しますので、必ず着払いにて発送をお願いいたします。',
+      '送料はTCG ROYALが負担しますので、必ず着払いにて発送をお願いいたします。',
       'なお、配送業者の指定はございません。',
     ],
   },

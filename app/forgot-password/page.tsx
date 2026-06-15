@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react'
 import Link from 'next/link'
+import { BRAND_NAME } from '@/lib/brand'
 import { SiteFooter } from '@/app/components/SiteFooter'
 import { SiteHeader } from '@/app/components/SiteHeader'
 import { forgotPasswordAction } from './actions'
@@ -26,7 +27,7 @@ export default function ForgotPasswordPage() {
           <h1 className="text-2xl font-bold tracking-tight text-white">
             パスワードのリセット
           </h1>
-          <p className="mt-2 text-zinc-400">TCG Royal</p>
+          <p className="mt-2 text-zinc-400">{BRAND_NAME}</p>
         </div>
 
         <div className="rounded-2xl bg-zinc-800 border border-zinc-700 p-8">

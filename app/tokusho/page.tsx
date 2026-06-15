@@ -1,7 +1,7 @@
 import { LegalPage } from '@/app/components/LegalPage'
 
 export const metadata = {
-  title: '特定商取引法に基づく表記 | TCG Royal',
+  title: '特定商取引法に基づく表記 | TCG ROYAL',
 }
 
 export default function TokushoPage() {
@@ -19,7 +19,7 @@ export default function TokushoPage() {
         },
         {
           title: '所在地',
-          body: 'TCG Royal 〒106-0032 東京都港区六本木4-2-14 六本木三河台スクエアビル3F',
+          body: 'TCG ROYAL 〒106-0032 東京都港区六本木4-2-14 六本木三河台スクエアビル3F',
         },
         {
           title: '電話番号',

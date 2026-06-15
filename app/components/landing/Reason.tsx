@@ -1,5 +1,6 @@
 ﻿import Image from "next/image";
 import type { Reason as ReasonItem, ReasonIcon } from "@/lib/landing/types";
+import { BRAND_NAME } from "@/lib/brand";
 
 type ReasonProps = {
   reasons: ReasonItem[];
@@ -108,7 +109,7 @@ export function Reason({ reasons }: ReasonProps) {
           id="reasons-heading"
           className="relative z-10 font-serif text-[3.6rem] font-bold leading-[1] text-center text-white max-md:text-[3.3rem] max-md:leading-[1.2] max-[450px]:text-[2.6rem]"
         >
-          TCG ROYAL郵送買取が選ばれる<br />
+          {BRAND_NAME}郵送買取が選ばれる<br />
           <span className="text-[6rem] leading-[1] text-gold title-gradient max-md:text-[4.2rem] max-[450px]:text-[3.6rem]">5</span>つの理由
         </h2>
 

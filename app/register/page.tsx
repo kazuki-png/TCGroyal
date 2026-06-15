@@ -3,7 +3,7 @@ import { SiteHeader } from '@/app/components/SiteHeader'
 import { RegisterForm } from '@/components/auth/RegisterForm'
 
 export const metadata = {
-  title: 'TCG Royal',
+  title: 'TCG ROYAL',
 }
 
 function safeNextPath(value: string | string[] | undefined) {

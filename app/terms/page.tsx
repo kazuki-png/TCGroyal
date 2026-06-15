@@ -78,7 +78,7 @@ const paragraphs = [
 ] as const
 
 export const metadata = {
-  title: "利用規約 | TCG Royal",
+  title: "利用規約 | TCG ROYAL",
 }
 
 export default function Page() {

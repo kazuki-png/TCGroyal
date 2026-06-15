@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import { BRAND_NAME } from '@/lib/brand'
 import { LoginLink } from './LoginLink'
 import { SiteLogo } from './SiteLogo'
 
@@ -56,7 +57,7 @@ export function SiteHeader({
         className={`mx-auto flex ${maxWidthClassName} items-center justify-between gap-4`}
       >
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <Link href="/" aria-label="TCG Royal" className="inline-flex shrink-0">
+          <Link href="/" aria-label={BRAND_NAME} className="inline-flex shrink-0">
             <SiteLogo priority={priorityLogo} />
           </Link>
           {logoAdjacent}

@@ -44,7 +44,7 @@ const paragraphs = [
 ] as const
 
 export const metadata = {
-  title: "プライバシーポリシー | TCG Royal",
+  title: "プライバシーポリシー | TCG ROYAL",
 }
 
 export default function Page() {

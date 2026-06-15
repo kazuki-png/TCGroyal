@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# TCG Royal - 郵送買取受付サービス
+# TCG ROYAL - 郵送買取受付サービス
 
 ## 技術スタック
 - Next.js 14 (App Router) + TypeScript + Tailwind CSS + shadcn/ui

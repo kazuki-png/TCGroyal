@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TouchEvent } from 'react'
+import { BRAND_NAME, BRAND_PURCHASE_SERVICE } from '@/lib/brand'
 import type { HomepageBanner } from '@/lib/types'
 
 export function HomeBannerCarousel({
@@ -55,9 +56,9 @@ export function HomeBannerCarousel({
     return (
       <section className="w-full border-b border-zinc-200 bg-white px-6 py-10 text-center sm:py-14 dark:border-[#2d2a20] dark:bg-[#111110]">
         <p className="text-2xl font-semibold tracking-wide text-zinc-900 sm:text-3xl dark:font-serif dark:tracking-widest dark:text-[#c9a52e]">
-          TCG Royal
+          {BRAND_NAME}
         </p>
-        <p className="mt-2 text-sm text-zinc-600 sm:text-base dark:text-[#7a6e55]">PSA鑑定カード 郵送買取</p>
+        <p className="mt-2 text-sm text-zinc-600 sm:text-base dark:text-[#7a6e55]">{BRAND_PURCHASE_SERVICE}</p>
       </section>
     )
   }
@@ -126,7 +127,7 @@ export function HomeBannerCarousel({
         >
           <Image
             src={banner.image_url}
-            alt={banner.title || 'TCG Royal banner'}
+            alt={banner.title || `${BRAND_NAME} banner`}
             fill
             priority={normalizedIndex === 0}
             sizes="100vw"

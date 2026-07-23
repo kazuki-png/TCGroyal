@@ -90,14 +90,14 @@ const SHIPPING_NOTE_SECTIONS = [
       '減額対象外としている商品については、原則として査定額の変更はございません。',
       'ただし、著しい傷・破損・状態不良など、当社基準を満たさない場合には減額となる可能性がございます。',
       'その他の商品につきましては、査定結果をご確認いただいたうえで、商品ごとに「買取承認」または「返却」をご選択いただけます。',
-      'なお、返却をご希望の場合の返送料も当社が負担いたします。',
+      'なお、返却をご希望の場合の商品の返送料はお客様負担（着払い）とさせていただきます。',
     ],
   },
   {
     title: 'キャンセルについて',
     paragraphs: [
       'キャンセルは振り込み完了まで、どの段階でも可能となっております。',
-      'キャンセル時の返送料も当社が負担いたします。',
+      'キャンセル時の商品の返送料はお客様負担（着払い）とさせていただきます。',
     ],
   },
   {
@@ -131,7 +131,8 @@ const PURCHASE_FLOW_STEPS = [
 const PURCHASE_FLOW_FAQS = [
   {
     question: '発送後のキャンセルは可能ですか？',
-    answer: 'はい、可能です。返送料も無料となっております。',
+    answer:
+      'はい、可能です。ただし、商品発送後にキャンセルされる場合、商品の返送料はお客様負担（着払い）とさせていただきます。',
   },
   {
     question: '本査定・振込までにどのくらい時間がかかりますか？',
@@ -1992,6 +1993,33 @@ export function CartForm({
       <HomeBannerCarousel banners={banners} fallback="cart-message" />
 
       <div className="space-y-5 py-5" ref={listTopRef}>
+        {!hasRegisteredCards && (
+          <>
+            <button
+              type="button"
+              aria-expanded={purchaseFlowOpen}
+              aria-controls="purchase-flow"
+              onClick={() => {
+                setPurchaseFlowOpen((current) => !current)
+                if (!purchaseFlowOpen) {
+                  window.requestAnimationFrame(() => {
+                    document
+                      .getElementById('purchase-flow')
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  })
+                }
+              }}
+              className="inline-flex h-10 items-center rounded-full border border-[#2d2a20] bg-[#1c1b18] px-4 text-sm font-black text-[#c9a52e] underline underline-offset-2 transition-colors hover:border-[#c9a52e]/50 hover:bg-[#252420]"
+            >
+              買取の流れについて
+            </button>
+
+            {purchaseFlowOpen && (
+              <PurchaseFlowPanel onClose={() => setPurchaseFlowOpen(false)} />
+            )}
+          </>
+        )}
+
         {hasRegisteredCards && (
           <>
             <div className="grid gap-3 md:grid-cols-[auto_auto_1fr] md:items-center">

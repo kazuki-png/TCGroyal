@@ -1993,6 +1993,33 @@ export function CartForm({
       <HomeBannerCarousel banners={banners} fallback="cart-message" />
 
       <div className="space-y-5 py-5" ref={listTopRef}>
+        {!hasRegisteredCards && (
+          <>
+            <button
+              type="button"
+              aria-expanded={purchaseFlowOpen}
+              aria-controls="purchase-flow"
+              onClick={() => {
+                setPurchaseFlowOpen((current) => !current)
+                if (!purchaseFlowOpen) {
+                  window.requestAnimationFrame(() => {
+                    document
+                      .getElementById('purchase-flow')
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  })
+                }
+              }}
+              className="inline-flex h-10 items-center rounded-full border border-[#2d2a20] bg-[#1c1b18] px-4 text-sm font-black text-[#c9a52e] underline underline-offset-2 transition-colors hover:border-[#c9a52e]/50 hover:bg-[#252420]"
+            >
+              買取の流れについて
+            </button>
+
+            {purchaseFlowOpen && (
+              <PurchaseFlowPanel onClose={() => setPurchaseFlowOpen(false)} />
+            )}
+          </>
+        )}
+
         {hasRegisteredCards && (
           <>
             <div className="grid gap-3 md:grid-cols-[auto_auto_1fr] md:items-center">

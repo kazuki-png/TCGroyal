@@ -36,7 +36,9 @@ const CATEGORY_LABELS: Record<CardCategory, string> = {
 
 export type AssessmentEditorItem = {
   id: string
+  card_id?: string | null
   card_name: string
+  card_number?: string | null
   item_type?: 'card' | 'unlisted'
   grade: string
   quantity: number
@@ -839,6 +841,7 @@ export function AssessmentEditor({
               <thead>
                 <tr className="border-b border-zinc-700 text-left text-sm text-zinc-400">
                   <th className="pb-2 font-medium">カード名</th>
+                  <th className="pb-2 font-medium">型番</th>
                   <th className="pb-2 font-medium">グレード</th>
                   <th className="pb-2 text-right font-medium">数量</th>
                   <th className="pb-2 text-right font-medium">申込時単価</th>
@@ -853,6 +856,9 @@ export function AssessmentEditor({
                   <tr key={item.id} className="border-b border-zinc-800 align-top">
                     <td className="py-3 pr-3 text-sm text-white">
                       <span className="font-bold">{item.card_name}</span>
+                    </td>
+                    <td className="py-3 pr-3 text-sm text-zinc-400">
+                      {item.card_number ?? '-'}
                     </td>
                     <td className="py-3 pr-3 text-sm text-zinc-400">{item.grade}</td>
                     <td className="py-3 pr-3 text-right text-sm text-white">

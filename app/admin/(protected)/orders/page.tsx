@@ -75,6 +75,12 @@ export default async function AdminOrdersPage({
     : { data: [] }
 
   const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile as ProfileRow]))
+  const cardNumberById = new Map(
+    ((cardOptions ?? []) as AssessmentCardOption[]).map((card) => [
+      card.id,
+      card.card_number,
+    ])
+  )
   const rows: AdminOrderRow[] = orderRows.map((order) => ({
     id: order.id,
     orderNumber: displayOrderNumber(order),
@@ -93,7 +99,10 @@ export default async function AdminOrdersPage({
     bankBranch: order.bank_branch ?? '',
     bankAccountNo: order.bank_account_no ?? '',
     bankHolder: order.bank_holder ?? '',
-    items: order.order_items ?? [],
+    items: (order.order_items ?? []).map((item) => ({
+      ...item,
+      card_number: item.card_id ? cardNumberById.get(item.card_id) ?? null : null,
+    })),
   }))
 
   return (

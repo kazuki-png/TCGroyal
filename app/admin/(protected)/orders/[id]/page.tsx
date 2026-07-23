@@ -68,7 +68,18 @@ export default async function AdminOrderDetailPage({
   const currentStatus = order.status as OrderStatus
   const nextStatuses = orderActionStatuses(currentStatus)
   const previousStatuses = previousOrderStatuses(currentStatus)
-  const orderItems = (order.order_items ?? []) as AssessmentEditorItem[]
+  const cardNumberById = new Map(
+    ((cardOptions ?? []) as AssessmentCardOption[]).map((card) => [
+      card.id,
+      card.card_number,
+    ])
+  )
+  const orderItems = ((order.order_items ?? []) as AssessmentEditorItem[]).map(
+    (item) => ({
+      ...item,
+      card_number: item.card_id ? cardNumberById.get(item.card_id) ?? null : null,
+    })
+  )
 
   return (
     <div>

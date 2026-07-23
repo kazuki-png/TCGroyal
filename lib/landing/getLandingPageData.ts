@@ -205,7 +205,7 @@ export async function getLandingPageData(): Promise<LandingPageData> {
         step: 4,
         title: "承認 / キャンセル",
         description:
-          "査定結果をご連絡いたします。金額にご納得いただければ承認、万が一合わない場合はキャンセルも無料です。",
+          "査定結果をご連絡いたします。金額にご納得いただければ承認、キャンセルも可能です。ただし、キャンセル時の商品の返送料はお客様負担（着払い）とさせていただきます。",
         icon: "approve",
       },
       {
@@ -218,7 +218,8 @@ export async function getLandingPageData(): Promise<LandingPageData> {
     faq: [
       {
         question: "キャンセルは可能ですか？",
-        answer: "はい、可能です。返送料も無料となっております。",
+        answer:
+          "はい、可能です。ただし、キャンセル時の商品の返送料はお客様負担（着払い）とさせていただきます。",
       },
       {
         question: "減額されることはありますか？",

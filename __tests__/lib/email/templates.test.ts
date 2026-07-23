@@ -5,6 +5,7 @@ import {
   adminNotificationEmailHtml,
   pendingApprovalEmailHtml,
   completedEmailHtml,
+  cancelledEmailHtml,
 } from '@/lib/email/templates'
 import type { OrderWithItems } from '@/lib/types'
 
@@ -89,6 +90,17 @@ describe('completedEmailHtml', () => {
     const html = completedEmailHtml(mockOrder)
     expect(html).toContain('20260521-01')
     expect(html).toContain('50,000')
+  })
+})
+
+describe('cancelledEmailHtml', () => {
+  it('案内する返送料がお客様負担である', () => {
+    const html = cancelledEmailHtml(mockOrder)
+
+    expect(html).toContain(
+      'キャンセル時の商品の返送料はお客様負担とさせていただいております。',
+    )
+    expect(html).not.toContain('返送料につきましても、TCG ROYALにて負担')
   })
 })
 

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import {
   checkRequestRateLimit,
   rateLimitResponse,
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   const q = searchParams.get('q')?.trim() ?? ''
   const category = searchParams.get('category')
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   let query = supabase
     .from('cards')

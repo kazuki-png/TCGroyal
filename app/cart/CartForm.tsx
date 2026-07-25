@@ -184,6 +184,7 @@ const SORT_LABEL: Record<SortKey, string> = {
 
 const UNLISTED_CARD: Card = {
   id: 'unlisted-card-request',
+  public_uid: 'unlisted-card-request',
   card_number: null,
   name: 'まとめて査定依頼',
   category: 'pokemon',
@@ -191,6 +192,7 @@ const UNLISTED_CARD: Card = {
   buy_price: 0,
   image_url: null,
   buy_price_updated_at: null,
+  is_available_for_collectors: false,
   created_at: '',
   updated_at: '',
 }

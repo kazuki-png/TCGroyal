@@ -10,7 +10,12 @@ import {
   isCardVisibleToUsers,
   type CardUserVisibility,
 } from '@/lib/cards/visibility'
-import { createCard, deleteCard, updateCard } from './actions'
+import {
+  createCard,
+  deleteCard,
+  setCollectorsAvailability,
+  updateCard,
+} from './actions'
 
 type CategoryFilter = 'all' | 'pokemon' | 'onepiece'
 export type CardSortKey = 'created_at' | 'name' | 'card_number' | 'grade' | 'buy_price' | 'buy_price_updated_at'
@@ -254,6 +259,7 @@ export function CardsAdminClient({
   const [preview, setPreview] = useState<Card | null>(null)
   const [pageInput, setPageInput] = useState(String(page))
   const [csvImport, setCsvImport] = useState<CsvImportState>(() => initialCsvImportState())
+  const [copyFeedback, setCopyFeedback] = useState<string>()
 
   useEffect(() => {
     setPageInput(String(page))
@@ -414,6 +420,15 @@ export function CardsAdminClient({
     if (nextPage !== page) router.push(hrefFor({ page: nextPage }))
   }
 
+  const copyCollectorsUid = async (publicUid: string) => {
+    try {
+      await navigator.clipboard.writeText(publicUid)
+      setCopyFeedback('Copied')
+    } catch {
+      setCopyFeedback('コピーに失敗しました')
+    }
+  }
+
   return (
     <div className="min-w-0 space-y-5">
       <section className="bg-zinc-950 px-5 py-5 text-white">
@@ -458,6 +473,11 @@ export function CardsAdminClient({
         {error && (
           <p className="mt-4 rounded-lg border border-red-900 bg-red-950/50 px-3 py-2 text-sm font-black text-red-200">
             {error}
+          </p>
+        )}
+        {copyFeedback && (
+          <p className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-full border border-emerald-700 bg-emerald-950 px-4 py-2 text-sm font-black text-emerald-100 shadow-xl">
+            {copyFeedback}
           </p>
         )}
 
@@ -563,7 +583,7 @@ export function CardsAdminClient({
       </form>
 
       <div className="w-full max-w-full overflow-x-auto overscroll-x-contain rounded-2xl border border-zinc-800 bg-zinc-950 pb-2 text-white">
-        <table className="w-full min-w-[1320px] table-fixed">
+        <table className="w-full min-w-[1560px] table-fixed">
           <colgroup>
             <col className="w-[120px]" />
             <col className="w-[340px]" />
@@ -573,6 +593,7 @@ export function CardsAdminClient({
             <col className="w-[150px]" />
             <col className="w-[170px]" />
             <col className="w-[150px]" />
+            <col className="w-[240px]" />
             <col className="w-[120px]" />
           </colgroup>
           <thead className="bg-[#222221]">
@@ -605,6 +626,7 @@ export function CardsAdminClient({
                 </Link>
               </th>
               <th className="whitespace-nowrap px-4 py-3 font-black">ユーザー表示</th>
+              <th className="whitespace-nowrap px-4 py-3 font-black">Collectors連携</th>
               <th className="whitespace-nowrap px-4 py-3 text-right font-black">操作</th>
             </tr>
           </thead>
@@ -656,6 +678,37 @@ export function CardsAdminClient({
                     >
                       {visibleToUsers ? '表示中' : cardHiddenReason(card)}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <form action={setCollectorsAvailability}>
+                        <input type="hidden" name="card_id" value={card.id} />
+                        <input
+                          type="hidden"
+                          name="is_available_for_collectors"
+                          value={String(!card.is_available_for_collectors)}
+                        />
+                        <button
+                          type="submit"
+                          className={`h-8 rounded border px-3 text-xs font-black transition-colors ${
+                            card.is_available_for_collectors
+                              ? 'border-emerald-700 bg-emerald-950/50 text-emerald-200 hover:bg-emerald-950'
+                              : 'border-zinc-700 text-zinc-400 hover:bg-zinc-900'
+                          }`}
+                        >
+                          {card.is_available_for_collectors
+                            ? '公開中'
+                            : '非公開'}
+                        </button>
+                      </form>
+                      <button
+                        type="button"
+                        onClick={() => copyCollectorsUid(card.public_uid)}
+                        className="h-8 rounded border border-zinc-600 px-3 text-xs font-black text-zinc-200 hover:bg-zinc-900"
+                      >
+                        Copy Collectors UID
+                      </button>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">

@@ -82,6 +82,7 @@ export function canEditOrderAssessment(
 
 export interface Card {
   id: string
+  public_uid: string
   card_number: string | null
   name: string
   category: 'pokemon' | 'onepiece'
@@ -89,6 +90,7 @@ export interface Card {
   buy_price: number
   image_url: string | null
   buy_price_updated_at: string | null
+  is_available_for_collectors: boolean
   created_at: string
   updated_at: string
 }

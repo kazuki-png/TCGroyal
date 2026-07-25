@@ -12,8 +12,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 ALTER TABLE public.cards
-  ADD COLUMN IF NOT EXISTS public_uid uuid,
-  ADD COLUMN IF NOT EXISTS is_available_for_collectors boolean NOT NULL DEFAULT false;
+  ADD COLUMN IF NOT EXISTS public_uid uuid;
 
 UPDATE public.cards
 SET public_uid = gen_random_uuid()
@@ -28,8 +27,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS cards_public_uid_key
 
 COMMENT ON COLUMN public.cards.public_uid IS
   'Stable external identifier for Collectors Republic price lookups.';
-COMMENT ON COLUMN public.cards.is_available_for_collectors IS
-  'Explicit opt-in for exposing a card price through Collectors Republic RPCs.';
 
 -- This is a group role. Provision a separate LOGIN role manually for Collectors
 -- Republic, grant it this role, and keep that connection string server-side.
@@ -66,9 +63,6 @@ AS $$
     c.buy_price_updated_at
   FROM public.cards AS c
   WHERE c.public_uid::text = trim(input_public_uid)
-    AND c.is_available_for_collectors = true
-    AND c.buy_price > 0
-    AND c.buy_price_updated_at IS NOT NULL
   LIMIT 1;
 $$;
 
@@ -97,9 +91,6 @@ AS $$
     c.buy_price_updated_at
   FROM public.cards AS c
   WHERE c.public_uid::text = ANY(input_public_uids)
-    AND c.is_available_for_collectors = true
-    AND c.buy_price > 0
-    AND c.buy_price_updated_at IS NOT NULL
   ORDER BY array_position(input_public_uids, c.public_uid::text);
 $$;
 

@@ -192,7 +192,6 @@ const UNLISTED_CARD: Card = {
   buy_price: 0,
   image_url: null,
   buy_price_updated_at: null,
-  is_available_for_collectors: false,
   created_at: '',
   updated_at: '',
 }

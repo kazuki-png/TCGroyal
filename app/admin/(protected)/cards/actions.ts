@@ -270,26 +270,6 @@ export async function updateCard(formData: FormData) {
   redirectCards('saved')
 }
 
-export async function setCollectorsAvailability(formData: FormData) {
-  await requireAdmin()
-  const cardId = text(formData, 'card_id')
-  if (!cardId) redirectCards('error', '更新するカードが見つかりません')
-
-  const isAvailable = text(formData, 'is_available_for_collectors') === 'true'
-  const admin = createAdminClient()
-  const { error } = await admin
-    .from('cards')
-    .update({ is_available_for_collectors: isAvailable })
-    .eq('id', cardId)
-
-  if (error) {
-    redirectCards('error', `Collectors公開設定の更新に失敗しました: ${error.message}`)
-  }
-
-  revalidatePath('/admin/cards')
-  redirectCards('saved')
-}
-
 export async function deleteCard(formData: FormData) {
   await requireAdmin()
   const cardId = text(formData, 'card_id')

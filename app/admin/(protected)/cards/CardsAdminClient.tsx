@@ -684,7 +684,7 @@ export function CardsAdminClient({
                       onClick={() => copyCollectorsUid(card.public_uid)}
                       className="h-8 whitespace-nowrap rounded border border-zinc-600 px-3 text-xs font-black text-zinc-200 hover:bg-zinc-900"
                     >
-                      Copy Collectors UID
+                      Copy UID
                     </button>
                   </td>
                   <td className="px-4 py-3">

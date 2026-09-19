@@ -82,6 +82,7 @@ export function canEditOrderAssessment(
 
 export interface Card {
   id: string
+  public_uid: string
   card_number: string | null
   name: string
   category: 'pokemon' | 'onepiece'

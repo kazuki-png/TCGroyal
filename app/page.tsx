@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { visiblePriceUpdatedAfter } from '@/lib/cards/visibility'
 import { HomeBannerCarousel } from './components/HomeBannerCarousel'
 import { HomeCardSection } from './components/HomeCardSection'
@@ -94,6 +95,7 @@ export default async function HomePage() {
 
     user = currentUser
 
+    const admin = createAdminClient()
     const [{ data: bannerRows }, { data: cardRows }] = await Promise.all([
       supabase
         .from('homepage_banners')
@@ -101,9 +103,9 @@ export default async function HomePage() {
         .eq('is_active', true)
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false }),
-      supabase
+      admin
         .from('cards')
-        .select('*')
+        .select('id,name,category,card_number,grade,buy_price,image_url,buy_price_updated_at,created_at,updated_at')
         .gte('buy_price_updated_at', visiblePriceUpdatedAfter())
         .order('buy_price', { ascending: false })
         .limit(32),

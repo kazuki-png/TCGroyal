@@ -184,6 +184,7 @@ const SORT_LABEL: Record<SortKey, string> = {
 
 const UNLISTED_CARD: Card = {
   id: 'unlisted-card-request',
+  public_uid: 'unlisted-card-request',
   card_number: null,
   name: 'まとめて査定依頼',
   category: 'pokemon',

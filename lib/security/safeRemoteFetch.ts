@@ -1,11 +1,21 @@
+import { request as httpRequest } from 'node:http'
+import { request as httpsRequest } from 'node:https'
 import { lookup } from 'node:dns/promises'
-import { isIP } from 'node:net'
+import { BlockList, isIP } from 'node:net'
 
 const DEFAULT_TIMEOUT_MS = 15_000
 const DEFAULT_MAX_REDIRECTS = 3
+const globalIpv6 = new BlockList()
+globalIpv6.addSubnet('2000::', 3, 'ipv6')
+const specialIpv6 = new BlockList()
+specialIpv6.addSubnet('2001::', 23, 'ipv6')
+specialIpv6.addSubnet('2001:db8::', 32, 'ipv6')
+specialIpv6.addSubnet('2002::', 16, 'ipv6')
+specialIpv6.addSubnet('3fff::', 20, 'ipv6')
 
 type FetchPublicUrlOptions = RequestInit & {
   maxRedirects?: number
+  maxBytes?: number
   timeoutMs?: number
 }
 
@@ -32,13 +42,6 @@ function isIpv4InCidr(address: string, base: string, prefixLength: number) {
 
 export function isBlockedIpAddress(address: string) {
   const normalized = address.toLowerCase()
-  const mappedIpv4 = normalized.startsWith('::ffff:')
-    ? normalized.slice('::ffff:'.length)
-    : null
-
-  if (mappedIpv4 && isIP(mappedIpv4) === 4) {
-    return isBlockedIpAddress(mappedIpv4)
-  }
 
   if (isIP(normalized) === 4) {
     return [
@@ -62,18 +65,9 @@ export function isBlockedIpAddress(address: string) {
   }
 
   if (isIP(normalized) === 6) {
-    return (
-      normalized === '::' ||
-      normalized === '::1' ||
-      normalized.startsWith('fc') ||
-      normalized.startsWith('fd') ||
-      normalized.startsWith('fe8') ||
-      normalized.startsWith('fe9') ||
-      normalized.startsWith('fea') ||
-      normalized.startsWith('feb') ||
-      normalized.startsWith('ff') ||
-      normalized.startsWith('2001:db8:')
-    )
+    // Restrict to global unicast, excluding transition/documentation ranges.
+    // BlockList normalizes expanded IPv6 and hexadecimal IPv4-mapped forms.
+    return !globalIpv6.check(normalized, 'ipv6') || specialIpv6.check(normalized, 'ipv6')
   }
 
   return true
@@ -105,7 +99,7 @@ export function isBlockedHostname(hostname: string) {
   )
 }
 
-export async function assertPublicRemoteUrl(url: URL) {
+export async function assertPublicRemoteUrl(url: URL, timeoutMs = DEFAULT_TIMEOUT_MS) {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     throw new Error('Only HTTP(S) URLs are allowed')
   }
@@ -118,7 +112,11 @@ export async function assertPublicRemoteUrl(url: URL) {
     throw new Error('Private or internal hostnames are not allowed')
   }
 
-  const records = await lookup(url.hostname, { all: true, verbatim: true })
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const records = await Promise.race([
+    lookup(url.hostname, { all: true, verbatim: true }),
+    new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('DNS resolution timeout')), Math.max(1, timeoutMs)) }),
+  ]).finally(() => clearTimeout(timer))
   if (records.length === 0) {
     throw new Error('URL hostname could not be resolved')
   }
@@ -126,50 +124,44 @@ export async function assertPublicRemoteUrl(url: URL) {
   if (records.some((record) => isBlockedIpAddress(record.address))) {
     throw new Error('Private or internal IP addresses are not allowed')
   }
+  return records[0]
 }
 
-export async function fetchPublicRemoteUrl(
-  initialUrl: URL,
-  options: FetchPublicUrlOptions = {}
-) {
-  const {
-    maxRedirects = DEFAULT_MAX_REDIRECTS,
-    timeoutMs = DEFAULT_TIMEOUT_MS,
-    ...init
-  } = options
+export async function fetchPublicRemoteUrl(initialUrl: URL, options: FetchPublicUrlOptions = {}) {
+  const { maxRedirects = DEFAULT_MAX_REDIRECTS, timeoutMs = DEFAULT_TIMEOUT_MS, maxBytes = 5 * 1024 * 1024 } = options
   let url = initialUrl
-
-  for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
-    await assertPublicRemoteUrl(url)
-
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), timeoutMs)
-
-    try {
-      const response = await fetch(url, {
-        ...init,
-        redirect: 'manual',
-        signal: controller.signal,
+  const deadline = Date.now() + timeoutMs
+  for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount++) {
+    const address = await assertPublicRemoteUrl(url, deadline - Date.now())
+    const remaining = deadline - Date.now()
+    if (remaining <= 0) throw new Error('Remote image timeout')
+    // Connect to the validated address, while preserving TLS certificate validation and Host.
+    const response = await new Promise<Response>((resolve, reject) => {
+      const transport = url.protocol === 'https:' ? httpsRequest : httpRequest
+      const request = transport({ hostname: address.address, family: address.family, servername: url.hostname, port: url.port || (url.protocol === 'https:' ? 443 : 80), path: url.pathname + url.search, method: 'GET', headers: { ...Object.fromEntries(new Headers(options.headers).entries()), host: url.host } }, res => {
+        const chunks: Buffer[] = []
+        let bytes = 0
+        const length = Number(res.headers['content-length'])
+        if (Number.isFinite(length) && length > maxBytes) { request.destroy(new Error('Remote image too large')); res.destroy(); return }
+        res.on('data', (chunk: Buffer) => { bytes += chunk.length; if (bytes > maxBytes) { request.destroy(new Error('Remote image too large')); res.destroy() } else chunks.push(chunk) })
+        res.on('error', reject)
+        res.on('end', () => {
+          clearTimeout(timer)
+          const headers = new Headers()
+          for (const [key, value] of Object.entries(res.headers)) if (value !== undefined) headers.set(key, Array.isArray(value) ? value.join(', ') : value)
+          resolve(new Response([204, 205, 304].includes(res.statusCode ?? 200) ? null : new Uint8Array(Buffer.concat(chunks)), { status: res.statusCode ?? 502, headers }))
+        })
       })
-
-      if (
-        response.status >= 300 &&
-        response.status < 400 &&
-        response.headers.has('location')
-      ) {
-        if (redirectCount === maxRedirects) {
-          throw new Error('Too many redirects')
-        }
-
-        url = new URL(response.headers.get('location')!, url)
-        continue
-      }
-
-      return response
-    } finally {
-      clearTimeout(timeout)
+      const timer = setTimeout(() => request.destroy(new Error('Remote image timeout')), remaining)
+      request.on('error', error => { clearTimeout(timer); reject(error) })
+      request.end()
+    })
+    if (response.status >= 300 && response.status < 400 && response.headers.has('location')) {
+      if (redirectCount === maxRedirects) throw new Error('Too many redirects')
+      url = new URL(response.headers.get('location')!, url)
+      continue
     }
+    return response
   }
-
   throw new Error('Too many redirects')
 }

@@ -1,5 +1,8 @@
 'use server'
 
+import { logSafeError } from '@/lib/security/logging'
+
+
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -75,29 +78,6 @@ export async function submitAssessmentDecision(
     return { error: 'すべての商品について承認またはキャンセルを選択してください' }
   }
 
-  const now = new Date().toISOString()
-
-  for (const item of items) {
-    const decision = decisionMap.get(item.id)!
-    const { error } = await admin
-      .from('order_items')
-      .update({
-        customer_decision: decision,
-        customer_decided_at: now,
-      })
-      .eq('order_id', orderId)
-      .eq('id', item.id)
-
-    if (error) {
-      console.error('submitAssessmentDecision item update failed', error)
-      return { error: '査定結果の確定に失敗しました' }
-    }
-  }
-
-  const approvedItemsTotal = items.reduce((sum, item) => {
-    if (decisionMap.get(item.id) !== 'approved') return sum
-    return sum + item.quantity * (item.assessed_unit_price ?? item.unit_price)
-  }, 0)
   const hasCancelledItem = items.some(
     (item) => decisionMap.get(item.id) === 'cancelled'
   )
@@ -105,36 +85,8 @@ export async function submitAssessmentDecision(
     items.length > 0 &&
     items.every((item) => decisionMap.get(item.id) === 'cancelled')
 
-  const nextStatus: OrderStatus = allCancelled ? 'cancelled' : 'pending_transfer'
-  const couponAmount =
-    allCancelled || items.length === 0
-      ? 0
-      : Math.max(0, Number(order.coupon_amount ?? 0))
-  const finalTotal = approvedItemsTotal + couponAmount
-  const { error: orderError } = await admin
-    .from('orders')
-    .update({
-      status: nextStatus,
-      total_amount: finalTotal,
-    })
-    .eq('id', orderId)
-
-  if (orderError) {
-    console.error('submitAssessmentDecision order update failed', orderError)
-    return { error: '注文ステータスの更新に失敗しました' }
-  }
-
-  await admin.from('order_status_logs').insert({
-    order_id: orderId,
-    old_status: currentStatus,
-    new_status: nextStatus,
-    changed_by: user.id,
-    note: allCancelled
-      ? 'ユーザーが査定結果をすべてキャンセル'
-      : items.length === 0
-        ? 'ユーザーがカード0枚の査定結果を確認'
-        : 'ユーザーが査定結果を確定',
-  })
+  const { error: orderError } = await admin.rpc('decide_order_secure', { p_order_id: orderId, p_actor: user.id, p_decisions: decisions })
+  if (orderError) return { error: '注文が更新されました。再読み込みしてお試しください' }
 
   const notificationOrder = await loadOrderForNotification(
     admin,
@@ -154,7 +106,7 @@ export async function submitAssessmentDecision(
       })
 
       await sendStatusEmail(user.email, notificationOrder, 'cancelled').catch(
-        console.error
+        logSafeError
       )
     }
 
@@ -169,7 +121,7 @@ export async function submitAssessmentDecision(
     await sendAdminOrderNotification(
       kind,
       notificationOrder
-    ).catch(console.error)
+    ).catch(logSafeError)
   } else {
     logEmailDebug('submitAssessmentDecision-notification-order-missing', {
       orderId,
@@ -218,23 +170,8 @@ export async function cancelOrder(
   }
 
   const nextStatus: OrderStatus = 'cancelled'
-  const { error: updateError } = await admin
-    .from('orders')
-    .update({ status: nextStatus })
-    .eq('id', orderId)
-
-  if (updateError) {
-    console.error('cancelOrder order update failed', updateError)
-    return { error: 'キャンセル処理に失敗しました' }
-  }
-
-  await admin.from('order_status_logs').insert({
-    order_id: orderId,
-    old_status: currentStatus,
-    new_status: nextStatus,
-    changed_by: user.id,
-    note: 'ユーザーが申し込みをキャンセル',
-  })
+  const { error: updateError } = await admin.rpc('transition_order_secure', { p_order_id: orderId, p_expected: currentStatus, p_next: nextStatus, p_actor: user.id, p_note: 'ユーザーが申し込みをキャンセル' })
+  if (updateError) return { error: '注文が更新されました。再読み込みしてお試しください' }
 
   const notificationOrder = await loadOrderForNotification(
     admin,
@@ -252,7 +189,7 @@ export async function cancelOrder(
       })
 
       await sendStatusEmail(user.email, notificationOrder, nextStatus).catch(
-        console.error
+        logSafeError
       )
     } else {
       logEmailDebug('cancelOrder-user-email-skipped', {
@@ -264,7 +201,7 @@ export async function cancelOrder(
     }
 
     await sendAdminOrderNotification('cancellation', notificationOrder).catch(
-      console.error
+      logSafeError
     )
   } else {
     logEmailDebug('cancelOrder-notification-order-missing', {

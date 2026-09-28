@@ -1,5 +1,9 @@
 'use server'
 
+import { saveIdentityImage } from '@/lib/identity/documents'
+import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
+import { checkSharedRateLimit } from '@/lib/security/sharedRateLimit'
+
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -85,18 +89,15 @@ export async function updateCheckoutProfileAction(
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) redirect('/login')
+  if (!user || !user.email_confirmed_at) redirect('/login')
+  const ipLimit = await checkServerActionRateLimit('action:profile', { limit: 20, windowMs: 3600000 })
+  const userLimit = await checkSharedRateLimit('profile:user', user.id, { limit: 20, windowMs: 3600000 })
+  if (!ipLimit.allowed || !userLimit.allowed) return { error: '更新が多すぎます。時間をおいて再試行してください' }
 
   const errors = validateCheckoutProfile(formData)
   if (Object.keys(errors).length > 0) {
     return { errors }
   }
-
-  const { data: currentProfile } = await supabase
-    .from('profiles')
-    .select('id_image_url, identity_verified')
-    .eq('id', user.id)
-    .maybeSingle()
 
   const email = value(formData, 'email')
   if (email && email !== user.email) {
@@ -108,109 +109,18 @@ export async function updateCheckoutProfileAction(
     }
   }
 
-  let idImageUrl =
-    (currentProfile as { id_image_url?: string | null } | null)?.id_image_url ??
-    null
-  let identityVerified = Boolean(
-    (currentProfile as { identity_verified?: boolean | null } | null)
-      ?.identity_verified
-  )
-  const file = formData.get('id_image') as File | null
-
-  console.log('[KYC] file check — name:', file?.name ?? 'null', 'size:', file?.size ?? 'null', 'type:', file?.type ?? 'null')
-  console.log('[KYC] env check — supabaseUrl set:', Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL), 'serviceRoleKey set:', Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY))
-
-  if (file && file.size > 0) {
-    console.log('[KYC] entering upload block')
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-    const newPath = `${user.id}/id_image.${ext}`
-    const admin = createAdminClient()
-
-    // 拡張子が変わった場合、古いファイルを削除してストレージを清潔に保つ
-    if (idImageUrl && idImageUrl !== newPath) {
-      await admin.storage.from('identity-images').remove([idImageUrl])
-    }
-
-    const { error: uploadError } = await admin.storage
-      .from('identity-images')
-      .upload(newPath, Buffer.from(await file.arrayBuffer()), {
-        contentType: file.type || 'image/jpeg',
-        upsert: true,
-      })
-
-    console.log('[KYC] storage upload —', uploadError ? `error: ${uploadError.message}` : 'ok', 'path:', newPath)
-
-    if (uploadError) {
-      return {
-        errors: {
-          id_image: `身分証画像のアップロードに失敗しました: ${uploadError.message}`,
-        },
-      }
-    }
-
-    // identity_documents を更新（select → insert/update）
-    const { data: existingDoc, error: selectError } = await admin
-      .from('identity_documents')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    console.log('[KYC] select existingDoc — id:', existingDoc?.id ?? 'none', 'selectError:', selectError?.message ?? 'none')
-
-    if (selectError) {
-      console.error('[KYC] select failed:', selectError)
-      return {
-        errors: {
-          id_image: `書類の記録に失敗しました: ${selectError.message}`,
-        },
-      }
-    }
-
-    const docPayload = {
-      user_id: user.id,
-      storage_path: newPath,
-      document_type: value(formData, 'id_type') || null,
-      status: 'pending',
-      uploaded_at: new Date().toISOString(),
-      reviewed_at: null,
-      reviewed_by: null,
-      deleted_at: null,
-    }
-
-    console.log('[KYC] doc payload:', JSON.stringify(docPayload))
-
-    const { error: docError } = existingDoc
-      ? await admin.from('identity_documents').update(docPayload).eq('id', existingDoc.id)
-      : await admin.from('identity_documents').insert(docPayload)
-
-    console.log('[KYC] doc write (' + (existingDoc ? 'update' : 'insert') + ') —', docError ? `error: ${docError.message}` : 'ok')
-
-    if (docError) {
-      console.error('[KYC] doc write failed:', docError)
-      return {
-        errors: {
-          id_image: `書類の記録に失敗しました: ${docError.message}`,
-        },
-      }
-    }
-
-    idImageUrl = newPath
-    identityVerified = false
-    console.log('[KYC] done — identity_documents record written')
-  } else {
-    console.log('[KYC] skipping upload block — file is null or size is 0')
+  const file = formData.get('id_image')
+  if (file instanceof File && file.size > 0) {
+    try { await saveIdentityImage(user.id, file, value(formData, 'id_type')) }
+    catch (error) { return { error: error instanceof Error ? error.message : '書類の保存に失敗しました' } }
   }
 
-  const { error: profileError } = await supabase.from('profiles').upsert({
-    id: user.id,
-    email,
+  const { error: profileError } = await createAdminClient().from('profiles').update({
     last_name: value(formData, 'last_name'),
     first_name: '',
     last_name_kana: value(formData, 'last_name_kana'),
     first_name_kana: '',
     id_type: value(formData, 'id_type'),
-    id_image_url: idImageUrl,
-    identity_verified: identityVerified,
     postal_code: value(formData, 'postal_code'),
     address: value(formData, 'address'),
     phone: value(formData, 'phone'),
@@ -219,7 +129,7 @@ export async function updateCheckoutProfileAction(
     account_type: value(formData, 'account_type'),
     account_number: value(formData, 'account_number'),
     account_holder_kana: value(formData, 'account_holder_kana'),
-  })
+  }).eq('id', user.id)
 
   if (profileError) {
     return { error: '保存済みデータの更新に失敗しました。もう一度お試しください。' }
@@ -239,10 +149,12 @@ export async function applyCouponCodeAction(
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
+  if (!user || !user.email_confirmed_at) {
     return { error: 'クーポンを利用するにはログインが必要です' }
   }
 
+  const limit = await checkSharedRateLimit('coupon:user', user.id, { limit: 20, windowMs: 60000 })
+  if (!limit.allowed || typeof code !== 'string' || code.length > 100) return { error: '時間をおいて再試行してください' }
   const result = await validateCouponForUser(
     createAdminClient(),
     user.id,

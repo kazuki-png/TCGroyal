@@ -1,3 +1,4 @@
+import { logSafeError } from '@/lib/security/logging'
 import type { createAdminClient } from '@/lib/supabase/admin'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -53,7 +54,7 @@ export async function validateCouponForUser(
     .maybeSingle()
 
   if (error) {
-    console.error('validateCouponForUser coupon load failed', error)
+    logSafeError('validateCouponForUser coupon load failed')
     return { coupon: null, error: 'クーポンコードの確認に失敗しました' }
   }
 
@@ -76,7 +77,7 @@ export async function validateCouponForUser(
       .maybeSingle()
 
     if (redemptionError) {
-      console.error('validateCouponForUser redemption load failed', redemptionError)
+      logSafeError('validateCouponForUser redemption load failed')
       return { coupon: null, error: 'クーポン利用状況の確認に失敗しました' }
     }
 
@@ -98,7 +99,7 @@ export async function validateCouponForUser(
       .maybeSingle()
 
     if (inProgressOrderError) {
-      console.error(
+      logSafeError(
         'validateCouponForUser in-progress order load failed',
         inProgressOrderError
       )
@@ -127,7 +128,7 @@ export async function recordCouponRedemptionForCompletedOrder(
     .maybeSingle()
 
   if (orderError) {
-    console.error('recordCouponRedemptionForCompletedOrder order load failed', {
+    logSafeError('recordCouponRedemptionForCompletedOrder order load failed', {
       orderId,
       error: orderError,
     })
@@ -145,7 +146,7 @@ export async function recordCouponRedemptionForCompletedOrder(
     .maybeSingle()
 
   if (couponError) {
-    console.error('recordCouponRedemptionForCompletedOrder coupon load failed', {
+    logSafeError('recordCouponRedemptionForCompletedOrder coupon load failed', {
       orderId,
       couponId: order.coupon_id,
       error: couponError,
@@ -170,7 +171,7 @@ export async function recordCouponRedemptionForCompletedOrder(
     return {}
   }
 
-  console.error(
+  logSafeError(
     'recordCouponRedemptionForCompletedOrder redemption insert failed',
     {
       orderId,

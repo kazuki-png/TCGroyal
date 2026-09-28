@@ -1,172 +1,39 @@
 'use server'
-
-import { redirect } from 'next/navigation'
+import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { sendSignupConfirmationEmail } from '@/lib/email/send'
+import { logSafeError } from '@/lib/security/logging'
 import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 
-const MAX_ID_IMAGE_SIZE = 5 * 1024 * 1024
-const ALLOWED_ID_IMAGE_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/heic',
-  'image/heif',
-])
-
-export type RegisterState = {
-  errors?: Record<string, string>
-  error?: string
-}
-
-function value(formData: FormData, name: string) {
-  return String(formData.get(name) ?? '').trim()
-}
-
-function safeRegisterDestination(value: string) {
-  if (!value.startsWith('/') || value.startsWith('//')) {
-    return '/mypage'
-  }
-
-  const pathname = value.split('?')[0]
-  if (pathname === '/login' || pathname === '/register') {
-    return '/mypage'
-  }
-
-  return value
-}
-
-function validateIdImage(file: File | null) {
-  if (!file || file.size === 0) {
-    return '身分証画像をアップロードしてください'
-  }
-
-  if (file.size > MAX_ID_IMAGE_SIZE) {
-    return '身分証画像は5MB以下にしてください'
-  }
-
-  const allowed = /\.(jpe?g|png|heic|heif)$/i
-  if (!allowed.test(file.name) && !ALLOWED_ID_IMAGE_TYPES.has(file.type)) {
-    return 'JPG・PNG・HEIC の画像をアップロードしてください'
-  }
-
-  return null
-}
-
-export async function registerAction(
-  _prev: RegisterState | undefined,
-  formData: FormData
-): Promise<RegisterState> {
-  const rateLimit = await checkServerActionRateLimit('action:register', {
-    limit: 5,
-    windowMs: 60 * 60 * 1000,
-  })
-  if (!rateLimit.allowed) {
-    return { error: '登録リクエストが多すぎます。しばらく待ってから再度お試しください' }
-  }
-
-  const admin = createAdminClient()
-  const email = value(formData, 'email')
-  const password = String(formData.get('password') ?? '')
-  const file = formData.get('id_image') as File | null
-  const imageError = validateIdImage(file)
-
-  if (imageError) {
-    return { errors: { id_image: imageError } }
-  }
-
-  const { data: authData, error: authError } =
-    await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    })
-
-  if (authError || !authData.user) {
-    const message = authError?.message ?? ''
-    if (message.toLowerCase().includes('already')) {
-      return { error: 'このメールアドレスはすでに登録されています' }
+export type RegisterState = { errors?: Record<string, string>; error?: string; success?: string }
+const schema = z.object({ email: z.email().max(254), password: z.string().min(12).max(128) })
+export async function registerAction(_prev: RegisterState | undefined, formData: FormData): Promise<RegisterState> {
+  const limit = await checkServerActionRateLimit('action:register', { limit: 5, windowMs: 3600000 })
+  if (!limit.allowed) return { error: '登録が多すぎます。時間をおいて再試行してください' }
+  const parsed = schema.safeParse({ email: String(formData.get('email') ?? '').trim(), password: formData.get('password') })
+  if (!parsed.success) return { error: 'メールアドレスと12文字以上のパスワードを入力してください' }
+  if (parsed.data.password !== formData.get('password_confirm')) return { error: 'パスワードが一致しません' }
+  const origin = process.env.NEXT_PUBLIC_SITE_URL
+  if (!origin || (process.env.NODE_ENV === 'production' && !origin.startsWith('https://'))) return { error: '登録設定を確認中です。時間をおいて再試行してください' }
+  // Fail closed if email confirmation is disabled in the Auth project.
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! }, cache: 'no-store', signal: AbortSignal.timeout(5000) })
+    if (!response.ok || (await response.json()).mailer_autoconfirm !== false) return { error: '登録設定を確認中です。時間をおいて再試行してください' }
+  } catch { return { error: '登録サービスに接続できません。時間をおいて再試行してください' } }
+  try {
+    // Use the existing transactional mail provider. Never confirm the account here.
+    const { data, error } = await createAdminClient().auth.admin.generateLink({ type: 'signup', ...parsed.data })
+    if (error && error.code !== 'email_exists' && error.code !== 'user_already_exists') throw new Error('signup')
+    if (!error && data?.properties?.hashed_token && !data.user.email_confirmed_at) {
+      const confirmation = new URL('/auth/confirm', origin)
+      confirmation.searchParams.set('token_hash', data.properties.hashed_token)
+      confirmation.searchParams.set('type', 'signup')
+      confirmation.searchParams.set('next', '/mypage/profile')
+      if (!await sendSignupConfirmationEmail(parsed.data.email, confirmation.toString())) throw new Error('mail')
     }
-    return { error: `ユーザー登録に失敗しました: ${message}` }
+  } catch {
+    logSafeError('Signup confirmation failed')
+    return { error: '登録を受け付けられませんでした。時間をおいて再試行してください' }
   }
-
-  const userId = authData.user.id
-  let idImageUrl: string | null = null
-
-  if (file && file.size > 0) {
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-    const path = `${userId}/id_image.${ext}`
-    const { error: uploadError } = await admin.storage
-      .from('identity-images')
-      .upload(path, Buffer.from(await file.arrayBuffer()), {
-        contentType: file.type || 'image/jpeg',
-        upsert: true,
-      })
-
-    if (uploadError) {
-      await admin.auth.admin.deleteUser(userId)
-      return {
-        errors: {
-          id_image: `身分証画像のアップロードに失敗しました: ${uploadError.message}`,
-        },
-      }
-    }
-
-    idImageUrl = path
-  }
-
-  const y = value(formData, 'birthday_year')
-  const m = value(formData, 'birthday_month')
-  const d = value(formData, 'birthday_day')
-  const birthday =
-    y && m && d
-      ? `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
-      : null
-
-  const { error: profileError } = await admin.from('profiles').upsert({
-    id: userId,
-    email,
-    last_name: value(formData, 'last_name'),
-    first_name: value(formData, 'first_name'),
-    last_name_kana: value(formData, 'last_name_kana'),
-    first_name_kana: value(formData, 'first_name_kana'),
-    birthday,
-    gender: value(formData, 'gender'),
-    occupation: value(formData, 'occupation') || null,
-    is_qualified_invoice: formData.get('is_qualified_invoice') === 'true',
-    id_type: value(formData, 'id_type'),
-    id_image_url: idImageUrl,
-    postal_code: value(formData, 'postal_code'),
-    address: value(formData, 'address'),
-    phone: value(formData, 'phone'),
-    bank_name: value(formData, 'bank_name'),
-    branch_name: value(formData, 'branch_name'),
-    account_type: value(formData, 'account_type'),
-    account_number: value(formData, 'account_number'),
-    account_holder_kana: value(formData, 'account_holder_kana'),
-  })
-
-  if (profileError) {
-    await admin.auth.admin.deleteUser(userId)
-    return {
-      error:
-        'プロフィールの保存に失敗しました。もう一度お試しください。',
-    }
-  }
-
-  const supabase = await createClient()
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
-
-  if (signInError) {
-    await admin.auth.admin.deleteUser(userId)
-    return {
-      error:
-        '登録は完了できませんでした。もう一度お試しください。',
-    }
-  }
-
-  const next = (formData.get('next') as string | null)?.trim() ?? ''
-  redirect(safeRegisterDestination(next))
+  return { success: '確認メールを送信しました。メール内のリンクを開き、ログイン後に会員情報と本人確認書類を登録してください。登録済みの場合はログインしてください。' }
 }

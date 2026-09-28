@@ -1,10 +1,11 @@
+import { getAdminAccess } from '@/lib/admin/authorization'
+import { escapeCsvCell } from '@/lib/security/csv'
 import { isAdminHostAllowedForRequest } from '@/lib/admin/hostAccess'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
 import {
   checkRequestRateLimit,
   rateLimitResponse,
-} from '@/lib/security/rateLimit'
+} from '@/lib/security/sharedRateLimit'
 
 type Row = {
   category: string
@@ -20,20 +21,13 @@ function todayJST() {
   return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0]
 }
 
-function escapeCsv(value: string | number | null | undefined): string {
-  const str = value == null ? '' : String(value)
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-    return `"${str.replace(/"/g, '""')}"`
-  }
-  return str
-}
 
 export async function GET(request: Request) {
   if (!isAdminHostAllowedForRequest(request)) {
     return Response.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const rateLimit = checkRequestRateLimit(request, 'api:admin-reference-export', {
+  const rateLimit = await checkRequestRateLimit(request, 'api:admin-reference-export', {
     limit: 30,
     windowMs: 60 * 1000,
   })
@@ -41,18 +35,7 @@ export async function GET(request: Request) {
     return rateLimitResponse(rateLimit)
   }
 
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: adminRow } = await supabase
-    .from('admin_users')
-    .select('id')
-    .eq('id', user.id)
-    .single()
-  if (!adminRow) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!(await getAdminAccess())) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
   const date = searchParams.get('date') || todayJST()
@@ -97,11 +80,11 @@ export async function GET(request: Request) {
   const header = 'name,category,card_number,grade,buy_price,image_url'
   const lines = rows.map((r) =>
     [
-      escapeCsv(r.card_name),
-      escapeCsv(r.category),
-      escapeCsv(r.card_number),
-      escapeCsv(r.grade),
-      escapeCsv(r.price),
+      escapeCsvCell(r.card_name),
+      escapeCsvCell(r.category),
+      escapeCsvCell(r.card_number),
+      escapeCsvCell(r.grade),
+      escapeCsvCell(r.price),
       '',
     ].join(',')
   )

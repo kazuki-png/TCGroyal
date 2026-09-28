@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/fetch-reference-prices",
       "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/identity-cleanup",
+      "schedule": "30 21 * * *"
     }
   ]
 }

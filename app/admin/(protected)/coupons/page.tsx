@@ -1,3 +1,4 @@
+import { requireAdminUser } from '@/lib/admin/authorization'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createCoupon, deleteCoupon, updateCoupon } from './actions'
 import { DeleteCouponButton } from './DeleteCouponButton'
@@ -126,6 +127,7 @@ export default async function AdminCouponsPage({
 }: {
   searchParams: Promise<{ error?: string; saved?: string; deleted?: string }>
 }) {
+  await requireAdminUser()
   const { error, saved, deleted } = await searchParams
   const admin = createAdminClient()
   const [{ data: coupons }, { data: redemptions }] = await Promise.all([

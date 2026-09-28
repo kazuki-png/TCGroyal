@@ -7,6 +7,10 @@ import {
 } from '@/lib/security/safeRemoteFetch'
 
 describe('safe remote fetch guards', () => {
+  it.each(['::ffff:7f00:1', '0:0:0:0:0:ffff:7f00:1', '0:0:0:0:0:0:0:1', '64:ff9b::7f00:1', '2002:7f00:1::'])('blocks encoded or translated local addresses %s', address => {
+    expect(isBlockedIpAddress(address)).toBe(true)
+  })
+  it('allows global IPv6', () => expect(isBlockedIpAddress('2606:4700:4700::1111')).toBe(false))
   it('blocks private and metadata IPv4 ranges', () => {
     expect(isBlockedIpAddress('127.0.0.1')).toBe(true)
     expect(isBlockedIpAddress('10.0.0.1')).toBe(true)

@@ -70,32 +70,11 @@ export async function adminLogin(
     return { error: '管理者権限がありません' }
   }
 
-  redirect('/admin')
+  redirect('/admin/mfa')
 }
 
-export async function register(
-  _prevState: { error?: string } | undefined,
-  formData: FormData
-): Promise<{ error?: string }> {
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
-  const lastName = formData.get('last_name') as string
-  const firstName = formData.get('first_name') as string
-
-  const supabase = await createClient()
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { last_name: lastName, first_name: firstName },
-    },
-  })
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  redirect('/mypage')
+export async function register(): Promise<{ error?: string }> {
+  redirect('/register')
 }
 
 export async function logout(): Promise<void> {

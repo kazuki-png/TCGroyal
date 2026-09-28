@@ -1,3 +1,4 @@
+import { requireAdminUser } from '@/lib/admin/authorization'
 import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ORDER_STATUS_LABELS, type OrderStatus } from '@/lib/types'
@@ -46,6 +47,7 @@ export default async function AdminOrdersPage({
 }: {
   searchParams: Promise<{ status?: string }>
 }) {
+  await requireAdminUser()
   const { status } = await searchParams
   const admin = createAdminClient()
 

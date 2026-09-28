@@ -6,9 +6,11 @@ import { setIdentityStatus } from './actions'
 export function UserIdentitySelect({
   userId,
   verified,
+  disabled = false,
 }: {
   userId: string
   verified: boolean
+  disabled?: boolean
 }) {
   const [value, setValue] = useState(verified ? 'verified' : 'unverified')
   const [pending, startTransition] = useTransition()
@@ -16,7 +18,7 @@ export function UserIdentitySelect({
   return (
     <select
       value={value}
-      disabled={pending}
+      disabled={pending || disabled}
       onChange={(event) => {
         const next = event.target.value
         setValue(next)

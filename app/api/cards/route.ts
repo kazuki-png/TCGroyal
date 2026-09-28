@@ -2,7 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import {
   checkRequestRateLimit,
   rateLimitResponse,
-} from '@/lib/security/rateLimit'
+} from '@/lib/security/sharedRateLimit'
 import { visiblePriceUpdatedAfter } from '@/lib/cards/visibility'
 
 const DEFAULT_LIMIT = 12
@@ -17,7 +17,7 @@ function normalizeSearchToken(value: string) {
 }
 
 export async function GET(request: Request) {
-  const rateLimit = checkRequestRateLimit(request, 'api:cards', {
+  const rateLimit = await checkRequestRateLimit(request, 'api:cards', {
     limit: 120,
     windowMs: 60 * 1000,
   })

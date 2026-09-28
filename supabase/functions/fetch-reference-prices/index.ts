@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.105.1'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -181,8 +181,14 @@ async function fetchTorecabank(
 // =============================================
 // メインハンドラ
 // =============================================
-Deno.serve(async () => {
+Deno.serve(async (request) => {
+  if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 })
+  const secret = Deno.env.get('REFERENCE_PRICES_CRON_SECRET')
+  if (!secret || request.headers.get('x-cron-secret') !== secret) return new Response('Unauthorized', { status: 401 })
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+  const rateKey = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('reference-prices-cron')))).map(x => x.toString(16).padStart(2, '0')).join('')
+  const { data: rate, error: rateError } = await supabase.rpc('consume_security_rate_limit', { p_key: rateKey, p_limit: 2, p_window_ms: 3600000 })
+  if (rateError || !rate?.allowed) return new Response('Rate limited', { status: 429 })
   const fetched_at = new Date().toISOString()
   const allRecords: PriceRecord[] = []
   const errors: string[] = []

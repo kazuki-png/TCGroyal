@@ -1,12 +1,13 @@
+import { getAdminAccess } from '@/lib/admin/authorization'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   checkRequestRateLimit,
   rateLimitResponse,
-} from '@/lib/security/rateLimit'
+} from '@/lib/security/sharedRateLimit'
 
 export async function GET(request: Request) {
-  const rateLimit = checkRequestRateLimit(request, 'api:orders', {
+  const rateLimit = await checkRequestRateLimit(request, 'api:orders', {
     limit: 60,
     windowMs: 60 * 1000,
   })
@@ -27,6 +28,7 @@ export async function GET(request: Request) {
   }
 
   if (isAdmin) {
+    if (!(await getAdminAccess())) return Response.json({ error: 'Forbidden' }, { status: 403 })
     const { data: adminRow } = await supabase
       .from('admin_users')
       .select('id')
@@ -53,7 +55,7 @@ export async function GET(request: Request) {
       return Response.json({ error: error.message }, { status: 500 })
     }
 
-    return Response.json(data)
+    return Response.json(data, { headers: { 'Cache-Control': 'private, no-store' } })
   }
 
   const { data, error } = await supabase
@@ -66,5 +68,5 @@ export async function GET(request: Request) {
     return Response.json({ error: error.message }, { status: 500 })
   }
 
-  return Response.json(data)
+  return Response.json(data, { headers: { 'Cache-Control': 'private, no-store' } })
 }

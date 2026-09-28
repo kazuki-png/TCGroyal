@@ -1,3 +1,4 @@
+import { requireAdminUser } from '@/lib/admin/authorization'
 import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ORDER_STATUS_FLOW, ORDER_STATUS_LABELS, type OrderStatus } from '@/lib/types'
@@ -288,6 +289,7 @@ export default async function AdminDashboardPage({
 }: {
   searchParams: Promise<{ range?: string | string[] }>
 }) {
+  await requireAdminUser()
   const params = await searchParams
   const selectedRange = resolveRange(params.range)
   const admin = createAdminClient()

@@ -1,5 +1,8 @@
 'use server'
 
+import { logSafeError } from '@/lib/security/logging'
+
+
 import { headers } from 'next/headers'
 import { sendPasswordResetEmail } from '@/lib/email/send'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -96,7 +99,7 @@ async function publicSiteUrl(): Promise<ResolvedSiteUrl | null> {
       ['NEXT_PUBLIC_SITE_URL', configuredOrigin],
       ['VERCEL_PROJECT_PRODUCTION_URL', vercelProductionOrigin],
       ['VERCEL_URL', vercelOrigin],
-      ['request_headers', headerOrigin],
+      ...(process.env.NODE_ENV !== 'production' ? [['request_headers', headerOrigin] as [string, string | null]] : []),
     ],
     false
   )
@@ -147,7 +150,7 @@ export async function forgotPasswordAction(
 
   const resolvedSiteUrl = await publicSiteUrl()
   if (!resolvedSiteUrl) {
-    console.error('[password-reset] public site URL could not be resolved')
+    logSafeError('[password-reset] public site URL could not be resolved')
     return { error: 'メール送信設定に不備があります。時間をおいて再度お試しください' }
   }
 
@@ -165,12 +168,12 @@ export async function forgotPasswordAction(
   })
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error('[password-reset] SUPABASE_SERVICE_ROLE_KEY is not configured')
+    logSafeError('[password-reset] SUPABASE_SERVICE_ROLE_KEY is not configured')
     return { error: 'メール送信設定に不備があります。管理者にお問い合わせください' }
   }
 
   if (!process.env.RESEND_API_KEY) {
-    console.error('[password-reset] RESEND_API_KEY is not configured')
+    logSafeError('[password-reset] RESEND_API_KEY is not configured')
     return { error: 'メール送信設定に不備があります。管理者にお問い合わせください' }
   }
 
@@ -186,7 +189,7 @@ export async function forgotPasswordAction(
   const tokenHash = data?.properties?.hashed_token
 
   if (error || !tokenHash) {
-    console.error('[password-reset] recovery link generation failed', {
+    logSafeError('[password-reset] recovery link generation failed', {
       message: error?.message,
       status: error?.status,
       hasTokenHash: Boolean(tokenHash),
@@ -217,11 +220,11 @@ export async function forgotPasswordAction(
   try {
     const sent = await sendPasswordResetEmail(email, resetUrl.toString())
     if (!sent) {
-      console.error('[password-reset] custom email sender returned false')
+      logSafeError('[password-reset] custom email sender returned false')
       return { error: 'メールの送信に失敗しました。しばらく経ってから再試行してください' }
     }
-  } catch (sendError) {
-    console.error('[password-reset] custom email send failed', sendError)
+  } catch {
+    logSafeError('[password-reset] custom email send failed')
     return { error: 'メールの送信に失敗しました。しばらく経ってから再試行してください' }
   }
 

@@ -1,3 +1,4 @@
+import { requireAdminUser } from '@/lib/admin/authorization'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -37,6 +38,7 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  await requireAdminUser()
   const { id } = await params
   const adminClient = createAdminClient()
 

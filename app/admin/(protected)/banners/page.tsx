@@ -1,3 +1,4 @@
+import { requireAdminUser } from '@/lib/admin/authorization'
 import Image from 'next/image'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ImageUploadPreviewInput } from '@/components/ImageUploadPreviewInput'
@@ -11,6 +12,7 @@ export default async function AdminBannersPage({
 }: {
   searchParams: Promise<{ error?: string; saved?: string; deleted?: string }>
 }) {
+  await requireAdminUser()
   const { error, saved, deleted } = await searchParams
   const admin = createAdminClient()
   const { data } = await admin

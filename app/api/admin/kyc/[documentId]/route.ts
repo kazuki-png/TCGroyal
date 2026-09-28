@@ -1,150 +1,46 @@
-import { isAdminHostAllowedForRequest } from '@/lib/admin/hostAccess'
+import { getAdminAccess } from '@/lib/admin/authorization'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
-import {
-  checkRequestRateLimit,
-  rateLimitResponse,
-} from '@/lib/security/rateLimit'
+import { ownsIdentityPath } from '@/lib/identity/documents'
+import { checkRequestRateLimit, rateLimitResponse } from '@/lib/security/sharedRateLimit'
 
-const SIGNED_URL_EXPIRY_SECONDS = 5 * 60 // 5分
+const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer' } })
+type Context = { params: Promise<{ documentId: string }> }
 
-async function requireKycReviewer() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: adminRow } = await supabase
-    .from('admin_users')
-    .select('id, role')
-    .eq('id', user.id)
-    .single()
-
-  if (!adminRow || adminRow.role !== 'kyc_reviewer') return null
-  return user
+export async function GET(request: Request, { params }: Context) {
+  const access = await getAdminAccess(true)
+  if (!access) return json({ error: '本人確認の審査権限と二段階認証が必要です' }, 403)
+  const limit = await checkRequestRateLimit(request, 'kyc:view', { limit: 60, windowMs: 60000 })
+  if (!limit.allowed) return rateLimitResponse(limit)
+  const admin = createAdminClient()
+  const { documentId } = await params
+  const { data: doc, error } = await admin.from('identity_documents').select('id,user_id,storage_path,deleted_at,deletion_requested_at').eq('id', documentId).maybeSingle()
+  if (error) return json({ error: '書類情報の取得に失敗しました' }, 503)
+  if (!doc) return json({ error: '書類が見つかりません' }, 404)
+  if (doc.deleted_at || doc.deletion_requested_at) return json({ error: '削除済みまたは削除処理中です' }, 410)
+  if (!ownsIdentityPath(doc.user_id, doc.storage_path)) return json({ error: '書類の参照情報が不正です' }, 409)
+  const { error: auditError } = await admin.from('identity_document_access_logs').insert({ document_id: doc.id, accessed_by: access.user.id, action: 'view', reason: 'signed_url_requested' })
+  if (auditError) return json({ error: '監査記録を保存できないため閲覧できません' }, 503)
+  const { data, error: signError } = await admin.storage.from('identity-images').createSignedUrl(doc.storage_path, 60)
+  if (signError || !data?.signedUrl) return json({ error: '画像の取得に失敗しました' }, 503)
+  return json({ url: data.signedUrl })
 }
 
-// GET: 短時間 signed URL を発行して返す（URLはDBに保存しない）
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ documentId: string }> }
-) {
-  if (!isAdminHostAllowedForRequest(request)) {
-    return Response.json({ error: 'Not found' }, { status: 404 })
-  }
-
-  const rateLimit = checkRequestRateLimit(request, 'api:admin-kyc-view', {
-    limit: 60,
-    windowMs: 60 * 1000,
-  })
-  if (!rateLimit.allowed) {
-    return rateLimitResponse(rateLimit)
-  }
-
-  const reviewer = await requireKycReviewer()
-  if (!reviewer) {
-    return Response.json({ error: '閲覧権限がありません' }, { status: 403 })
-  }
-
-  const { documentId } = await params
+export async function DELETE(request: Request, { params }: Context) {
+  const access = await getAdminAccess(true)
+  if (!access) return json({ error: '本人確認の審査権限と二段階認証が必要です' }, 403)
+  const origin = request.headers.get('origin')
+  if (!origin || origin !== new URL(request.url).origin) return json({ error: '不正な送信元です' }, 403)
+  const limit = await checkRequestRateLimit(request, 'kyc:delete', { limit: 20, windowMs: 60000 })
+  if (!limit.allowed) return rateLimitResponse(limit)
   const admin = createAdminClient()
-
-  const { data: doc } = await admin
-    .from('identity_documents')
-    .select('id, user_id, storage_path, deleted_at')
-    .eq('id', documentId)
-    .maybeSingle()
-
-  if (!doc) {
-    return Response.json({ error: '書類が見つかりません' }, { status: 404 })
-  }
-
-  if (doc.deleted_at) {
-    return Response.json({ error: 'この書類は削除されています' }, { status: 410 })
-  }
-
-  // 閲覧ログを記録してから signed URL を発行
-  await admin.from('identity_document_access_logs').insert({
-    document_id: doc.id,
-    accessed_by: reviewer.id,
-    action: 'view',
-  })
-
-  const { data: signedData, error: signedError } = await admin.storage
-    .from('identity-images')
-    .createSignedUrl(doc.storage_path, SIGNED_URL_EXPIRY_SECONDS)
-
-  if (signedError || !signedData?.signedUrl) {
-    return Response.json({ error: 'URLの発行に失敗しました' }, { status: 500 })
-  }
-
-  // signed URL はレスポンスに含めるのみ。DBには保存しない。
-  return Response.json({ url: signedData.signedUrl })
-}
-
-// DELETE: ストレージから原本を削除し、メタデータを論理削除する
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ documentId: string }> }
-) {
-  if (!isAdminHostAllowedForRequest(request)) {
-    return Response.json({ error: 'Not found' }, { status: 404 })
-  }
-
-  const rateLimit = checkRequestRateLimit(request, 'api:admin-kyc-delete', {
-    limit: 20,
-    windowMs: 60 * 1000,
-  })
-  if (!rateLimit.allowed) {
-    return rateLimitResponse(rateLimit)
-  }
-
-  const reviewer = await requireKycReviewer()
-  if (!reviewer) {
-    return Response.json({ error: '操作権限がありません' }, { status: 403 })
-  }
-
   const { documentId } = await params
-  const admin = createAdminClient()
-
-  const { data: doc } = await admin
-    .from('identity_documents')
-    .select('id, user_id, storage_path, deleted_at')
-    .eq('id', documentId)
-    .maybeSingle()
-
-  if (!doc) {
-    return Response.json({ error: '書類が見つかりません' }, { status: 404 })
-  }
-
-  if (doc.deleted_at) {
-    return Response.json({ error: 'この書類はすでに削除されています' }, { status: 410 })
-  }
-
-  // ストレージから原本削除（ファイルが既に存在しない場合もエラーにしない）
-  await admin.storage.from('identity-images').remove([doc.storage_path])
-
-  const now = new Date().toISOString()
-
-  // メタデータを論理削除
-  await admin
-    .from('identity_documents')
-    .update({ deleted_at: now })
-    .eq('id', doc.id)
-
-  // プロフィールの id_image_url をクリア
-  await admin
-    .from('profiles')
-    .update({ id_image_url: null })
-    .eq('id', doc.user_id)
-
-  // 削除ログを記録
-  await admin.from('identity_document_access_logs').insert({
-    document_id: doc.id,
-    accessed_by: reviewer.id,
-    action: 'delete',
-  })
-
-  return Response.json({ success: true })
+  const { data: doc, error } = await admin.rpc('begin_identity_deletion', { p_document_id: documentId, p_reviewer: access.user.id })
+  if (error || !doc) return json({ error: '削除を開始できません' }, 409)
+  if (doc.deleted_at) return json({ success: true })
+  if (!ownsIdentityPath(doc.user_id, doc.storage_path)) return json({ error: '書類の参照情報が不正です' }, 409)
+  const { error: removeError } = await admin.storage.from('identity-images').remove([doc.storage_path])
+  if (removeError) return json({ error: '原本を削除できませんでした。再度削除を実行してください' }, 503)
+  const { error: finishError } = await admin.rpc('finish_identity_deletion', { p_document_id: documentId, p_reviewer: access.user.id, p_path: doc.storage_path })
+  if (finishError) return json({ error: '削除記録の保存に失敗しました。再度削除を実行してください' }, 503)
+  return json({ success: true })
 }

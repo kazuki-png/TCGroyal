@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
-import { redirect } from 'next/navigation'
 import { requireAdminHostForPage } from '@/lib/admin/serverHostAccess'
-import { createClient } from '@/lib/supabase/server'
+import { requireAdminUser } from '@/lib/admin/authorization'
 import { adminLogout } from '@/app/actions/auth'
 import { AdminShell } from './AdminShell'
 
@@ -25,25 +24,7 @@ export default async function AdminLayout({
 }) {
   await requireAdminHostForPage()
 
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/admin/login')
-  }
-
-  const { data: adminRow } = await supabase
-    .from('admin_users')
-    .select('id')
-    .eq('id', user.id)
-    .single()
-
-  if (!adminRow) {
-    await supabase.auth.signOut()
-    redirect('/admin/login')
-  }
+  const user = await requireAdminUser()
 
   const footer = (
     <form action={adminLogout}>

@@ -1,3 +1,4 @@
+import { requireAdminUser } from '@/lib/admin/authorization'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Card } from '@/lib/types'
 import {
@@ -79,6 +80,7 @@ export default async function AdminCardsPage({
     error?: string | string[]
   }>
 }) {
+  await requireAdminUser()
   const params = await searchParams
   const category = normalizeCategory(params.category)
   const page = normalizePage(params.page)

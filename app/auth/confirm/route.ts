@@ -1,3 +1,6 @@
+import { logSafeError } from '@/lib/security/logging'
+
+import { safeLocalPath } from '@/lib/security/redirect'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -11,13 +14,7 @@ const EMAIL_OTP_TYPES = new Set<EmailOtpType>([
   'email',
 ])
 
-function safeNextPath(value: string | null) {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) {
-    return '/'
-  }
-
-  return value
-}
+const safeNextPath = (value: unknown) => safeLocalPath(value, "/")
 
 function isEmailOtpType(value: string | null): value is EmailOtpType {
   return Boolean(value && EMAIL_OTP_TYPES.has(value as EmailOtpType))
@@ -34,14 +31,9 @@ export async function GET(request: NextRequest) {
     redirectTo.hostname = 'localhost'
   }
 
-  redirectTo.pathname = next
-  redirectTo.search = ''
-
-  console.info('[auth-confirm] request received', {
-    hasTokenHash: Boolean(tokenHash),
-    type,
-    next,
-  })
+  const destination = new URL(next, redirectTo.origin)
+  redirectTo.pathname = destination.pathname
+  redirectTo.search = destination.search
 
   if (tokenHash && isEmailOtpType(type)) {
     const supabase = await createClient()
@@ -51,11 +43,10 @@ export async function GET(request: NextRequest) {
     })
 
     if (!error) {
-      console.info('[auth-confirm] verifyOtp succeeded', { type, next })
       return NextResponse.redirect(redirectTo)
     }
 
-    console.error('[auth-confirm] verifyOtp failed', {
+    logSafeError('[auth-confirm] verifyOtp failed', {
       type,
       message: error.message,
       status: error.status,

@@ -1,9 +1,11 @@
 'use server'
 
+import { logSafeError } from '@/lib/security/logging'
+
+
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { isAdminHostAllowedFromHeaders } from '@/lib/admin/serverHostAccess'
-import { createClient } from '@/lib/supabase/server'
+import { requireAdminUser } from '@/lib/admin/authorization'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 import {
@@ -44,34 +46,9 @@ type ManualUnlistedAssessment = {
 const CARD_GRADES: CardGrade[] = ['PSA10', 'PSA9', 'PSA8']
 
 async function requireAdmin() {
-  const rateLimit = await checkServerActionRateLimit('action:admin-mutation', {
-    limit: 300,
-    windowMs: 60 * 1000,
-  })
-  if (!rateLimit.allowed) {
-    redirect('/admin')
-  }
-
-  if (!(await isAdminHostAllowedFromHeaders())) {
-    redirect('/')
-  }
-
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) redirect('/admin/login')
-
-  const { data: adminRow } = await supabase
-    .from('admin_users')
-    .select('id')
-    .eq('id', user.id)
-    .single()
-
-  if (!adminRow) redirect('/admin/login')
-
-  return user
+  const rateLimit = await checkServerActionRateLimit('action:admin-mutation', { limit: 300, windowMs: 60000 })
+  if (!rateLimit.allowed) redirect('/admin')
+  return requireAdminUser()
 }
 
 function normalizePrice(value: number) {
@@ -143,7 +120,7 @@ async function notifyStatusChange(
         authUser.user.email,
         notificationOrder,
         status
-      ).catch(console.error)
+      ).catch(logSafeError)
 
       if (status === 'completed') {
         await scheduleReviewCouponEmailForCompletedOrder({
@@ -151,7 +128,7 @@ async function notifyStatusChange(
           order: notificationOrder,
           toEmail: authUser.user.email,
           context: 'adminOrders-notifyStatusChange',
-        }).catch(console.error)
+        }).catch(logSafeError)
       }
     } else {
       logEmailDebug('adminOrders-user-email-skipped', {
@@ -175,7 +152,7 @@ async function notifyStatusChange(
     await sendAdminOrderNotification(
       'assessment_approved',
       notificationOrder
-    ).catch(console.error)
+    ).catch(logSafeError)
   }
 }
 
@@ -281,7 +258,7 @@ export async function saveOrderAssessment(
       : { data: [], error: null }
 
   if (existingCardsError) {
-    console.error('saveOrderAssessment existing card load failed', existingCardsError)
+    logSafeError('saveOrderAssessment existing card load failed')
     return { error: '既存カードの確認に失敗しました' }
   }
 
@@ -298,153 +275,9 @@ export async function saveOrderAssessment(
     return { error: '選択された既存カードが見つかりません' }
   }
 
-  for (const update of normalizedUpdates) {
-    const { error } = await admin
-      .from('order_items')
-      .update({
-        assessed_unit_price: update.assessedUnitPrice,
-        customer_decision: null,
-        customer_decided_at: null,
-      })
-      .eq('order_id', orderId)
-      .eq('id', update.itemId)
-
-    if (error) {
-      console.error('saveOrderAssessment item update failed', error)
-      return { error: '査定額の保存に失敗しました' }
-    }
-  }
-
-  const insertedManualItems: {
-    cardName: string
-    grade: CardGrade
-    assessedUnitPrice: number
-    unitPrice: number
-    cardId: string | null
-  }[] = []
-
-  for (const manualItem of normalizedManualItems) {
-    let cardId: string | null = null
-    let cardName = manualItem.cardName
-    let grade = manualItem.grade
-    let unitPrice = manualItem.assessedUnitPrice
-
-    if (manualItem.existingCardId) {
-      const existingCard = existingCardMap.get(manualItem.existingCardId)
-      if (!existingCard) {
-        return { error: '選択された既存カードが見つかりません' }
-      }
-
-      cardId = existingCard.id
-      cardName = existingCard.name
-      grade = existingCard.grade
-      // 登録済みカードは掲載価格を申込時価格として残し、カードマスタ価格は更新しない。
-      unitPrice = existingCard.buy_price
-    }
-
-    if (!manualItem.existingCardId && manualItem.saveToDb) {
-      const { data: card, error: cardError } = await admin
-        .from('cards')
-        .insert({
-          name: cardName,
-          category: 'pokemon',
-          card_number: null,
-          grade,
-          buy_price: manualItem.assessedUnitPrice,
-          image_url: null,
-        })
-        .select('id')
-        .single()
-
-      if (cardError || !card) {
-        console.error('saveOrderAssessment manual card insert failed', cardError)
-        return { error: '手動追加カードのDB保存に失敗しました' }
-      }
-
-      cardId = card.id as string
-    }
-
-    insertedManualItems.push({
-      cardName,
-      grade,
-      assessedUnitPrice: manualItem.assessedUnitPrice,
-      unitPrice,
-      cardId,
-    })
-  }
-
-  if (insertedManualItems.length > 0) {
-    const { error: insertError } = await admin.from('order_items').insert(
-      insertedManualItems.map((item) => ({
-        order_id: orderId,
-        card_id: item.cardId,
-        item_type: 'card',
-        card_name: item.cardName,
-        grade: item.grade,
-        quantity: 1,
-        unit_price: item.unitPrice,
-        assessed_unit_price: item.assessedUnitPrice,
-        customer_decision: null,
-        customer_decided_at: null,
-        requested_note: item.cardId
-          ? 'リストにない商品の査定依頼から既存カードを追加'
-          : 'リストにない商品の査定依頼から手動追加',
-      }))
-    )
-
-    if (insertError) {
-      console.error('saveOrderAssessment manual order item insert failed', insertError)
-      return { error: '手動追加カードの明細作成に失敗しました' }
-    }
-
-  }
-
-  if (unlistedItems.length > 0) {
-    const { error: deleteError } = await admin
-      .from('order_items')
-      .delete()
-      .eq('order_id', orderId)
-      .eq('item_type', 'unlisted')
-
-    if (deleteError) {
-      console.error('saveOrderAssessment unlisted placeholder delete failed', deleteError)
-      return { error: 'リストにない商品の表示削除に失敗しました' }
-    }
-  }
-
-  const listedAssessedTotal = normalizedUpdates.reduce((sum, update) => {
-    const item = itemMap.get(update.itemId)!
-    return sum + item.quantity * update.assessedUnitPrice
-  }, 0)
-  const manualAssessedTotal = insertedManualItems.reduce(
-    (sum, item) => sum + item.assessedUnitPrice,
-    0
-  )
-  const couponAmount = Math.max(0, Number(order.coupon_amount ?? 0))
-  const assessedTotal = listedAssessedTotal + manualAssessedTotal + couponAmount
   const nextStatus: OrderStatus = 'pending_approval'
-
-  const { error: orderError } = await admin
-    .from('orders')
-    .update({
-      status: nextStatus,
-      total_amount: assessedTotal,
-      assessment_saved_at: new Date().toISOString(),
-    })
-    .eq('id', orderId)
-
-  if (orderError) {
-    console.error('saveOrderAssessment order update failed', orderError)
-    return { error: '注文ステータスの更新に失敗しました' }
-  }
-
-  await admin.from('order_status_logs').insert({
-    order_id: orderId,
-    old_status: currentStatus,
-    new_status: nextStatus,
-    changed_by: user.id,
-    note: '査定額を保存',
-  })
+  const { error: assessmentError } = await admin.rpc('save_assessment_secure', { p_order_id: orderId, p_actor: user.id, p_expected: currentStatus, p_updates: normalizedUpdates, p_manual: normalizedManualItems })
+  if (assessmentError) return { error: '査定を保存できません。注文を再読み込みしてお試しください' }
 
   await notifyStatusChange(admin, orderId, nextStatus)
 
@@ -505,27 +338,8 @@ export async function setOrderStatus(
     return { error: '無効なステータス変更です' }
   }
 
-  const orderUpdates: Record<string, string | null> = { status: newStatus }
-  if (newStatus === 'completed') {
-    orderUpdates.completed_at = new Date().toISOString()
-  } else if (currentStatus === 'completed') {
-    orderUpdates.completed_at = null
-  }
-
-  const { error } = await admin
-    .from('orders')
-    .update(orderUpdates)
-    .eq('id', orderId)
-
-  if (error) return { error: 'ステータスの更新に失敗しました' }
-
-  await admin.from('order_status_logs').insert({
-    order_id: orderId,
-    old_status: currentStatus,
-    new_status: newStatus,
-    changed_by: user.id,
-    note: rollbackReason || null,
-  })
+  const { error } = await admin.rpc('transition_order_secure', { p_order_id: orderId, p_expected: currentStatus, p_next: newStatus, p_actor: user.id, p_note: rollbackReason || null })
+  if (error) return { error: '注文が更新されました。再読み込みしてお試しください' }
 
   if (newStatus === 'completed') {
     const redemptionResult = await recordCouponRedemptionForCompletedOrder(
@@ -533,7 +347,7 @@ export async function setOrderStatus(
       orderId
     )
     if (redemptionResult.error) {
-      console.error('adminOrders-setOrderStatus coupon redemption failed', {
+      logSafeError('adminOrders-setOrderStatus coupon redemption failed', {
         orderId,
         error: redemptionResult.error,
       })
@@ -547,7 +361,7 @@ export async function setOrderStatus(
       admin,
       orderId,
       context: 'adminOrders-setOrderStatus',
-    }).catch(console.error)
+    }).catch(logSafeError)
   }
 
   revalidatePath('/admin/orders')

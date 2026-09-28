@@ -1,21 +1,12 @@
 'use server'
 
+import { safeLocalPath } from '@/lib/security/redirect'
+
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { checkServerActionRateLimit } from '@/lib/security/serverRateLimit'
 
-function safeLoginDestination(value: string) {
-  if (!value.startsWith('/') || value.startsWith('//')) {
-    return '/mypage'
-  }
-
-  const pathname = value.split('?')[0]
-  if (pathname === '/login' || pathname === '/register') {
-    return '/mypage'
-  }
-
-  return value
-}
+const safeLoginDestination = (value: unknown) => safeLocalPath(value, "/mypage")
 
 export async function loginAction(
   _prev: { error?: string } | undefined,

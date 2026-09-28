@@ -1,13 +1,9 @@
+
+import { safeLocalPath } from '@/lib/security/redirect'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-function safeNextPath(value: string | null) {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) {
-    return '/'
-  }
-
-  return value
-}
+const safeNextPath = (value: unknown) => safeLocalPath(value, "/")
 
 // Supabase Auth コールバック
 // Supabase Dashboard > Authentication > URL Configuration で

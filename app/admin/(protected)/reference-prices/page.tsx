@@ -1,3 +1,4 @@
+import { requireAdminUser } from '@/lib/admin/authorization'
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -35,6 +36,7 @@ export default async function ReferencePricesPage({
 }: {
   searchParams: Promise<Record<string, string | string[]>>
 }) {
+  await requireAdminUser()
   const supabase = await createClient()
   const {
     data: { user },

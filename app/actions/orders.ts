@@ -1,5 +1,11 @@
 'use server'
 
+import { logSafeError } from '@/lib/security/logging'
+
+
+import { z } from 'zod'
+import { requireAdminUser } from '@/lib/admin/authorization'
+
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
@@ -112,6 +118,10 @@ export async function createOrder(
     return { error: '申し込みが多すぎます。しばらく待ってから再度お試しください' }
   }
 
+  const bankSchema = z.strictObject({ bank_name: z.string().trim().min(1).max(100), bank_branch: z.string().trim().min(1).max(100), bank_account_no: z.string().regex(/^[0-9]{7}$/), bank_holder: z.string().trim().min(1).max(100), note: z.string().max(2000).optional() })
+  const parsedBank = bankSchema.safeParse(bankInfo)
+  if (!parsedBank.success || !Array.isArray(items) || items.length > 200 || (couponCode !== undefined && (typeof couponCode !== 'string' || couponCode.length > 100))) return { error: '申込内容が正しくありません' }
+  bankInfo = parsedBank.data
   if (items.length === 0) {
     return { error: 'カードを選択してください' }
   }
@@ -121,7 +131,7 @@ export async function createOrder(
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
+  if (!user || !user.email_confirmed_at) {
     redirect('/login?next=/cart')
   }
 
@@ -129,7 +139,8 @@ export async function createOrder(
   let hasUnlistedItem = false
 
   for (const item of items) {
-    const cardId = item.card?.id
+    const cardId = item?.card?.id
+    if (typeof cardId !== 'string' || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 999) return { error: 'カートの内容が正しくありません' }
     const quantity = normalizeQuantity(item.quantity)
 
     if (!cardId || quantity <= 0) {
@@ -156,6 +167,9 @@ export async function createOrder(
   }
 
   const adminClient = createAdminClient()
+  const { data: identity } = await adminClient.from('identity_documents').select('id').eq('user_id', user.id).is('deleted_at', null).is('deletion_requested_at', null).maybeSingle()
+  if (!identity) return { error: '会員情報から本人確認書類を提出してください' }
+  if ([...requestedCardQuantities.values()].some(quantity => quantity > 999)) return { error: '数量が多すぎます' }
   const cardIds = [...requestedCardQuantities.keys()]
   const { data: cards, error: cardsError } = cardIds.length
     ? await adminClient
@@ -223,27 +237,22 @@ export async function createOrder(
   const couponAmount = appliedCoupon?.amount ?? 0
   const orderTotalAmount = totalAmount + couponAmount
 
+  if (!Number.isSafeInteger(orderTotalAmount) || orderTotalAmount < 0 || orderTotalAmount > 2147483647) return { error: '申込金額が上限を超えています' }
+
   let order: { id: string; order_number: string } | null = null
   let orderError: { code?: string; message?: string } | null = null
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const orderNumber = await nextOrderNumber(adminClient, attempt)
-    const { data, error } = await adminClient
-      .from('orders')
-      .insert({
-        order_number: orderNumber,
-        user_id: user.id,
-        status: 'unhandled',
-        total_amount: orderTotalAmount,
-        coupon_id: appliedCoupon?.id ?? null,
-        coupon_code: appliedCoupon?.code ?? null,
-        coupon_comment: appliedCoupon?.comment ?? null,
-        coupon_amount: couponAmount,
-        note: bankInfo.note ?? null,
-        ...bankInfo,
-      })
-      .select('id, order_number')
-      .single()
+    const { data, error } = await adminClient.rpc('create_order_secure', {
+      p_order: {
+        order_number: orderNumber, user_id: user.id, total_amount: orderTotalAmount,
+        coupon_id: appliedCoupon?.id ?? null, coupon_code: appliedCoupon?.code ?? null,
+        coupon_comment: appliedCoupon?.comment ?? null, coupon_amount: couponAmount,
+        bank_name: bankInfo.bank_name, bank_branch: bankInfo.bank_branch,
+        bank_account_no: bankInfo.bank_account_no, bank_holder: bankInfo.bank_holder, note: bankInfo.note ?? null,
+      }, p_items: orderItems,
+    })
 
     if (!error && data) {
       order = data
@@ -256,18 +265,8 @@ export async function createOrder(
   }
 
   if (orderError || !order) {
-    console.error('createOrder order insert failed', orderError)
+    logSafeError('createOrder order insert failed')
     return { error: '注文の作成に失敗しました' }
-  }
-
-  const { error: itemsError } = await adminClient
-    .from('order_items')
-    .insert(orderItems.map((item) => ({ ...item, order_id: order.id })))
-
-  if (itemsError) {
-    console.error('createOrder item insert failed', itemsError)
-    await adminClient.from('orders').delete().eq('id', order.id)
-    return { error: '注文明細の作成に失敗しました' }
   }
 
   const notificationOrder = await loadOrderForNotification(
@@ -294,7 +293,7 @@ export async function createOrder(
       })
 
       await sendOrderSubmittedEmail(user.email, notificationOrder).catch(
-        console.error
+        logSafeError
       )
     } else {
       logEmailDebug('createOrder-user-email-skipped', {
@@ -313,7 +312,7 @@ export async function createOrder(
     })
 
     await sendAdminOrderNotification('new_order', notificationOrder).catch(
-      console.error
+      logSafeError
     )
   } else {
     logEmailDebug('createOrder-notification-order-missing', {
@@ -340,24 +339,7 @@ export async function updateOrderStatus(
     return { error: 'リクエストが多すぎます。しばらく待ってから再度お試しください' }
   }
 
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: '認証が必要です' }
-  }
-
-  const { data: adminRow } = await supabase
-    .from('admin_users')
-    .select('id')
-    .eq('id', user.id)
-    .single()
-
-  if (!adminRow) {
-    return { error: '管理者権限が必要です' }
-  }
+  const user = await requireAdminUser()
 
   if (!ORDER_STATUSES.includes(newStatus)) {
     return { error: '不正なステータスです' }
@@ -405,29 +387,8 @@ export async function updateOrderStatus(
     return { error: '無効なステータス変更です' }
   }
 
-  const orderUpdates: Record<string, string | null> = { status: newStatus }
-  if (newStatus === 'completed') {
-    orderUpdates.completed_at = new Date().toISOString()
-  } else if (currentStatus === 'completed') {
-    orderUpdates.completed_at = null
-  }
-
-  const { error: updateError } = await adminClient
-    .from('orders')
-    .update(orderUpdates)
-    .eq('id', orderId)
-
-  if (updateError) {
-    return { error: 'ステータスの更新に失敗しました' }
-  }
-
-  await adminClient.from('order_status_logs').insert({
-    order_id: orderId,
-    old_status: currentStatus,
-    new_status: newStatus,
-    changed_by: user.id,
-    note: rollbackReason || null,
-  })
+  const { error: updateError } = await adminClient.rpc('transition_order_secure', { p_order_id: orderId, p_expected: currentStatus, p_next: newStatus, p_actor: user.id, p_note: rollbackReason || null })
+  if (updateError) return { error: '注文が更新されました。再読み込みしてお試しください' }
 
   if (newStatus === 'completed') {
     const redemptionResult = await recordCouponRedemptionForCompletedOrder(
@@ -435,7 +396,7 @@ export async function updateOrderStatus(
       orderId
     )
     if (redemptionResult.error) {
-      console.error('updateOrderStatus coupon redemption failed', {
+      logSafeError('updateOrderStatus coupon redemption failed', {
         orderId,
         error: redemptionResult.error,
       })
@@ -487,7 +448,7 @@ export async function updateOrderStatus(
             authUser.user.email,
             notificationOrder,
             newStatus
-          ).catch(console.error)
+          ).catch(logSafeError)
 
           if (newStatus === 'completed') {
             await scheduleReviewCouponEmailForCompletedOrder({
@@ -495,7 +456,7 @@ export async function updateOrderStatus(
               order: notificationOrder,
               toEmail: authUser.user.email,
               context: 'updateOrderStatus',
-            }).catch(console.error)
+            }).catch(logSafeError)
           }
         } else {
           logEmailDebug('updateOrderStatus-user-email-skipped', {
@@ -519,7 +480,7 @@ export async function updateOrderStatus(
         await sendAdminOrderNotification(
           'assessment_approved',
           notificationOrder
-        ).catch(console.error)
+        ).catch(logSafeError)
       }
     } else {
       logEmailDebug('updateOrderStatus-notification-order-missing', {
@@ -542,7 +503,7 @@ export async function updateOrderStatus(
       admin: adminClient,
       orderId,
       context: 'updateOrderStatus',
-    }).catch(console.error)
+    }).catch(logSafeError)
   }
 
   revalidatePath(`/admin/orders/${orderId}`)

@@ -1,3 +1,4 @@
+import { logSafeError } from '@/lib/security/logging'
 import { getResend } from './resend'
 import { getEnvironmentLabel } from '@/lib/environment'
 import {
@@ -178,6 +179,7 @@ function sanitizeDebugValue(key: string, value: unknown): unknown {
 }
 
 export function logEmailDebug(event: string, details: EmailDebugDetails = {}) {
+  if (process.env.NODE_ENV === 'production') return
   const sanitized = Object.fromEntries(
     Object.entries(details).map(([key, value]) => [
       key,
@@ -208,7 +210,7 @@ export async function cancelScheduledEmail(
       resendEmailId: emailId,
       error,
     })
-    console.error('Resend scheduled email cancel failed', error)
+    logSafeError('Resend scheduled email cancel failed')
     return false
   }
 
@@ -306,7 +308,7 @@ async function sendEmail(
       subject: payloadRecord.subject,
       error,
     })
-    console.error('Resend email send failed', error)
+    logSafeError('Resend email send failed')
     throw new Error(error.message || 'メール送信に失敗しました')
   }
 
@@ -366,6 +368,16 @@ function passwordResetEmailHtml(resetUrl: string) {
   </div>
 </body>
 </html>`
+}
+
+export async function sendSignupConfirmationEmail(toEmail: string, confirmationUrl: string): Promise<boolean> {
+  const url = escapeEmailHtml(confirmationUrl)
+  return Boolean(await sendEmail({
+    to: toEmail,
+    subject: `【${BRAND_NAME}】メールアドレスの確認`,
+    html: `<html lang="ja"><body><h1>メールアドレスの確認</h1><p>以下のリンクを開き、会員登録を完了してください。</p><p><a href="${url}">メールアドレスを確認する</a></p><p>心当たりがない場合は、このメールを破棄してください。</p></body></html>`,
+    text: `メールアドレスを確認し、会員登録を完了してください。\n${confirmationUrl}\n心当たりがない場合は、このメールを破棄してください。`,
+  }, { emailType: 'signup_confirmation' }))
 }
 
 export async function sendPasswordResetEmail(

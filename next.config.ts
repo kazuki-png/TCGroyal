@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
       {
         source: '/:path*',
         headers: [
+          { key: 'Content-Security-Policy-Report-Only', value: "default-src 'self'; script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" },
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',

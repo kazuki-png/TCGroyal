@@ -1,8 +1,8 @@
 import 'server-only'
 
+import { checkSharedRateLimit } from './sharedRateLimit'
 import { headers } from 'next/headers'
 import {
-  checkRateLimit,
   getClientIpFromHeaders,
   type RateLimitResult,
 } from '@/lib/security/rateLimit'
@@ -17,7 +17,7 @@ export async function checkServerActionRateLimit(
   options: ServerActionRateLimitOptions
 ): Promise<RateLimitResult> {
   const requestHeaders = await headers()
-  return checkRateLimit(
+  return checkSharedRateLimit(
     scope,
     getClientIpFromHeaders(requestHeaders),
     options

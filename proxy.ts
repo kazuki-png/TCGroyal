@@ -1,3 +1,5 @@
+
+import { safeLocalPath } from '@/lib/security/redirect'
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import {
@@ -6,18 +8,7 @@ import {
   isAdminPagePathname,
 } from '@/lib/admin/hostAccess'
 
-function safeNextPath(value: string | null) {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) {
-    return null
-  }
-
-  const pathname = value.split('?')[0]
-  if (pathname === '/login' || pathname === '/register') {
-    return null
-  }
-
-  return value
-}
+const safeNextPath = (value: unknown) => safeLocalPath(value, "/mypage")
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl

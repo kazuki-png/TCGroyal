@@ -1,11 +1,11 @@
+import { getAdminAccess } from '@/lib/admin/authorization'
 import { revalidatePath } from 'next/cache'
 import { isAdminHostAllowedForRequest } from '@/lib/admin/hostAccess'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
 import {
   checkRequestRateLimit,
   rateLimitResponse,
-} from '@/lib/security/rateLimit'
+} from '@/lib/security/sharedRateLimit'
 import {
   importCardsCsvContent,
   type CsvImportProgress,
@@ -13,22 +13,7 @@ import {
 
 export const runtime = 'nodejs'
 
-async function requireAdmin() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) return false
-
-  const { data: adminRow } = await supabase
-    .from('admin_users')
-    .select('id')
-    .eq('id', user.id)
-    .single()
-
-  return Boolean(adminRow)
-}
+async function requireAdmin() { return Boolean(await getAdminAccess()) }
 
 function streamEvent(event: CsvImportProgress | { type: 'error'; message: string }) {
   return `${JSON.stringify(event)}\n`
@@ -45,7 +30,7 @@ export async function POST(request: Request) {
     return Response.json({ message: 'Not found' }, { status: 404 })
   }
 
-  const rateLimit = checkRequestRateLimit(request, 'api:admin-cards-import', {
+  const rateLimit = await checkRequestRateLimit(request, 'api:admin-cards-import', {
     limit: 10,
     windowMs: 15 * 60 * 1000,
   })
@@ -58,9 +43,10 @@ export async function POST(request: Request) {
     return Response.json({ message: 'Unauthorized' }, { status: 401 })
   }
 
+  if (request.headers.get('origin') !== new URL(request.url).origin) return Response.json({ message: 'Forbidden' }, { status: 403 })
   const formData = await request.formData()
   const file = formData.get('csv') as File | null
-  if (!file || file.size === 0) {
+  if (!(file instanceof File) || file.size === 0 || file.size > 3 * 1024 * 1024) {
     return Response.json({ message: 'CSVファイルを選択してください' }, { status: 400 })
   }
 

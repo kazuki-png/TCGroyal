@@ -1,3 +1,4 @@
+import { requireAdminUser } from '@/lib/admin/authorization'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -92,6 +93,7 @@ export default async function AdminUsersPage({
 }: {
   searchParams: Promise<{ status?: string | string[]; page?: string | string[] }>
 }) {
+  await requireAdminUser()
   const params = await searchParams
   const filter = normalizeFilter(params.status)
   const requestedPage = normalizePage(params.page)
@@ -255,6 +257,7 @@ export default async function AdminUsersPage({
                       <UserIdentitySelect
                         userId={profile.id}
                         verified={Boolean(profile.identity_verified)}
+                        disabled={!isKycReviewer || !doc || Boolean(doc.deleted_at)}
                       />
                       {isKycReviewer && doc && (
                         <KycDocumentActions documentId={doc.id} />

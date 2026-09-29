@@ -53,7 +53,7 @@ describe('KYC fail-closed behavior', () => {
     mocks.rpc.mockResolvedValue({ data:{ ...doc, storage_path:'another-user/file.jpg' },error:null })
     expect((await DELETE(request(),ctx)).status).toBe(409); expect(mocks.storage).not.toHaveBeenCalled()
   })
-  it('rejects missing MFA/role', async () => {
+  it('rejects missing admin authorization', async () => {
     mocks.access.mockResolvedValue(null)
     expect((await GET(request(),ctx)).status).toBe(403); expect(mocks.admin).not.toHaveBeenCalled()
   })

@@ -325,7 +325,6 @@ Firebaseサーバー資格情報の登録後にPreviewを再デプロイ。設�
 The canonical test environment is now the Git-linked develop deployment:
 `https://tcg-royal-git-develop-collectorsrepublic.vercel.app/admin`.
 Push lending WIP snapshots to `origin/develop`; do not promote to Production or merge to main.
-New mobile builds use the same stable origin and migrate only previously shipped project endpoints.
-Already distributed APK v1.9.0 still contains its previous immutable Preview URL until updated.
+The fixed origin currently retains Vercel Authentication. Android v1.9.0 and new mobile builds keep the verified, app-accessible immutable Preview endpoint for now; switching the native API origin requires a separately authorized access configuration. No Vercel bypass credential is embedded in the APK.
 Local credentials, private signing material, generated native trees/APKs, attachments, editor state and temporary scripts are excluded from Git.
 Unrelated retention/security work remains local and is not part of the lending WIP snapshot.

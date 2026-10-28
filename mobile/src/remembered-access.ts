@@ -1,10 +1,10 @@
-export const DEFAULT_PREVIEW_URL = 'https://tcg-royal-git-develop-collectorsrepublic.vercel.app';
+export const DEFAULT_PREVIEW_URL = 'https://tcg-royal-2u2kvw3cy-collectorsrepublic.vercel.app';
 export const ACCESS_RETENTION_MS = 30 * 86400000;
 // Only migrate previously shipped endpoints from this same Preview project.
 // Keep trustedPreviewUrl strict for all new, user-entered connections.
 export function migratePreviewAccessUrl(value: string): string {
   const url = new URL(value);
-  const previous = ['https://tcg-royal-9a2agk48s-collectorsrepublic.vercel.app','https://tcg-royal-otku1p51i-collectorsrepublic.vercel.app','https://tcg-royal-2u2kvw3cy-collectorsrepublic.vercel.app'];
+  const previous = ['https://tcg-royal-9a2agk48s-collectorsrepublic.vercel.app','https://tcg-royal-otku1p51i-collectorsrepublic.vercel.app'];
   if (previous.includes(url.origin) && !url.username && !url.password && !url.port) return DEFAULT_PREVIEW_URL;
   return trustedPreviewUrl(value).href;
 }

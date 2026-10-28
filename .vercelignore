@@ -1,0 +1,10 @@
+.git
+.next
+node_modules
+.env*
+.codex-remote-attachments
+tmp
+mobile
+__tests__
+docs
+output

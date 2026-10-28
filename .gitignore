@@ -19,6 +19,7 @@
 
 # production
 /build
+/output/
 
 # misc
 .DS_Store
@@ -35,6 +36,7 @@ yarn-error.log*
 
 # vercel
 .vercel
+/supabase/.temp/
 
 # typescript
 *.tsbuildinfo
@@ -42,3 +44,9 @@ next-env.d.ts
 
 # documents
 /docs
+
+/tmp/
+
+/.codex-remote-attachments/
+
+/.idea/

@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: '/admin/coupons', label: 'クーポン管理', match: 'prefix' },
   { href: '/admin/users', label: 'ユーザー', match: 'prefix' },
   { href: '/admin/reference-prices', label: '参考価格', match: 'prefix' },
+  { href: '/admin/lending', label: '担保融資・査定', match: 'prefix' },
 ] as const
 
 function isActive(pathname: string, href: string, match: 'exact' | 'prefix') {

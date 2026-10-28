@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "TCG ROYAL Preview",
+    "slug": "tcg-royal-lending",
+    "version": "1.9.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "PSAラベルのQRコードを読み取るため、カメラを使用します。",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "本人確認書類の写真を選択するため写真へアクセスします。",
+          "cameraPermission": "本人確認書類の撮影にカメラを使用します。",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "lending-test",
+          "color": "#fcd66e"
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "ios": {
+      "bundleIdentifier": "com.tcgroyal.lending.preview",
+      "buildNumber": "14",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.tcgroyal.lending.preview",
+      "versionCode": 14,
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#0A1220",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "scheme": "tcgroyal-preview"
+  }
+}

@@ -12,7 +12,15 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "mobile/dist/**",
+    "mobile/.expo/**",
+    "mobile/android/**",
+    "mobile/ios/**",
   ]),
+  {
+    files: ["mobile/metro.config.js", "mobile/app.config.js"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
 ]);
 
 export default eslintConfig;

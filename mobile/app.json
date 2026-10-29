@@ -2,7 +2,8 @@
   "expo": {
     "name": "TCG ROYAL Preview",
     "slug": "tcg-royal-lending",
-    "version": "1.14.0",
+    "version": "1.14.1",
+    "backgroundColor": "#0f0e0b",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -27,19 +28,19 @@
         "expo-notifications",
         {
           "defaultChannel": "lending-test",
-          "color": "#fcd66e"
+          "color": "#d4af37"
         }
       ],
       "expo-secure-store"
     ],
     "ios": {
       "bundleIdentifier": "com.tcgroyal.lending.preview",
-      "buildNumber": "23",
+      "buildNumber": "24",
       "supportsTablet": true
     },
     "android": {
       "package": "com.tcgroyal.lending.preview",
-      "versionCode": 23,
+      "versionCode": 24,
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -47,7 +48,7 @@
         "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#0A1220",
+        "backgroundColor": "#0f0e0b",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },

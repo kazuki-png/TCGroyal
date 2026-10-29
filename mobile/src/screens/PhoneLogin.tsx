@@ -1,6 +1,6 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
-import {Switch,Text,View} from 'react-native';
-import {Button,Field,ui} from '../ui';
+import {Text,View} from 'react-native';
+import {RoyalSwitch as Switch,Button,Field,ui} from '../ui';
 import {firebaseProjectId,sendPhoneCode,phoneError,watchPhoneSignIn,signOutPhone} from '../firebase-phone';
 import {normalizeMobilePhone} from '../../../lib/lending/phone';
 import {checkPhonePreview,connectPhonePreview} from '../api';

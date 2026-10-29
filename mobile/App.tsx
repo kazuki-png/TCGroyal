@@ -1,5 +1,8 @@
+import {colors} from './src/theme';
+import siteLogo from './assets/site-logo.png';
+import {RoyalSwitch as Switch} from './src/ui';
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
-import { ActivityIndicator, Alert, Linking, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
@@ -180,16 +183,16 @@ function LendingApp() {
   return <KeyboardAvoidingView style={[styles.screen, { paddingTop: insets.top }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <StatusBar style="light" />
     <View style={styles.header}>
+      <Image source={siteLogo} accessibilityRole="image" accessibilityLabel="TCG ROYAL" alt="TCG ROYAL" style={styles.brandLogo} resizeMode="contain"/>
       <Pressable accessibilityRole="button" accessibilityLabel="テスト環境の設定と機能を開く" onPress={() => setToolsOpen(true)} style={styles.environment}>
-        <View style={styles.environmentDot}/><Text style={styles.badge}>テスト環境</Text>
+        <View style={styles.environmentDot}/><Text maxFontSizeMultiplier={1.3} style={styles.badge}>テスト環境</Text>
       </Pressable>
-      <Text style={styles.brand}>TCG ROYAL</Text>
     </View>
-    <ScrollView ref={scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor="#fcd66e" />:undefined}>
+    <ScrollView ref={scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.gold} />:undefined}>
       <Text accessibilityRole="header" style={styles.heading}>{heading}</Text>
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       {notice ? <Text accessibilityLiveRegion="polite" style={styles.success}>{notice}</Text> : null}
-      {!state && (busy || restoring) && <ActivityIndicator accessibilityLabel="接続を確認中" color="#fcd66e" />}
+      {!state && (busy || restoring) && <ActivityIndicator accessibilityLabel="接続を確認中" color={colors.gold} />}
       {!state && <>
         <Text style={styles.muted}>{supportOpen && !recovering ? '登録カードが見つからない場合や未鑑定カードも、サポートへ相談できます。' : tab === 'assessment' ? 'カードの査定・申込にはログインが必要です。' : tab === 'loans' ? '申込状況・返済額・返済期限を確認できます。ログインしてください。' : tab === 'inbox' ? '申込や本人確認に関するお知らせを確認できます。ログインしてください。' : '登録情報・本人確認書類を管理できます。ログインしてください。'}</Text>
         {supportOpen && !recovering ? <><SupportEstimate onLogin={()=>setSupportOpen(false)}/><Action label="ログインへ戻る" onPress={() => setSupportOpen(false)}/></> : <>
@@ -226,9 +229,9 @@ function LendingApp() {
           {notice ? <Text accessibilityLiveRegion="polite" style={styles.success}>{notice}</Text> : null}
           <View style={styles.card}>
             <Text style={styles.title}>接続設定</Text>
-            <TextInput accessibilityLabel="接続先URL" style={styles.input} value={accessUrl} onChangeText={setAccessUrl} autoCapitalize="none" autoCorrect={false} keyboardType="url" placeholder="Preview共有URL" placeholderTextColor="#8b96aa" editable={!busy&&!restoring&&!state} />
+            <TextInput accessibilityLabel="接続先URL" style={styles.input} value={accessUrl} onChangeText={setAccessUrl} autoCapitalize="none" autoCorrect={false} keyboardType="url" placeholder="Preview共有URL" placeholderTextColor={colors.muted} editable={!busy&&!restoring&&!state} />
             {!state ? <><Text style={styles.muted}>URLを入力すると、通常画面から会員アカウントでログインできます。接続コードを使う場合はここでログインしてください。</Text>
-              <TextInput accessibilityLabel="テスト接続コード" style={styles.input} value={accessCode} onChangeText={setAccessCode} autoCapitalize="none" autoCorrect={false} secureTextEntry placeholder="テスト接続コード" placeholderTextColor="#8b96aa" editable={!busy}/>
+              <TextInput accessibilityLabel="テスト接続コード" style={styles.input} value={accessCode} onChangeText={setAccessCode} autoCapitalize="none" autoCorrect={false} secureTextEntry placeholder="テスト接続コード" placeholderTextColor={colors.muted} editable={!busy}/>
               <Action label="接続コードでログイン" disabled={busy || restoring || !accessUrl || accessCode.length < 16} onPress={() => void connect()}/>
             </> : <><Text style={styles.success}>接続済み</Text><Action label="接続先を切り替える" disabled={busy} onPress={() => void signOut()}/></>}
           </View>
@@ -241,25 +244,25 @@ function LendingApp() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 20, paddingVertical: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderColor: '#253149' },
-  environment: { minHeight: 40, paddingHorizontal: 10, flexDirection: 'row', gap: 6, alignItems: 'center', borderWidth: 1, borderColor: '#66572f', borderRadius: 8, backgroundColor: '#28251c' },
-  environmentDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fcd66e' },
-  footer: { flexDirection: 'row', paddingTop: 10, paddingHorizontal: 12, backgroundColor: '#111b2d', borderTopWidth: 1, borderColor: '#253149' },
+  header: { paddingHorizontal: 20, paddingVertical: 12, gap:12,flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderColor: colors.border },
+  environment: { minHeight: 40, paddingHorizontal: 10, flexDirection: 'row', gap: 6, alignItems: 'center', borderWidth: 1, borderColor: colors.goldMuted, borderRadius: 8, backgroundColor: colors.active },
+  environmentDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.gold },
+  footer: { flexDirection: 'row', paddingTop: 10, paddingHorizontal: 12, backgroundColor: colors.background, borderTopWidth: 1, borderColor: colors.border },
   tab: { flex: 1, minHeight: 60, paddingVertical: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 12, gap: 3 },
-  unreadBadge: { position: 'absolute', top: 2, right: 10, borderRadius: 10, backgroundColor: '#fcd66e', paddingHorizontal: 5, minWidth: 19, alignItems: 'center' }, unreadText: { color: '#101827', fontSize: 11, fontWeight: '800' },
-  activeTab: { backgroundColor: '#272a2e' }, tabIcon: { fontSize: 24, color: '#9ba7ba', fontWeight: '600' }, tabText: { fontSize: 12, fontWeight: '700', color: '#9ba7ba' }, activeText: { color: '#fcd66e' },
-  toolsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, borderColor: '#253149' },
+  unreadBadge: { position: 'absolute', top: 2, right: 10, borderRadius: 10, backgroundColor: colors.gold, paddingHorizontal: 5, minWidth: 19, alignItems: 'center' }, unreadText: { color: colors.background, fontSize: 11, fontWeight: '800' },
+  activeTab: { backgroundColor: colors.active }, tabIcon: { fontSize: 24, color: colors.muted, fontWeight: '600' }, tabText: { fontSize: 12, fontWeight: '700', color: colors.muted }, activeText: { color: colors.gold },
+  toolsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, borderColor: colors.border },
   close: { minHeight: 52, minWidth: 64, justifyContent: 'center', alignItems: 'center' },
-  screen: { flex: 1, backgroundColor: '#0a1220' }, content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 32, gap: 20 },
-  brand: { color: '#fcd66e', fontSize: 15, fontWeight: '800', letterSpacing: 2 }, heading: { color: '#f3f5fa', fontSize: 30, fontWeight: '800', lineHeight: 43 },
-  title: { color: '#f3f5fa', fontSize: 19, fontWeight: '700' }, badge: { color: '#fcd66e', fontSize: 12, fontWeight: '700' },
-  card: { backgroundColor: '#111b2d', borderRadius: 20, borderColor: '#253149', borderWidth: 1, padding: 20, gap: 14 },
-  body: { color: '#e7ebf3', fontSize: 14, lineHeight: 23 }, muted: { color: '#9ba7ba', fontSize: 12, lineHeight: 21 },
-  label: { color: '#d9dfeb', fontSize: 13, fontWeight: '700' }, amount: { color: '#f3f5fa', fontSize: 34, fontWeight: '800' },
-  button: { backgroundColor: '#fcd66e', borderRadius: 12, padding: 15, alignItems: 'center', minHeight: 48 }, buttonText: { color: '#101827', fontWeight: '800', fontSize: 14 }, disabled: { opacity: 0.4 },
-  input: { backgroundColor: '#0a1220', borderWidth: 1, borderColor: '#3a455b', borderRadius: 12, padding: 14, color: '#fff', fontSize: 16 },
+  screen: { flex: 1, backgroundColor: colors.background }, content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 32, gap: 20 },
+  brandLogo:{width:150,height:43,flexShrink:1},heading: { color: colors.gold, fontSize: 28, fontWeight: '800', lineHeight: 40 },
+  title: { color: colors.text, fontSize: 19, fontWeight: '700' }, badge: { color: colors.gold, fontSize: 12, fontWeight: '700' },
+  card: { backgroundColor: colors.surface, borderRadius: 20, borderColor: colors.border, borderWidth: 1, padding: 20, gap: 14 },
+  body: { color: colors.text, fontSize: 14, lineHeight: 23 }, muted: { color: colors.muted, fontSize: 12, lineHeight: 21 },
+  label: { color: colors.text, fontSize: 13, fontWeight: '700' }, amount: { color: colors.text, fontSize: 34, fontWeight: '800' },
+  button: { backgroundColor: colors.gold, borderRadius: 12, padding: 15, alignItems: 'center', minHeight: 48 }, buttonText: { color: colors.background, fontWeight: '800', fontSize: 14 }, disabled: { opacity: 0.4 },
+  input: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 12, padding: 14, color: '#fff', fontSize: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 }, flex: { flex: 1 },
-  choice: { borderWidth: 1, borderColor: '#3a455b', borderRadius: 12, padding: 14 }, chosen: { borderColor: '#fcd66e', backgroundColor: '#2a2930' },
-  inset: { padding: 14, borderRadius: 12, backgroundColor: '#0a1220', gap: 8 }, camera: { height: 260, borderRadius: 12 },
+  choice: { borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 12, padding: 14 }, chosen: { borderColor: colors.gold, backgroundColor: colors.active },
+  inset: { padding: 14, borderRadius: 12, backgroundColor: colors.background, gap: 8 }, camera: { height: 260, borderRadius: 12 },
   error: { color: '#fecaca', backgroundColor: '#421b26', padding: 14, borderRadius: 12 }, success: { color: '#a7f3d0', backgroundColor: '#11352e', padding: 14, borderRadius: 12 },
 });

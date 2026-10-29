@@ -1,12 +1,12 @@
 import {useEffect,useRef,useState} from 'react';
-import {Alert,Linking,Switch,Text,View} from 'react-native';
+import {Alert,Linking,Text,View} from 'react-native';
 import {randomUUID} from 'expo-crypto';
 import * as Clipboard from 'expo-clipboard';
 import {SUPPORT_CASE_STATUS,type SupportCase,type SupportCaseList} from '../../../lib/lending/support-case-types';
 import {LOAN_STATUS_LABELS} from '../../../lib/lending/workflow-types';
 import {lendingApi} from '../api';
 import {buildSupportEstimateMessage,SUPPORT_LINE_URL} from '../support-estimate';
-import {Button,Field,ui,yen,date} from '../ui';
+import {RoyalSwitch as Switch,Button,Field,ui,yen,date} from '../ui';
 import {CollateralLines} from './CollateralLines';
 
 function CaseCard({item,busy,command,now}:{item:SupportCase;busy:boolean;now:number;command:(item:SupportCase,action:string,payload:Record<string,unknown>)=>Promise<void>}){

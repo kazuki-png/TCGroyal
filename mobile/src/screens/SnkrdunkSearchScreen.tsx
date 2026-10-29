@@ -1,3 +1,4 @@
+import {colors} from '../theme';
 import {useRef,useState} from 'react';
 import {ActivityIndicator,Image,Pressable,Text,View} from 'react-native';
 import type {SnkrdunkCard,SnkrdunkCardSearch} from '../../../lib/lending/snkrdunk-card-types';
@@ -24,12 +25,12 @@ export function SnkrdunkSearchScreen({onApplied,onAdd}:{onApplied:()=>Promise<vo
    <View style={ui.row}>{(['all','pokemon','onepiece'] as const).map(value=><View key={value} style={{flex:1}}><Button title={`${category===value?'✓ ':''}${value==='all'?'すべて':value==='pokemon'?'ポケモン':'ワンピース'}`} secondary disabled={busy} onPress={()=>setCategory(value)}/></View>)}</View>
    <Button title="スニダンで検索する" disabled={busy||!query.trim()} onPress={()=>void search()}/>
   </View>
-  {busy&&<ActivityIndicator accessibilityLabel="カードを検索中" color="#fcd66e"/>}
+  {busy&&<ActivityIndicator accessibilityLabel="カードを検索中" color={colors.gold}/>}
   {!!error&&<Text accessibilityRole="alert" style={ui.error}>{error}</Text>}
   {added&&<Text style={ui.success}>申込に追加しました。続けてカードを検索・追加できます。</Text>}
   {results&&<><Text style={ui.muted}>{results.page}ページ / 候補 {results.cards.length}件</Text>
    {!results.cards.length&&<Text style={ui.body}>対象のカードが見つかりません。次のページ、検索語の変更、登録カード検索・個別見積もりをお試しください。</Text>}
-   {results.cards.map(card=><Pressable key={card.productId} accessibilityRole="radio" accessibilityLabel={card.name} accessibilityState={{checked:selected?.productId===card.productId,disabled:busy}} disabled={busy} onPress={()=>setSelected(card)} style={[ui.card,selected?.productId===card.productId&&{borderColor:'#fcd66e'}]}>
+   {results.cards.map(card=><Pressable key={card.productId} accessibilityRole="radio" accessibilityLabel={card.name} accessibilityState={{checked:selected?.productId===card.productId,disabled:busy}} disabled={busy} onPress={()=>setSelected(card)} style={[ui.card,selected?.productId===card.productId&&{borderColor:colors.gold}]}>
     {card.imageUrl&&<Image source={{uri:card.imageUrl}} accessibilityLabel={card.name} alt={card.name} style={{height:150,width:'100%'}} resizeMode="contain"/>}
     <Text style={ui.title}>{card.name}</Text><Text style={ui.muted}>{card.cardNumber} / {card.category==='pokemon'?'ポケモン':'ワンピース'}</Text>
    </Pressable>)}

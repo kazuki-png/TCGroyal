@@ -1,9 +1,10 @@
+import {colors} from '../theme';
 import { useEffect,useState } from 'react';
-import { ActivityIndicator, Alert, Image, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import type { AccountState,LendingProfile } from '../../../lib/lending/mobile-types';
 import { lendingApi } from '../api';
-import { Button,Field,ui,yen,date } from '../ui';
+import {RoyalSwitch as Switch, Button,Field,ui,yen,date } from '../ui';
 import {PushSettings} from './PushSettings';
 const docTypes={drivers_license:'運転免許証',passport:'パスポート',mynumber_front:'マイナンバーカード表面',address_proof:'住所確認書類'} as const;
 const statuses:Record<string,string>={uploading:'送信未完了',pending:'確認待ち',verified:'確認済み',rejected:'再提出が必要',deleted:'削除済み'};
@@ -26,7 +27,7 @@ export function AccountScreen({onUpdated}:{onUpdated:()=>Promise<void>}){
  return <View style={{gap:20}}>
   <PushSettings/>
   {error?<Text accessibilityRole="alert" style={ui.error}>{error}</Text>:null}{notice?<Text accessibilityLiveRegion="polite" style={ui.success}>{notice}</Text>:null}
-  {!account&&!error&&<ActivityIndicator color="#fcd66e"/>}
+  {!account&&!error&&<ActivityIndicator color={colors.gold}/>}
   {!account&&!!error&&<Button title="マイページを再取得" disabled={busy} onPress={()=>void run(async()=>{await load();await onUpdated()})}/>}
   {account&&<><View style={ui.card}><Text style={ui.title}>現在のご利用状況</Text><Text style={ui.muted}>現在融資額（元本）</Text><Text style={ui.amount}>{yen(account.summary.outstandingJpy)}</Text><Text style={ui.body}>現在の返済必要額 {yen(account.summary.payoffJpy)}</Text><Text style={ui.body}>最も近い返済期限 {date(account.summary.nextDueAt)}</Text><Text style={ui.muted}>契約中 {account.summary.activeCount}件</Text><Button title="マイページを更新" secondary disabled={busy} onPress={()=>void run(async()=>{await load();await onUpdated()})}/></View>
    {account.authentication?.email&&<View style={ui.card}><Text style={ui.title}>ログインアカウント</Text><Text style={ui.body}>{account.authentication.email}</Text><Text style={ui.muted}>{account.authentication.emailVerified?'メール確認済み':'メール未確認'}</Text></View>}
@@ -42,11 +43,11 @@ export function AccountScreen({onUpdated}:{onUpdated:()=>Promise<void>}){
     {asset&&<><Image alt="送信する書類のプレビュー" accessibilityLabel="送信する書類のプレビュー" source={{uri:asset.uri}} style={{height:180,width:'100%',borderRadius:12}} resizeMode="contain"/><View style={ui.row}><Switch accessibilityLabel="書類送信への同意" value={consent} onValueChange={setConsent} disabled={busy}/><Text style={[ui.body,{flex:1}]}>本人確認のための画像送信に同意します</Text></View><Button title="この書類を送信する" disabled={busy||!consent} onPress={()=>void run(async()=>{const form=new FormData();form.append('file',{uri:asset.uri,name:'identity.jpg',type:asset.mimeType??'image/jpeg'} as unknown as Blob);form.append('documentType',documentType);form.append('side',side);form.append('consent','true');await lendingApi('/documents',{body:form});setAsset(null);setConsent(false);await load();await onUpdated();setNotice('書類を送信しました。運営の確認待ちです。')})}/></>}
     <Text style={ui.label}>送信した書類</Text>
     {!account.documents.length&&<Text style={ui.muted}>書類はまだ送信されていません。</Text>}
-    {account.documents.map(d=><View key={d.id} style={{gap:8,borderTopWidth:1,borderColor:'#253149',paddingTop:12}}><Text style={ui.body}>{docTypes[d.document_type as keyof typeof docTypes]} / {d.side==='front'?'表面':'裏面'} / {statuses[d.status]??d.status}</Text><Text style={ui.muted}>{date(d.uploaded_at)}</Text><Button title="送信書類を削除" secondary disabled={busy} onPress={()=>Alert.alert('書類を削除','送信した画像を削除します。',[{text:'戻る',style:'cancel'},{text:'削除する',style:'destructive',onPress:()=>void run(async()=>{await lendingApi(`/documents?id=${d.id}`,{method:'DELETE'});await load();setNotice('書類を削除しました。')})}])}/></View>)}
+    {account.documents.map(d=><View key={d.id} style={{gap:8,borderTopWidth:1,borderColor:colors.border,paddingTop:12}}><Text style={ui.body}>{docTypes[d.document_type as keyof typeof docTypes]} / {d.side==='front'?'表面':'裏面'} / {statuses[d.status]??d.status}</Text><Text style={ui.muted}>{date(d.uploaded_at)}</Text><Button title="送信書類を削除" secondary disabled={busy} onPress={()=>Alert.alert('書類を削除','送信した画像を削除します。',[{text:'戻る',style:'cancel'},{text:'削除する',style:'destructive',onPress:()=>void run(async()=>{await lendingApi(`/documents?id=${d.id}`,{method:'DELETE'});await load();setNotice('書類を削除しました。')})}])}/></View>)}
    </View>}
    <View style={ui.card}><Text style={ui.title}>査定履歴</Text><Text style={ui.muted}>最新30件を表示します。</Text>
     {!account.assessments.length&&<Text style={ui.muted}>査定履歴はまだありません。</Text>}
-    {account.assessments.map(a=><View key={a.id} style={{gap:8,borderTopWidth:1,borderColor:'#253149',paddingTop:12}}><Text style={ui.body}>{a.product.name}</Text><Text style={ui.body}>{yen(a.estimate_jpy)} / {a.status==='submitted'?'運営へ査定依頼中':a.status==='cancelled'?'取消済み':'参考額取得済み'}</Text><Text style={ui.muted}>{date(a.created_at)}</Text>{a.status==='submitted'&&<Button title="査定依頼を取り消す" secondary disabled={busy} onPress={()=>void run(async()=>{await lendingApi('/cards',{body:{action:'cancel',assessmentId:a.id}});await load()})}/>}</View>)}
+    {account.assessments.map(a=><View key={a.id} style={{gap:8,borderTopWidth:1,borderColor:colors.border,paddingTop:12}}><Text style={ui.body}>{a.product.name}</Text><Text style={ui.body}>{yen(a.estimate_jpy)} / {a.status==='submitted'?'運営へ査定依頼中':a.status==='cancelled'?'取消済み':'参考額取得済み'}</Text><Text style={ui.muted}>{date(a.created_at)}</Text>{a.status==='submitted'&&<Button title="査定依頼を取り消す" secondary disabled={busy} onPress={()=>void run(async()=>{await lendingApi('/cards',{body:{action:'cancel',assessmentId:a.id}});await load()})}/>}</View>)}
    </View>
   </>}
  </View>

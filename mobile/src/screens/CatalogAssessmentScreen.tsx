@@ -1,12 +1,13 @@
+import {colors} from '../theme';
 import {useEffect,useRef,useState} from 'react';
-import {ActivityIndicator,Image,Pressable,Switch,Text,View} from 'react-native';
+import {ActivityIndicator,Image,Pressable,Text,View} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {randomUUID} from 'expo-crypto';
 import type {CatalogCard,CatalogSearch,CatalogAssessment,DeclaredGrade} from '../../../lib/lending/catalog-types';
 import type {SupportCase} from '../../../lib/lending/support-case-types';
 import {lendingApi} from '../api';
 import {SupportEstimate} from './SupportEstimate';
-import {Button,Field,ui,yen,date} from '../ui';
+import {RoyalSwitch as Switch,Button,Field,ui,yen,date} from '../ui';
 import {SnkrdunkSearchScreen} from './SnkrdunkSearchScreen';
 import {CollateralBasket} from './CollateralBasket';
 import {collateralQuantity,type CollateralItem} from '../../../lib/lending/collateral-types';
@@ -84,10 +85,10 @@ export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>
      </>}
     </>}
    </View>
-   {busy&&<ActivityIndicator accessibilityLabel="処理中" color="#fcd66e"/>}
+   {busy&&<ActivityIndicator accessibilityLabel="処理中" color={colors.gold}/>}
    {results&&<View style={{gap:12}}>
     <Text style={ui.muted}>候補 {results.total}件 / {results.page}ページ。マスタのグレードも確認してください。</Text>
-    {results.cards.map(card=><Pressable key={card.public_uid} accessibilityRole="radio" accessibilityState={{checked:selected?.public_uid===card.public_uid,disabled:busy}} disabled={busy} style={[ui.card,selected?.public_uid===card.public_uid&&{borderColor:'#fcd66e'}]} onPress={()=>{setSelected(card);setGrade('ungraded');invalidate()}}>
+    {results.cards.map(card=><Pressable key={card.public_uid} accessibilityRole="radio" accessibilityState={{checked:selected?.public_uid===card.public_uid,disabled:busy}} disabled={busy} style={[ui.card,selected?.public_uid===card.public_uid&&{borderColor:colors.gold}]} onPress={()=>{setSelected(card);setGrade('ungraded');invalidate()}}>
      {card.image_url&&/^https:\/\//.test(card.image_url)?<Image alt={card.name} accessibilityLabel={card.name} source={{uri:card.image_url}} style={{height:140,width:'100%'}} resizeMode="contain"/>:null}
      <Text style={ui.title}>{card.name}</Text><Text style={ui.body}>{card.card_number||'型番未登録'} / {card.category} / {card.grade}</Text>
     </Pressable>)}

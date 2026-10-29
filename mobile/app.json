@@ -2,7 +2,7 @@
   "expo": {
     "name": "TCG ROYAL Preview",
     "slug": "tcg-royal-lending",
-    "version": "1.14.1",
+    "version": "1.15.0",
     "backgroundColor": "#0f0e0b",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -35,12 +35,12 @@
     ],
     "ios": {
       "bundleIdentifier": "com.tcgroyal.lending.preview",
-      "buildNumber": "24",
+      "buildNumber": "25",
       "supportsTablet": true
     },
     "android": {
       "package": "com.tcgroyal.lending.preview",
-      "versionCode": 24,
+      "versionCode": 25,
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",

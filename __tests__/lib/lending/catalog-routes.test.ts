@@ -2,7 +2,8 @@
 import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest'
 import sharp from 'sharp'
 vi.mock('server-only',()=>({}))
-const mocks=vi.hoisted(()=>({access:vi.fn(),client:vi.fn(),rate:vi.fn(),search:vi.fn(),extract:vi.fn(),market:vi.fn(),external:vi.fn()}))
+const mocks=vi.hoisted(()=>({access:vi.fn(),client:vi.fn(),rate:vi.fn(),search:vi.fn(),extract:vi.fn(),market:vi.fn(),external:vi.fn(),estimate:vi.fn()}))
+vi.mock('@/lib/lending/bundle-estimate',()=>({estimateBundle:mocks.estimate}))
 vi.mock('@/lib/lending/snkrdunk-card-search',()=>({searchSnkrdunkCards:mocks.external}))
 vi.mock('@/lib/lending/api-guard',async()=>({...await vi.importActual<typeof import('@/lib/lending/api-guard')>('@/lib/lending/api-guard'),lendingAccess:mocks.access}))
 vi.mock('@/lib/lending/workflow-client',()=>({createWorkflowClient:mocks.client,checkWorkflowRateLimit:mocks.rate}))
@@ -30,6 +31,17 @@ beforeEach(()=>{
 })
 afterEach(()=>vi.unstubAllEnvs())
 describe('catalog and image routes',()=>{
+ it('authenticates, bounds and rate-limits bundle estimates; refuses client prices and admin callers',async()=>{
+  const item={id,name:'カード',cardNumber:'001',quantity:1,grade:'PSA10',condition:'',source:'snkrdunk',productId:'123',cardUid:null},body={action:'quote_bundle',items:[item]};
+  mocks.estimate.mockResolvedValue({status:'manual',amountJpy:null});
+  expect((await catalog(request(body))).status).toBe(200);expect(mocks.estimate).toHaveBeenCalledWith([item]);expect(mocks.client).not.toHaveBeenCalled();
+  expect((await catalog(request({...body,amountJpy:999999}))).status).toBe(400);
+  expect((await catalog(request({...body,items:[{...item,quantity:101}]}))).status).toBe(400);
+  mocks.rate.mockResolvedValue({allowed:false});expect((await catalog(request(body))).status).toBe(429);
+  mocks.access.mockResolvedValue({id:user,role:'admin'});expect((await catalog(request(body))).status).toBe(403);
+  mocks.access.mockResolvedValue(Response.json({error:'login'},{status:401}));expect((await catalog(request(body))).status).toBe(401);
+  expect(mocks.estimate).toHaveBeenCalledOnce();expect(rpc).not.toHaveBeenCalled();
+ })
  it('requires authentication, validates and rate limits external card search without DB writes or price calls',async()=>{
   mocks.external.mockResolvedValue({cards:[],page:1,hasMore:false});
   expect((await catalog(request({action:'search_snkrdunk',query:'ピカチュウ'}))).status).toBe(200);

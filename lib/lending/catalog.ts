@@ -1,6 +1,8 @@
 import {z} from 'zod'
+import {collateralItems} from './collateral'
 export const declaredGrade=z.enum(['PSA10','other','ungraded'])
 export const catalogInput=z.discriminatedUnion('action',[
+ z.object({action:z.literal('quote_bundle'),items:collateralItems}).strict(),
  z.object({action:z.literal('search_snkrdunk'),query:z.string().trim().min(1).max(100),category:z.enum(['pokemon','onepiece','all']).default('all'),page:z.number().int().min(1).max(100).default(1)}).strict(),
  z.object({action:z.literal('search'),query:z.string().trim().max(100).default(''),category:z.enum(['pokemon','onepiece','all']).default('all'),page:z.number().int().min(1).max(10000).default(1)}).strict(),
  z.object({action:z.literal('assess'),cardUid:z.uuid(),declaredGrade,certInput:z.string().trim().max(250).default(''),imageRequestId:z.uuid().optional()}).strict(),

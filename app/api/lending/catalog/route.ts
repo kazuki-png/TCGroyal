@@ -10,11 +10,13 @@ import {supportCaseError} from '@/lib/lending/support-cases'
 import type {CatalogCard} from '@/lib/lending/catalog-types'
 import type {MarketSnapshot} from '@/lib/lending/types'
 import {searchSnkrdunkCards} from '@/lib/lending/snkrdunk-card-search'
+import {estimateBundle} from '@/lib/lending/bundle-estimate'
 export const runtime='nodejs'
+export const maxDuration=60
 export async function POST(request:Request){
  const actor=await lendingAccess(request,'lending:catalog',30);if(actor instanceof Response)return actor
  let input
- try{input=catalogInput.parse(JSON.parse((await boundedBody(request,8192)).toString('utf8')))}catch{return lendingJson({error:'入力内容を確認してください。'},400)}
+ try{input=catalogInput.parse(JSON.parse((await boundedBody(request,65536)).toString('utf8')))}catch{return lendingJson({error:'入力内容を確認してください。'},400)}
  try{
   if(input.action==='search_snkrdunk'){
    const limit=await checkWorkflowRateLimit('lending:snkrdunk-search',actor.id,{limit:6,windowMs:60000})
@@ -24,6 +26,13 @@ export async function POST(request:Request){
   }
   if(input.action==='search')return lendingJson(await searchCatalog(input.query,input.category,input.page))
   if(actor.role!=='customer')return lendingJson({error:'利用者のアカウントで操作してください。'},403)
+  if(input.action==='quote_bundle'){
+   const limit=await checkWorkflowRateLimit('lending:bundle-estimate',actor.id,{limit:3,windowMs:60000})
+   if(!limit.allowed)return lendingJson({error:'参考額の計算回数が多いため、1分ほど待ってからお試しください。'},429)
+   const shared=await checkWorkflowRateLimit('lending:bundle-estimate-global','snkrdunk',{limit:30,windowMs:60000})
+   if(!shared.allowed)return lendingJson({error:'参考額の計算が混み合っています。1分ほど待ってからお試しください。'},429)
+   return lendingJson({estimate:await estimateBundle(input.items)})
+  }
   const db=createWorkflowClient()
   if(input.action==='submit'){
    const {data,error}=await db.rpc('lending_catalog_submit',{p_actor:actor.id,p_assessment:input.assessmentId,p_amount:input.requestedAmount===''?null:Number(input.requestedAmount),p_notes:input.notes,p_key:input.key})

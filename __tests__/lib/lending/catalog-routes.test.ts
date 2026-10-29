@@ -31,16 +31,23 @@ beforeEach(()=>{
 })
 afterEach(()=>vi.unstubAllEnvs())
 describe('catalog and image routes',()=>{
- it('authenticates, bounds and rate-limits bundle estimates; refuses client prices and admin callers',async()=>{
+ it('authenticates, bounds and rate-limits bundle estimates and refuses client prices',async()=>{
   const item={id,name:'カード',cardNumber:'001',quantity:1,grade:'PSA10',condition:'',source:'snkrdunk',productId:'123',cardUid:null},body={action:'quote_bundle',items:[item]};
   mocks.estimate.mockResolvedValue({status:'manual',amountJpy:null});
   expect((await catalog(request(body))).status).toBe(200);expect(mocks.estimate).toHaveBeenCalledWith([item]);expect(mocks.client).not.toHaveBeenCalled();
   expect((await catalog(request({...body,amountJpy:999999}))).status).toBe(400);
   expect((await catalog(request({...body,items:[{...item,quantity:101}]}))).status).toBe(400);
   mocks.rate.mockResolvedValue({allowed:false});expect((await catalog(request(body))).status).toBe(429);
-  mocks.access.mockResolvedValue({id:user,role:'admin'});expect((await catalog(request(body))).status).toBe(403);
   mocks.access.mockResolvedValue(Response.json({error:'login'},{status:401}));expect((await catalog(request(body))).status).toBe(401);
   expect(mocks.estimate).toHaveBeenCalledOnce();expect(rpc).not.toHaveBeenCalled();
+ })
+ it('lets verified admin accounts read reference amounts but keeps customer mutations restricted',async()=>{
+  mocks.access.mockResolvedValue({id:user,role:'admin',demo:false,authProvider:'supabase'});
+  const item={id,name:'カード',cardNumber:'001',quantity:1,grade:'PSA10',condition:'',source:'snkrdunk',productId:'123',cardUid:null};mocks.estimate.mockResolvedValue({status:'reference',amountJpy:100000});
+  const response=await catalog(request({action:'quote_bundle',items:[item]}));expect(response.status).toBe(200);expect((await response.json()).estimate.amountJpy).toBe(100000);
+  expect((await catalog(request({action:'assess',cardUid:id,declaredGrade:'PSA10'}))).status).toBe(403);
+  expect((await catalog(request({action:'submit',assessmentId:id,key:id,requestedAmount:'100000',consent:true}))).status).toBe(403);
+  expect(mocks.estimate).toHaveBeenCalledOnce();expect(mocks.client).not.toHaveBeenCalled();expect(rpc).not.toHaveBeenCalled();
  })
  it('requires authentication, validates and rate limits external card search without DB writes or price calls',async()=>{
   mocks.external.mockResolvedValue({cards:[],page:1,hasMore:false});

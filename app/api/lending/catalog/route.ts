@@ -25,14 +25,16 @@ export async function POST(request:Request){
    catch{return lendingJson({error:'スニダンのカード検索を利用できません。時間をおくか、登録カード検索・個別見積もりをご利用ください。'},502)}
   }
   if(input.action==='search')return lendingJson(await searchCatalog(input.query,input.category,input.page))
-  if(actor.role!=='customer')return lendingJson({error:'利用者のアカウントで操作してください。'},403)
+  // Reference calculation is read-only, like card discovery. Administrative
+  // accounts may preview it without gaining access to customer mutations.
   if(input.action==='quote_bundle'){
-   const limit=await checkWorkflowRateLimit('lending:bundle-estimate',actor.id,{limit:3,windowMs:60000})
+   const limit=await checkWorkflowRateLimit('lending:bundle-estimate',actor.id,{limit:20,windowMs:60000})
    if(!limit.allowed)return lendingJson({error:'参考額の計算回数が多いため、1分ほど待ってからお試しください。'},429)
-   const shared=await checkWorkflowRateLimit('lending:bundle-estimate-global','snkrdunk',{limit:30,windowMs:60000})
+   const shared=await checkWorkflowRateLimit('lending:bundle-estimate-global','snkrdunk',{limit:60,windowMs:60000})
    if(!shared.allowed)return lendingJson({error:'参考額の計算が混み合っています。1分ほど待ってからお試しください。'},429)
    return lendingJson({estimate:await estimateBundle(input.items)})
   }
+  if(actor.role!=='customer')return lendingJson({error:'利用者のアカウントで操作してください。'},403)
   const db=createWorkflowClient()
   if(input.action==='submit'){
    const {data,error}=await db.rpc('lending_catalog_submit',{p_actor:actor.id,p_assessment:input.assessmentId,p_amount:input.requestedAmount===''?null:Number(input.requestedAmount),p_notes:input.notes,p_key:input.key})

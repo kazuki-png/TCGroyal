@@ -15,7 +15,7 @@ describe('individual support estimate', () => {
   });
   it('supports a missing certificate number and unknown optional details', () => {
     const message = buildSupportEstimateMessage({ ...draft, reason: 'no_certificate', cardNumber: '', condition: '', requestedAmount: '', notes: '' });
-    expect(message).toContain('PSA鑑定番号がわからない・番号がない');
+    expect(message).toContain('鑑定情報が不明なカード');
     expect(message).toContain('見積もり後に相談したい');
   });
   it('rejects empty names, oversized requests and malformed amounts before opening an external service', () => {

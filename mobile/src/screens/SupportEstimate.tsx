@@ -41,7 +41,7 @@ export function SupportEstimate({connected=false,onRegistered,onLogin}:{connecte
   if(!connected)return <View style={ui.card}><Text style={ui.title}>個別見積もりを相談</Text><Text style={ui.body}>相談案件を会員アカウントに登録すると、LINEでのご相談後も「貸付状況」から進捗を確認できます。</Text><Button title="ログインして相談を登録" onPress={()=>onLogin?.()}/></View>;
   return <View style={ui.card}>
     <Text accessibilityRole="header" style={ui.title}>サポートへ個別見積もりを相談</Text>
-    <Text style={ui.body}>PSA番号がないカード・未鑑定カードもご相談いただけます。状態や市場価格を確認し、サポートが担保評価と融資の可否を個別にご案内します。</Text>
+    <Text style={ui.body}>登録カードが見つからない場合や未鑑定カードもご相談いただけます。状態や市場価格を確認し、サポートが担保評価と融資の可否を個別にご案内します。</Text>
     <Text style={ui.muted}>1. 相談案件を登録 → 2. 受付番号と写真をLINEへ送信 → 3. 貸付状況で見積もりを確認</Text>
     {error ? <Text accessibilityRole="alert" style={ui.error}>{error}</Text> : null}
     {notice ? <Text accessibilityLiveRegion="polite" style={ui.success}>{notice}</Text> : null}

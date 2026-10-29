@@ -2,7 +2,7 @@
   "expo": {
     "name": "TCG ROYAL Preview",
     "slug": "tcg-royal-lending",
-    "version": "1.11.0",
+    "version": "1.12.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -10,7 +10,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "カードの撮影とPSAラベルのQRコード読み取りにカメラを使用します。",
+          "cameraPermission": "カードや本人確認書類の撮影にカメラを使用します。",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
@@ -34,12 +34,12 @@
     ],
     "ios": {
       "bundleIdentifier": "com.tcgroyal.lending.preview",
-      "buildNumber": "16",
+      "buildNumber": "17",
       "supportsTablet": true
     },
     "android": {
       "package": "com.tcgroyal.lending.preview",
-      "versionCode": 16,
+      "versionCode": 17,
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",

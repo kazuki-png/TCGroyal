@@ -1,11 +1,9 @@
 import {useEffect,useRef,useState} from 'react';
 import {ActivityIndicator,Image,Pressable,Switch,Text,View} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import {CameraView,useCameraPermissions} from 'expo-camera';
 import {randomUUID} from 'expo-crypto';
 import type {CatalogCard,CatalogSearch,CatalogAssessment,DeclaredGrade} from '../../../lib/lending/catalog-types';
 import type {SupportCase} from '../../../lib/lending/support-case-types';
-import {parsePsaCert} from '../../../lib/lending/psa';
 import {lendingApi} from '../api';
 import {SupportEstimate} from './SupportEstimate';
 import {Button,Field,ui,yen,date} from '../ui';
@@ -13,11 +11,10 @@ import {Button,Field,ui,yen,date} from '../ui';
 export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>}){
  const [route,setRoute]=useState<'catalog'|'support'>('catalog');
  const [query,setQuery]=useState(''),[category,setCategory]=useState('all'),[results,setResults]=useState<CatalogSearch|null>(null);
- const [selected,setSelected]=useState<CatalogCard|null>(null),[grade,setGrade]=useState<DeclaredGrade>('ungraded'),[cert,setCert]=useState('');
+ const [selected,setSelected]=useState<CatalogCard|null>(null),[grade,setGrade]=useState<DeclaredGrade>('ungraded');
  const [assessment,setAssessment]=useState<CatalogAssessment|null>(null),[amount,setAmount]=useState(''),[notes,setNotes]=useState('');
  const [consent,setConsent]=useState(false),[busy,setBusy]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [imageMode,setImageMode]=useState(false),[asset,setAsset]=useState<ImagePicker.ImagePickerAsset|null>(null),[imageConsent,setImageConsent]=useState(false);
- const [scanning,setScanning]=useState(false),[permission,requestPermission]=useCameraPermissions();
  const [registered,setRegistered]=useState<SupportCase|null>(null);
  const lock=useRef(true),imageKey=useRef<string|null>(null),submitKey=useRef<{signature:string;key:string}|null>(null);
  useEffect(()=>{let live=true;void lendingApi<CatalogSearch>('/catalog',{body:{action:'search',query:'',category:'all',page:1}}).then(d=>{if(live)setResults(d)}).catch(e=>{if(live)setError(e.message)}).finally(()=>{if(live){lock.current=false;setBusy(false)}});return()=>{live=false}},[]);
@@ -42,7 +39,6 @@ export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>
   setQuery(data.hints?.cardNumber||data.hints?.name||'');setCategory(data.hints?.category??'all');
   setNotice(data.total?'画像から候補を探しました。型番・版・言語・グレードを確認して選択してください。':'一致する候補がありません。検索語の修正、再撮影、個別見積もりをご利用ください。');
  }
- async function scan(){const p=permission?.granted?permission:await requestPermission();if(!p.granted)throw Error('カメラの許可が必要です。番号は手入力もできます。');setScanning(true)}
  async function submit(){
   if(!assessment||!consent||registered)return;
   const body={action:'submit',assessmentId:assessment.id,requestedAmount:amount,notes,consent:true},signature=JSON.stringify(body);
@@ -53,14 +49,14 @@ export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>
  }
  return <View style={{gap:20}}>
   <View style={ui.row}>
-   <View style={{flex:1}}><Button title="カードを検索" secondary disabled={busy} onPress={()=>{setRoute('catalog');setScanning(false)}}/></View>
-   <View style={{flex:1}}><Button title="個別見積もり" secondary disabled={busy} onPress={()=>{setRoute('support');setScanning(false)}}/></View>
+   <View style={{flex:1}}><Button title="カードを検索" secondary disabled={busy} onPress={()=>{setRoute('catalog')}}/></View>
+   <View style={{flex:1}}><Button title="個別見積もり" secondary disabled={busy} onPress={()=>{setRoute('support')}}/></View>
   </View>
   {route==='support'?<SupportEstimate connected onRegistered={onApplied}/>:<>
    {error?<Text accessibilityRole="alert" style={ui.error}>{error}</Text>:null}
    {notice?<Text accessibilityLiveRegion="polite" style={ui.success}>{notice}</Text>:null}
    <View style={ui.card}>
-    <Text style={ui.title}>カードを選択</Text><Text style={ui.muted}>TCG ROYALに登録されたカードからお選びください。鑑定番号がなくても査定を依頼できます。</Text>
+    <Text style={ui.title}>カードを選択</Text><Text style={ui.muted}>TCG ROYALに登録されたカードからお選びください。カード画像から候補を探すこともできます。</Text>
     <Field label="カード名・型番" value={query} maxLength={100} editable={!busy} onChangeText={setQuery}/>
     <View style={ui.row}>{(['all','pokemon','onepiece'] as const).map(v=><View style={{flex:1}} key={v}><Button title={`${category===v?'✓ ':''}${v==='all'?'すべて':v==='pokemon'?'ポケモン':'ワンピース'}`} secondary disabled={busy} onPress={()=>setCategory(v)}/></View>)}</View>
     <Button title="検索する" disabled={busy} onPress={()=>void run(()=>search())}/>
@@ -69,7 +65,7 @@ export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>
      <Text style={ui.body}>カード表面の画像からカード名や型番を読み取り、登録カードから候補を探します。画像だけでは鑑定・真贋確認はできません。</Text>
      <View style={ui.row}><Button title="撮影する" secondary disabled={busy} onPress={()=>void run(()=>choose(true))}/><Button title="写真から選択" secondary disabled={busy} onPress={()=>void run(()=>choose(false))}/></View>
      {asset&&<>
-      <Image accessibilityLabel="検索するカード画像" source={{uri:asset.uri}} style={{height:220,width:'100%'}} resizeMode="contain"/>
+      <Image alt="検索するカード画像" accessibilityLabel="検索するカード画像" source={{uri:asset.uri}} style={{height:220,width:'100%'}} resizeMode="contain"/>
       <View style={ui.row}><Switch value={imageConsent} onValueChange={setImageConsent} disabled={busy} accessibilityLabel="カード画像をOpenAIへ送信することに同意"/><Text style={[ui.body,{flex:1}]}>検索のためカード画像をOpenAIへ送信することに同意します。本人確認書類は送らないでください。</Text></View>
       <Button title="この画像で検索" disabled={busy||!imageConsent} onPress={()=>void run(imageSearch)}/>
      </>}
@@ -78,8 +74,8 @@ export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>
    {busy&&<ActivityIndicator accessibilityLabel="処理中" color="#fcd66e"/>}
    {results&&<View style={{gap:12}}>
     <Text style={ui.muted}>候補 {results.total}件 / {results.page}ページ。マスタのグレードも確認してください。</Text>
-    {results.cards.map(card=><Pressable key={card.public_uid} accessibilityRole="radio" accessibilityState={{checked:selected?.public_uid===card.public_uid,disabled:busy}} disabled={busy} style={[ui.card,selected?.public_uid===card.public_uid&&{borderColor:'#fcd66e'}]} onPress={()=>{setSelected(card);setGrade('ungraded');setCert('');setScanning(false);invalidate()}}>
-     {card.image_url&&/^https:\/\//.test(card.image_url)?<Image accessibilityLabel={card.name} source={{uri:card.image_url}} style={{height:140,width:'100%'}} resizeMode="contain"/>:null}
+    {results.cards.map(card=><Pressable key={card.public_uid} accessibilityRole="radio" accessibilityState={{checked:selected?.public_uid===card.public_uid,disabled:busy}} disabled={busy} style={[ui.card,selected?.public_uid===card.public_uid&&{borderColor:'#fcd66e'}]} onPress={()=>{setSelected(card);setGrade('ungraded');invalidate()}}>
+     {card.image_url&&/^https:\/\//.test(card.image_url)?<Image alt={card.name} accessibilityLabel={card.name} source={{uri:card.image_url}} style={{height:140,width:'100%'}} resizeMode="contain"/>:null}
      <Text style={ui.title}>{card.name}</Text><Text style={ui.body}>{card.card_number||'型番未登録'} / {card.category} / {card.grade}</Text>
     </Pressable>)}
     {!results.total&&<Text style={ui.body}>該当カードがない場合も、個別見積もりから相談できます。</Text>}
@@ -88,14 +84,9 @@ export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>
    </View>}
    {selected&&!registered&&<View style={ui.card}>
     <Text style={ui.title}>選択したカード：{selected.name}</Text><Text style={ui.body}>{selected.card_number} / マスタ上のグレード {selected.grade}</Text><Text style={ui.label}>お手元のカードの状態</Text>
-    {(['ungraded','PSA10','other'] as const).map(value=><Button key={value} title={`${grade===value?'✓ ':''}${value==='ungraded'?'未鑑定':value==='PSA10'?'PSA10（自己申告）':'その他の鑑定・グレード'}`} secondary disabled={busy} onPress={()=>{setGrade(value);if(value==='ungraded')setCert('');invalidate()}}/>)}
-    {grade!=='ungraded'&&<>
-     <Field label="PSA鑑定番号・公式QR URL（任意）" value={cert} onChangeText={v=>{setCert(v);invalidate()}} maxLength={250} editable={!busy} autoCapitalize="none"/>
-     <Button title="PSA番号のQRを読む" secondary disabled={busy} onPress={()=>void run(scan)}/>
-     {scanning&&<><CameraView style={{height:240}} barcodeScannerSettings={{barcodeTypes:['qr']}} onBarcodeScanned={r=>{const n=parsePsaCert(r.data);if(n){setCert(n);setScanning(false);invalidate()}}}/><Button title="カメラを閉じる" secondary onPress={()=>setScanning(false)}/></>}
-    </>}
+    {(['ungraded','PSA10','other'] as const).map(value=><Button key={value} title={`${grade===value?'✓ ':''}${value==='ungraded'?'未鑑定':value==='PSA10'?'PSA10（自己申告）':'その他の鑑定・グレード'}`} secondary disabled={busy} onPress={()=>{setGrade(value);invalidate()}}/>)}
     <Text style={ui.muted}>カード名・型番・版・言語と実物を照合してください。鑑定情報は運営による確認待ちとして扱います。</Text>
-    <Button title="このカードで査定内容を確認" disabled={busy||!!cert&&!parsePsaCert(cert)} onPress={()=>void run(async()=>{const data=await lendingApi<{assessment:CatalogAssessment}>('/catalog',{body:{action:'assess',cardUid:selected.public_uid,declaredGrade:grade,certInput:cert,...(results?.imageRequestId?{imageRequestId:results.imageRequestId}:{})}});setAssessment(data.assessment);setConsent(false)})}/>
+    <Button title="このカードで査定内容を確認" disabled={busy} onPress={()=>void run(async()=>{const data=await lendingApi<{assessment:CatalogAssessment}>('/catalog',{body:{action:'assess',cardUid:selected.public_uid,declaredGrade:grade,...(results?.imageRequestId?{imageRequestId:results.imageRequestId}:{})}});setAssessment(data.assessment);setConsent(false)})}/>
    </View>}
    {assessment&&!registered&&<View style={ui.card}>
     <Text style={ui.title}>査定依頼</Text><Text style={ui.amount}>{assessment.indicative_jpy===null?'個別見積もり':yen(assessment.indicative_jpy)}</Text>

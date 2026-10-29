@@ -386,7 +386,7 @@ Firebaseサーバー資格情報の登録後にPreviewを再デプロイ。設�
 The canonical test environment is now the Git-linked develop deployment:
 `https://tcg-royal-git-develop-collectorsrepublic.vercel.app/admin`.
 Push lending WIP snapshots to `origin/develop`; do not promote to Production or merge to main.
-The fixed origin currently retains Vercel Authentication. Android v1.9.0 and new mobile builds keep the verified, app-accessible immutable Preview endpoint for now; switching the native API origin requires a separately authorized access configuration. No Vercel bypass credential is embedded in the APK.
+The fixed web origin retains Vercel Authentication. On 2026-10-29 the user explicitly authorized updating the mobile endpoint/access configuration. Mobile v1.12.0 uses `https://tcg-royal-mobile-preview-collectorsrepublic.vercel.app`, a separate alias for the verified Git-linked develop Preview. Its proxy exposes only an exact list of lending API paths; web/admin routes return 404, including static-looking paths. The alias-specific access exception does not change the canonical web alias or Production protection. Lending API authentication, ownership checks and rate limits remain in place. No Vercel bypass credential is embedded in the APK.
 Local credentials, private signing material, generated native trees/APKs, attachments, editor state and temporary scripts are excluded from Git.
 Unrelated retention/security work remains local and is not part of the lending WIP snapshot.
 

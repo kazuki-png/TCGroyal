@@ -2,10 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } 
 import { ActivityIndicator, Alert, Linking, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Notifications from 'expo-notifications';
 import { LOAN_STATUS_LABELS, type LoanCommand, type WorkflowLoan, type WorkflowState } from '../lib/lending/workflow-types';
-import { parsePsaCert } from '../lib/lending/psa';
 import { connectPreview, disconnectPreview, loadWorkflow, workflowRequest, lendingApi, getInboxStorageKey, restorePreview, getRememberedPreviewUrl, clearRuntimeSession, isSupabasePreviewConnected } from './src/api';
 import { CatalogAssessmentScreen as AssessmentScreen } from './src/screens/CatalogAssessmentScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
@@ -38,7 +36,7 @@ function LoanTile({ loan, send, busy }: { loan: WorkflowLoan; send: Send; busy: 
   return <View style={styles.card}>
     <Text style={styles.badge}>{LOAN_STATUS_LABELS[loan.status]}</Text>
     <Text style={styles.title}>{loan.card_name}</Text>
-    <Text style={styles.muted}>{loan.cert_number?`PSA / 鑑定番号 ${loan.cert_number}`:'PSA番号なし・個別見積もり'}</Text>
+    <Text style={styles.muted}>{loan.cert_number?`PSA / 鑑定番号 ${loan.cert_number}`:'個別見積もり'}</Text>
     <Text style={styles.muted}>{['active','repayment_pending'].includes(loan.status) ? '借入元本' : '申込希望額'}</Text>
     <Text style={styles.amount}>{yen(['active','repayment_pending'].includes(loan.status) ? loan.principal_jpy : loan.requested_jpy)}</Text>
     <Text style={styles.body}>返済必要額: {loan.payoff_jpy ? yen(loan.payoff_jpy) : '—'}</Text>
@@ -85,7 +83,6 @@ function LendingApp() {
   const [recovering, setRecovering] = useState(false);
 
   const [tab, setTab] = useState<'assessment'|'loans'|'inbox'|'account'>('assessment');
-  const [legacy, setLegacy] = useState(false);
   const [state, setState] = useState<WorkflowState | null>(null);
   const [inboxAccount, setInboxAccount] = useState<AccountState | null>(null);
   const [inboxCases,setInboxCases]=useState<SupportCase[]>([]);
@@ -94,14 +91,6 @@ function LendingApp() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [selected, setSelected] = useState('');
-  const [cert, setCert] = useState('');
-  const [amount, setAmount] = useState('300000');
-  const [deposit, setDeposit] = useState<'mail' | 'store'>('mail');
-  const [acknowledged, setAcknowledged] = useState(false);
-  const [quote, setQuote] = useState<{ id: string; cap_jpy: number; expires_at: string } | null>(null);
-  const [scanning, setScanning] = useState(false);
-  const [permission, requestPermission] = useCameraPermissions();
   const [accessUrl, setAccessUrl] = useState(process.env.EXPO_PUBLIC_LENDING_API_URL ?? DEFAULT_PREVIEW_URL);
   const [accessCode, setAccessCode] = useState('');
   const reload = useCallback(async () => { const key = getInboxStorageKey(); const [data, account,cases] = await Promise.all([loadWorkflow(), lendingApi<AccountState>('/account'),lendingApi<SupportCaseList>('/support-cases')]); if (key !== getInboxStorageKey()) return; setState(data); setInboxAccount(account);setInboxCases(cases.cases); setNow(Date.now()); }, []);
@@ -154,18 +143,12 @@ function LendingApp() {
     if (busy) return;
     setBusy(true); setError(''); setNotice('');
     try {
-      const data = await workflowRequest(body);
-      if (data.quote) { setQuote(data.quote); setAmount(String(Math.min(300000, Math.floor(data.quote.cap_jpy / 10000) * 10000))); }
-      else { setQuote(null); setAcknowledged(false); setNotice('手続きを記録しました。'); }
+      await workflowRequest(body);
+      setNotice('手続きを記録しました。');
       await reload();
     } catch (cause) { setError(cause instanceof Error ? cause.message : '通信に失敗しました。'); }
     finally { setBusy(false); }
   };
-  async function scan() {
-    const current = permission?.granted ? permission : await requestPermission();
-    if (current.granted) setScanning(true);
-    else setError('カメラを利用できません。鑑定番号またはQRコードURLを入力してください。');
-  }
   async function connect() {
     setBusy(true); setError('');
     try { await connectPreview(accessUrl, accessCode); await reload(); setAccessCode('');
@@ -175,7 +158,6 @@ function LendingApp() {
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Previewに接続できません。'); }
     finally { setBusy(false); }
   }
-  const canApply = !!quote && !!parsePsaCert(cert) && acknowledged && /^\d+$/.test(amount) && Number(amount) >= 100000 && Number(amount) % 10000 === 0 && Number(amount) <= quote.cap_jpy;
   async function refresh() {
     if (busy) return; setBusy(true);
     try { await reload(); } catch (cause) { setError(cause instanceof Error ? cause.message : '情報を更新できません。'); } finally { setBusy(false); }
@@ -186,8 +168,8 @@ function LendingApp() {
   async function signOut() {
     if (busy || restoring) return; setBusy(true);
     await unregisterStatusPush(false).catch(()=>{});
-    try { await disconnectPreview(); } catch { setError('ログイン情報を削除できません。もう一度お試しください。'); setBusy(false); return; } setState(null); setInboxAccount(null);setInboxCases([]); setFocusedLoan(null); setQuote(null); setSelected(''); setCert('');
-    setAcknowledged(false); setNotice(''); setError(''); setLegacy(false); setScanning(false);
+    try { await disconnectPreview(); } catch { setError('ログイン情報を削除できません。もう一度お試しください。'); setBusy(false); return; } setState(null); setInboxAccount(null);setInboxCases([]); setFocusedLoan(null);
+    setNotice(''); setError('');
     setTab('assessment'); setBusy(false);
   }
   function openInboxItem(item: InboxItem) { switchTab(item.target); setFocusedLoan(item.loanId ?? null); }
@@ -206,9 +188,9 @@ function LendingApp() {
       {notice ? <Text accessibilityLiveRegion="polite" style={styles.success}>{notice}</Text> : null}
       {!state && (busy || restoring) && <ActivityIndicator accessibilityLabel="接続を確認中" color="#fcd66e" />}
       {!state && <>
-        <Text style={styles.muted}>{supportOpen && !recovering ? 'PSA番号がないカードや未鑑定カードの見積もりを、サポートへ相談できます。' : tab === 'assessment' ? 'カードの査定・申込にはログインが必要です。' : tab === 'loans' ? '申込状況・返済額・返済期限を確認できます。ログインしてください。' : tab === 'inbox' ? '申込や本人確認に関するお知らせを確認できます。ログインしてください。' : '登録情報・本人確認書類を管理できます。ログインしてください。'}</Text>
+        <Text style={styles.muted}>{supportOpen && !recovering ? '登録カードが見つからない場合や未鑑定カードも、サポートへ相談できます。' : tab === 'assessment' ? 'カードの査定・申込にはログインが必要です。' : tab === 'loans' ? '申込状況・返済額・返済期限を確認できます。ログインしてください。' : tab === 'inbox' ? '申込や本人確認に関するお知らせを確認できます。ログインしてください。' : '登録情報・本人確認書類を管理できます。ログインしてください。'}</Text>
         {supportOpen && !recovering ? <><SupportEstimate onLogin={()=>setSupportOpen(false)}/><Action label="ログインへ戻る" onPress={() => setSupportOpen(false)}/></> : <>
-        {!recovering && <Action label="PSA番号なし・未鑑定の見積もり相談" onPress={() => setSupportOpen(true)}/>}
+        {!recovering && <Action label="個別見積もりを相談" onPress={() => setSupportOpen(true)}/>}
         <SupabaseLogin accessUrl={accessUrl} onConnected={reload} disabled={busy || restoring} onBusyChange={setBusy} recovering={recovering} onRecovered={() => setRecovering(false)}/>
         </>}
       </>}
@@ -232,9 +214,9 @@ function LendingApp() {
         {key === 'inbox' && unreadCount > 0 && <View style={styles.unreadBadge}><Text style={styles.unreadText}>{unreadCount > 99 ? '99+' : unreadCount}</Text></View>}
       </Pressable>)}
     </View>
-    <Modal visible={toolsOpen} animationType="slide" onRequestClose={() => { if (!busy) { setToolsOpen(false); setScanning(false); } }}>
+    <Modal visible={toolsOpen} animationType="slide" onRequestClose={() => { if (!busy) { setToolsOpen(false); } }}>
       <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <View style={styles.toolsHeader}><Text accessibilityRole="header" style={styles.title}>テスト環境</Text><Pressable accessibilityRole="button" accessibilityLabel="テスト環境を閉じる" disabled={busy} onPress={() => { setToolsOpen(false); setScanning(false); }} style={styles.close}><Text style={styles.body}>閉じる</Text></Pressable></View>
+        <View style={styles.toolsHeader}><Text accessibilityRole="header" style={styles.title}>テスト環境</Text><Pressable accessibilityRole="button" accessibilityLabel="テスト環境を閉じる" disabled={busy} onPress={() => { setToolsOpen(false); }} style={styles.close}><Text style={styles.body}>閉じる</Text></Pressable></View>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.muted}>Preview専用です。実際の送金・正式な契約締結は行いません。本人確認にはテスト画像を使用してください。通常ログインはSupabase Authのメール・パスワード認証です。接続コードは動作確認用です。</Text>
           {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
@@ -247,21 +229,7 @@ function LendingApp() {
               <Action label="接続コードでログイン" disabled={busy || restoring || !accessUrl || accessCode.length < 16} onPress={() => void connect()}/>
             </> : <><Text style={styles.success}>接続済み</Text><Action label="接続先を切り替える" disabled={busy} onPress={() => void signOut()}/></>}
           </View>
-          {state && <><NotificationsScreen/><Action label={legacy ? '登録済みカードの動作確認を閉じる' : '登録済みカードの動作確認'} disabled={busy} onPress={() => setLegacy(!legacy)}/></>}
-        {state&&legacy&&<View style={styles.card}>
-          <Text style={styles.title}>新規の査定・申込</Text>
-          {state.cards.map(card => <Pressable key={card.public_uid} accessibilityRole="radio" accessibilityState={{ selected: selected === card.public_uid }} disabled={busy} onPress={() => { setSelected(card.public_uid); setQuote(null); }} style={[styles.choice, selected === card.public_uid && styles.chosen]}><Text style={styles.body}>{card.name} / {card.card_number}</Text></Pressable>)}
-          <Text style={styles.label}>PSA鑑定番号 / QRコードURL</Text><TextInput accessibilityLabel="PSA鑑定番号またはQRコードURL" style={styles.input} value={cert} onChangeText={setCert} autoCapitalize="none" autoCorrect={false} editable={!busy} placeholder="番号またはPSA公式URL" placeholderTextColor="#8b96aa" maxLength={250} />
-          <Action label="QRコードを読み取る" disabled={busy} onPress={() => void scan()} />
-          {scanning && <><CameraView style={styles.camera} facing="back" barcodeScannerSettings={{ barcodeTypes: ['qr'] }} onBarcodeScanned={result => { const value = parsePsaCert(result.data); if (value) { setCert(value); setScanning(false); } }} /><Action label="読み取りを閉じる" onPress={() => setScanning(false)} /></>}
-          {!quote ? <Action label="概算額を確認" disabled={busy || !selected} onPress={() => void send({ type: 'quote', cardUid: selected })} /> : <>
-            <Text style={styles.muted}>借入可能額の目安</Text><Text style={styles.amount}>{yen(quote.cap_jpy)}</Text><Text style={styles.muted}>有効期限 {date(quote.expires_at)}</Text>
-            <Text style={styles.label}>借入希望額（円・1万円単位）</Text><TextInput accessibilityLabel="借入希望額" value={amount} onChangeText={setAmount} keyboardType="number-pad" style={styles.input} editable={!busy} />
-            <View style={styles.row}>{(['mail','store'] as const).map(value => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: deposit === value }} disabled={busy} style={[styles.choice, styles.flex, deposit === value && styles.chosen]} onPress={() => setDeposit(value)}><Text style={styles.body}>{value === 'mail' ? '郵送' : '店頭持込'}</Text></Pressable>)}</View>
-            <View style={styles.row}><Switch accessibilityLabel="概算と現物検品についての確認" disabled={busy} value={acknowledged} onValueChange={setAcknowledged} /><Text style={[styles.body, styles.flex]}>概算は融資承認ではなく、現物検品後に最終条件を確認することを了承しました</Text></View>
-            <Action label="この内容で申し込む" disabled={busy || !canApply} onPress={() => void send({ type: 'apply', quoteId: quote.id, certInput: cert, amountJpy: Number(amount), deposit })} />
-          </>}
-        </View>}
+          {state && <NotificationsScreen/>}
         </ScrollView>
       </View>
     </Modal>

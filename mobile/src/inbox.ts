@@ -56,7 +56,7 @@ export function buildInbox(workflow: WorkflowState | null, account: AccountState
     const date = assessment.submitted_at ?? assessment.created_at;
     if (!title || !Number.isFinite(Date.parse(date))) continue;
     items.push({ id: `assessment:${assessment.id}:${assessment.status}`, title,
-      body: `${assessment.product.name} / PSA ${assessment.cert_number}。査定履歴から内容を確認できます。`,
+      body: `${assessment.product.name}。査定履歴から内容を確認できます。`,
       date, dateLabel: assessment.status === 'submitted' ? '依頼日時' : '査定作成日時', target: 'account' });
   }
   return items.sort((a, b) => Number(!!b.urgent) - Number(!!a.urgent) || Date.parse(b.date) - Date.parse(a.date) || a.id.localeCompare(b.id)).slice(0, 200);

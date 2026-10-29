@@ -2,6 +2,7 @@
 import { safeLocalPath } from '@/lib/security/redirect'
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import {isMobilePreviewHost,isMobilePreviewPath} from '@/lib/lending/mobile-preview-host'
 import {
   isAdminApiPathname,
   isAdminHostAllowed,
@@ -12,6 +13,10 @@ const safeNextPath = (value: unknown) => safeLocalPath(value, "/mypage")
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  if (isMobilePreviewHost(request.headers.get('host') ?? request.nextUrl.host) &&
+      (process.env.VERCEL_ENV !== 'preview' || !isMobilePreviewPath(pathname))) {
+    return new NextResponse(null, {status:404,headers:{'Cache-Control':'private, no-store'}})
+  }
   const pathWithSearch = `${pathname}${request.nextUrl.search}`
   const isAdminPageRoute = isAdminPagePathname(pathname)
   const isAdminApiRoute = isAdminApiPathname(pathname)
@@ -107,6 +112,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    {source:'/:path*',has:[{type:'host',value:'tcg-royal-mobile-preview-collectorsrepublic\\.vercel\\.app'}]},
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

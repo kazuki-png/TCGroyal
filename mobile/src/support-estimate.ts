@@ -1,7 +1,7 @@
 export const SUPPORT_LINE_URL = 'https://lin.ee/Q6CsfJkl';
 export const ESTIMATE_REASONS = {
   ungraded: '未鑑定のカード',
-  no_certificate: 'PSA鑑定番号がわからない・番号がない',
+  no_certificate: '鑑定情報が不明なカード',
   other: 'その他・自動査定を利用できない',
 } as const;
 export type SupportEstimateDraft = {

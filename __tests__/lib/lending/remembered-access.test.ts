@@ -5,6 +5,7 @@ const record = { version: 1, kind: 'code', url: DEFAULT_PREVIEW_URL, savedAt: no
 describe('remembered Preview access validation', () => {
   it('migrates the previously shipped project endpoint without forwarding its old private share query', () => {
     expect(migratePreviewAccessUrl('https://tcg-royal-9a2agk48s-collectorsrepublic.vercel.app/lending?_vercel_share=old-fixture')).toBe(DEFAULT_PREVIEW_URL);
+    expect(migratePreviewAccessUrl('https://tcg-royal-2u2kvw3cy-collectorsrepublic.vercel.app?_vercel_share=old-fixture')).toBe(DEFAULT_PREVIEW_URL);
   });
   it('never migrates an arbitrary app or a credential-bearing URL', () => {
     for (const value of ['https://other.vercel.app', 'https://user:pass@tcg-royal-9a2agk48s-collectorsrepublic.vercel.app']) expect(() => migratePreviewAccessUrl(value)).toThrow();

@@ -45,7 +45,7 @@ export function AccountScreen({onUpdated}:{onUpdated:()=>Promise<void>}){
    </View>}
    <View style={ui.card}><Text style={ui.title}>査定履歴</Text><Text style={ui.muted}>最新30件を表示します。</Text>
     {!account.assessments.length&&<Text style={ui.muted}>査定履歴はまだありません。</Text>}
-    {account.assessments.map(a=><View key={a.id} style={{gap:8,borderTopWidth:1,borderColor:'#253149',paddingTop:12}}><Text style={ui.body}>{a.product.name}</Text><Text style={ui.body}>{yen(a.estimate_jpy)} / {a.status==='submitted'?'運営へ査定依頼中':a.status==='cancelled'?'取消済み':'参考額取得済み'}</Text><Text style={ui.muted}>PSA {a.cert_number} / {date(a.created_at)}</Text>{a.status==='submitted'&&<Button title="査定依頼を取り消す" secondary disabled={busy} onPress={()=>void run(async()=>{await lendingApi('/cards',{body:{action:'cancel',assessmentId:a.id}});await load()})}/>}</View>)}
+    {account.assessments.map(a=><View key={a.id} style={{gap:8,borderTopWidth:1,borderColor:'#253149',paddingTop:12}}><Text style={ui.body}>{a.product.name}</Text><Text style={ui.body}>{yen(a.estimate_jpy)} / {a.status==='submitted'?'運営へ査定依頼中':a.status==='cancelled'?'取消済み':'参考額取得済み'}</Text><Text style={ui.muted}>{date(a.created_at)}</Text>{a.status==='submitted'&&<Button title="査定依頼を取り消す" secondary disabled={busy} onPress={()=>void run(async()=>{await lendingApi('/cards',{body:{action:'cancel',assessmentId:a.id}});await load()})}/>}</View>)}
    </View>
   </>}
  </View>

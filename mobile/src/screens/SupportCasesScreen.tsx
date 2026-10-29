@@ -17,6 +17,7 @@ function CaseCard({item,busy,command,now}:{item:SupportCase;busy:boolean;now:num
   <Text selectable style={ui.label}>{item.reference}</Text><Text style={ui.title}>{item.card_name}</Text>
   <Text style={ui.body}>{item.loan_status?LOAN_STATUS_LABELS[item.loan_status]:SUPPORT_CASE_STATUS[item.status]}</Text>
   <Text style={ui.muted}>{item.card_number||'カード番号未登録'} / 相談登録 {date(item.created_at)}</Text>
+  {item.card_uid&&<><Text style={ui.muted}>{item.search_method==='image'?'画像から候補検索':'カード一覧から選択'} / 申告 {item.declared_grade} / 鑑定・現物確認待ち</Text><Text style={ui.body}>{item.condition}</Text>{item.indicative_jpy!=null&&<Text style={ui.muted}>受付時の参考額 {yen(item.indicative_jpy)}（運営の見積もりとは別です）</Text>}</>}
   <Button title="受付番号を付けてLINEで連絡" secondary disabled={busy} onPress={()=>void contact()}/>
   {contactError?<Text accessibilityRole="alert" style={ui.error}>{contactError}</Text>:null}
   {item.offer_jpy!==null&&<><Text style={ui.label}>融資参考額</Text><Text style={ui.amount}>{yen(item.offer_jpy)}</Text><Text style={ui.body}>{item.offer_note}</Text><Text style={ui.muted}>見積もりの期限 {date(item.offer_expires_at)}。現物検品後に最終条件を提示します。</Text></>}
@@ -43,5 +44,5 @@ export function SupportCasesScreen({onChanged}:{onChanged:()=>Promise<void>}){
   if(busy)return;setBusy(true);setError('');const body={action,caseId:item.id,version:item.version,payload};const signature=JSON.stringify(body);const key=retries.current.get(signature)??randomUUID();retries.current.set(signature,key);
   try{await lendingApi('/support-cases',{body:{...body,key}});retries.current.delete(signature);setData(await lendingApi<SupportCaseList>('/support-cases'));await onChanged();}catch(cause){setError(cause instanceof Error?cause.message:'更新できません。');}finally{setBusy(false);}
  }
- return <View style={{gap:16}}><Text style={ui.title}>個別見積もりの相談</Text><Button title="相談の状況を更新" secondary disabled={busy} onPress={()=>void refresh()}/>{error?<Text accessibilityRole="alert" style={ui.error}>{error}</Text>:null}{data?.cases.map(item=><CaseCard key={`${item.id}-${item.version}`} item={item} now={now} busy={busy} command={command}/>)}{data?.total===0?<Text style={ui.muted}>個別見積もりの相談はまだありません。</Text>:null}{data&&data.total>data.cases.length?<Text style={ui.muted}>新しい順に100件を表示しています。</Text>:null}</View>;
+ return <View style={{gap:16}}><Text style={ui.title}>査定依頼・個別見積もり</Text><Button title="査定の状況を更新" secondary disabled={busy} onPress={()=>void refresh()}/>{error?<Text accessibilityRole="alert" style={ui.error}>{error}</Text>:null}{data?.cases.map(item=><CaseCard key={`${item.id}-${item.version}`} item={item} now={now} busy={busy} command={command}/>)}{data?.total===0?<Text style={ui.muted}>査定依頼・個別見積もりはまだありません。</Text>:null}{data&&data.total>data.cases.length?<Text style={ui.muted}>新しい順に100件を表示しています。</Text>:null}</View>;
 }

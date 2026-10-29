@@ -2,7 +2,7 @@
 
 ## 現行の検索・申請仕様（2026-10-29改定）
 
-この節をカード検索・申請に関する最新の仕様とする。後続のPSA API起点の説明は既存実装・検証の記録であり、本節と異なる場合は本節を優先する。今回の変更は仕様改定であり、アプリ・API・DBへの反映は未実装。
+この節をカード検索・申請に関する最新の仕様とする。後続のPSA API起点の説明は既存実装・検証の記録であり、本節と異なる場合は本節を優先する。2026-10-29に初期実装を追加した。検証範囲と配布状況は末尾の実装記録を参照。
 
 ### 基本方針
 
@@ -387,3 +387,14 @@ Push lending WIP snapshots to `origin/develop`; do not promote to Production or 
 The fixed origin currently retains Vercel Authentication. Android v1.9.0 and new mobile builds keep the verified, app-accessible immutable Preview endpoint for now; switching the native API origin requires a separately authorized access configuration. No Vercel bypass credential is embedded in the APK.
 Local credentials, private signing material, generated native trees/APKs, attachments, editor state and temporary scripts are excluded from Git.
 Unrelated retention/security work remains local and is not part of the lending WIP snapshot.
+
+## 2026-10-29 v1.10.0 source: catalog and image discovery
+
+- Added `CatalogAssessmentScreen` as the mobile application's primary assessment screen. The previous PSA screen remains in source for compatibility/history but is no longer imported by the app. Search/selection uses the shared card master, Japanese names, printed numbers, categories and paged results. Optional PSA number/QR is a declaration only; no PSA provider is called by the new flow.
+- `POST /api/lending/catalog` searches the selected lending DB, creates immutable assessment snapshots and submits an owner-bound review case with a TR reference. Visible cards follow the existing 48-hour rule. Prices must still satisfy the stricter existing 24-hour valuation rule; submission rechecks the selected master against its snapshot. PSA10 reference prices use approved mappings and the existing conservative cap; ungraded/other declarations go to manual review. All new submissions are review cases, not immediate loan approvals. Existing administrator offer/customer acceptance/loan lifecycle remains in force.
+- `POST /api/lending/card-image` validates explicit consent and a single image up to 3MB, decodes with a pixel limit, strips metadata, and sends a resized JPEG to OpenAI Responses with structured output and `store:false`. The image is handled in memory, not saved to a public bucket. The server-only key is `OPENAI_API_KEY`; optional model override is `LENDING_IMAGE_MODEL` (initial default `gpt-4.1-mini`, accuracy still needs real-card evaluation). No key or provider response is sent to the app.
+- Image requests claim an owner-bound UUID before the paid call. Completed retries reuse saved results; in-flight/failed requests do not silently re-run. Limits: 6 requests/minute, 100/user/day and 600 app-wide/day. Model/token usage is recorded; there is no background polling or automatic model retry. Missing key, unreadable image, provider refusal/failure, malformed response and quota failure keep ordinary search/support available.
+- Added service-only tables with RLS and a service-only submit RPC in `20261029090000_lending_catalog_search.sql`. Applied only this migration to Preview `mkmkkkdserlcaycknuxp`; reloaded PostgREST schema. Both tables deny direct authenticated reads and the submit RPC denies authenticated execution. Preview security advisors remain 13 existing warnings, with no new warnings for these objects. No Production changes.
+- Case lists and the admin review UI now show the selected master, source, declared grade/certificate and initial reference amount separately from the administrator's actual offer. Untyped individual consultations/LINE handoff remain available.
+- Validation: all unit tests 300 passed / 1 deliberately skipped live provider test; root/mobile TypeScript checks, focused ESLint, Next.js build and local HTTP/PostgreSQL catalog flow passed. The local flow verifies DB search → PSA-free reference assessment → persisted case → scoped list, ungraded handling, expiry, changed-card rejection, consent, idempotency and direct-access denial. External OpenAI/PSA calls were not made during tests. Local test runtime explicitly clears the OpenAI key to prevent accidental paid calls.
+- Native source is version 1.10.0 / build 15. Android/iOS JS exports are verification artifacts, not installable APK/IPA releases. Existing mobile API origin is preserved under AGENTS.md; new source requires the updated backend and an explicitly authorized compatible Preview access configuration before distributing a working updated APK. No iOS native build, on-device photo/QR/notification test or real OpenAI accuracy claim is made here.

@@ -7,6 +7,8 @@ export interface SupportCase {
  status:SupportCaseStatus;requested_jpy:number|null;valuation_jpy:number|null;offer_jpy:number|null;
  offer_note:string|null;offer_expires_at:string|null;loan_id:string|null;loan_status?:LoanStatus|null;
  version:number;created_at:string;updated_at:string;
+ card_uid?:string|null;selected_card?:import('./catalog-types').CatalogCard|null;search_method?:'catalog'|'image'|null;
+ declared_grade?:string|null;declared_cert_number?:string|null;indicative_jpy?:number|null;
  events?:{id:string;action:string;to_status:SupportCaseStatus;version:number;message:string;created_at:string}[]
 }
 export interface SupportCaseList {cases:SupportCase[];total:number}

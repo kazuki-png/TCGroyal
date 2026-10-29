@@ -88,7 +88,7 @@ export async function startLocalApp() {
     NODE_ENV:'development',VERCEL:'',LENDING_WORKFLOW_ENABLED:'true',LENDING_LOCAL_DEMO:'true',LENDING_MARKET_FIXTURE:'true',
     NEXT_PUBLIC_SUPABASE_URL:dbUrl,NEXT_PUBLIC_SUPABASE_ANON_KEY:token('anon'),SUPABASE_SERVICE_ROLE_KEY:token('service_role'),
     NEXT_PUBLIC_SITE_URL:origin,ADMIN_ALLOWED_HOSTS:`127.0.0.1:${appPort}`,RESEND_API_KEY:'',CRON_SECRET:'',REFERENCE_PRICES_CRON_SECRET:'',
-    PSA_API_ACCESS_TOKEN:'',LENDING_FCM_SERVICE_ACCOUNT_JSON:'',
+    PSA_API_ACCESS_TOKEN:'',OPENAI_API_KEY:'',LENDING_FCM_SERVICE_ACCOUNT_JSON:'',
    },
   });
   let output='';child.stdout.on('data',data=>{output=(output+data.toString()).slice(-12000);});child.stderr.on('data',data=>{output=(output+data.toString()).slice(-12000);});

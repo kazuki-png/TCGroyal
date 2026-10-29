@@ -121,7 +121,7 @@ export async function workflowRequest(body?: Record<string, unknown>) {
 export const loadWorkflow = async (): Promise<WorkflowState> => workflowRequest();
 
 export async function lendingApi<T = Record<string, unknown>>(path: string, options: { method?: 'GET'|'POST'|'DELETE'; body?: Record<string, unknown>|FormData } = {}): Promise<T> {
-  if (!/^\/(?:cards|account|documents|notifications|identity|support-cases)(?:\?id=[a-f0-9-]{36})?$/.test(path)) throw Error('APIパスが不正です。');
+  if (!/^\/(?:cards|catalog|card-image|account|documents|notifications|identity|support-cases)(?:\?id=[a-f0-9-]{36})?$/.test(path)) throw Error('APIパスが不正です。');
   const base = getApiBase();
   const multipart = options.body instanceof FormData;
   const response = await fetch(`${base}/api/lending${path}`, {

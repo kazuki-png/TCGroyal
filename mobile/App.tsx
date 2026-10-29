@@ -7,7 +7,7 @@ import * as Notifications from 'expo-notifications';
 import { LOAN_STATUS_LABELS, type LoanCommand, type WorkflowLoan, type WorkflowState } from '../lib/lending/workflow-types';
 import { parsePsaCert } from '../lib/lending/psa';
 import { connectPreview, disconnectPreview, loadWorkflow, workflowRequest, lendingApi, getInboxStorageKey, restorePreview, getRememberedPreviewUrl, clearRuntimeSession, isSupabasePreviewConnected } from './src/api';
-import { AssessmentScreen } from './src/screens/AssessmentScreen';
+import { CatalogAssessmentScreen as AssessmentScreen } from './src/screens/CatalogAssessmentScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { SupportCasesScreen } from './src/screens/SupportCasesScreen';

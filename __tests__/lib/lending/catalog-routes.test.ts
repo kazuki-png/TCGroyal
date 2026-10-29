@@ -2,7 +2,8 @@
 import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest'
 import sharp from 'sharp'
 vi.mock('server-only',()=>({}))
-const mocks=vi.hoisted(()=>({access:vi.fn(),client:vi.fn(),rate:vi.fn(),search:vi.fn(),extract:vi.fn(),market:vi.fn()}))
+const mocks=vi.hoisted(()=>({access:vi.fn(),client:vi.fn(),rate:vi.fn(),search:vi.fn(),extract:vi.fn(),market:vi.fn(),external:vi.fn()}))
+vi.mock('@/lib/lending/snkrdunk-card-search',()=>({searchSnkrdunkCards:mocks.external}))
 vi.mock('@/lib/lending/api-guard',async()=>({...await vi.importActual<typeof import('@/lib/lending/api-guard')>('@/lib/lending/api-guard'),lendingAccess:mocks.access}))
 vi.mock('@/lib/lending/workflow-client',()=>({createWorkflowClient:mocks.client,checkWorkflowRateLimit:mocks.rate}))
 vi.mock('@/lib/lending/catalog-server',()=>({searchCatalog:mocks.search,catalogColumns:'public_uid,name,grade'}))
@@ -29,6 +30,18 @@ beforeEach(()=>{
 })
 afterEach(()=>vi.unstubAllEnvs())
 describe('catalog and image routes',()=>{
+ it('requires authentication, validates and rate limits external card search without DB writes or price calls',async()=>{
+  mocks.external.mockResolvedValue({cards:[],page:1,hasMore:false});
+  expect((await catalog(request({action:'search_snkrdunk',query:'ピカチュウ'}))).status).toBe(200);
+  expect(mocks.external).toHaveBeenCalledWith('ピカチュウ','all',1);expect(mocks.client).not.toHaveBeenCalled();expect(mocks.market).not.toHaveBeenCalled();
+  mocks.rate.mockResolvedValue({allowed:false});expect((await catalog(request({action:'search_snkrdunk',query:'ピカチュウ'}))).status).toBe(429);expect(mocks.external).toHaveBeenCalledOnce();
+  expect((await catalog(request({action:'search_snkrdunk',query:' '}))).status).toBe(400);
+  mocks.access.mockResolvedValue(Response.json({error:'login'},{status:401}));expect((await catalog(request({action:'search_snkrdunk',query:'ピカチュウ'}))).status).toBe(401);expect(mocks.external).toHaveBeenCalledOnce();
+ })
+ it('returns a useful failure when external search fails instead of claiming no results',async()=>{
+  mocks.external.mockRejectedValue(Error('upstream private error'));const response=await catalog(request({action:'search_snkrdunk',query:'カード'}));
+  expect(response.status).toBe(502);expect(await response.text()).not.toContain('private');expect(mocks.external).toHaveBeenCalledOnce();
+ })
  it('ordinary search invokes only the catalog and never the price or image provider',async()=>{
   expect((await catalog(request({action:'search',query:'ピカチュウ'}))).status).toBe(200)
   expect(mocks.search).toHaveBeenCalledWith('ピカチュウ','all',1);expect(mocks.extract).not.toHaveBeenCalled();expect(mocks.market).not.toHaveBeenCalled()

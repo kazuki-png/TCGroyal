@@ -7,9 +7,10 @@ import type {SupportCase} from '../../../lib/lending/support-case-types';
 import {lendingApi} from '../api';
 import {SupportEstimate} from './SupportEstimate';
 import {Button,Field,ui,yen,date} from '../ui';
+import {SnkrdunkSearchScreen} from './SnkrdunkSearchScreen';
 
 export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>}){
- const [route,setRoute]=useState<'catalog'|'support'>('catalog');
+ const [route,setRoute]=useState<'snkrdunk'|'catalog'|'support'>('snkrdunk');
  const [query,setQuery]=useState(''),[category,setCategory]=useState('all'),[results,setResults]=useState<CatalogSearch|null>(null);
  const [selected,setSelected]=useState<CatalogCard|null>(null),[grade,setGrade]=useState<DeclaredGrade>('ungraded');
  const [assessment,setAssessment]=useState<CatalogAssessment|null>(null),[amount,setAmount]=useState(''),[notes,setNotes]=useState('');
@@ -49,10 +50,11 @@ export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>
  }
  return <View style={{gap:20}}>
   <View style={ui.row}>
-   <View style={{flex:1}}><Button title="カードを検索" secondary disabled={busy} onPress={()=>{setRoute('catalog')}}/></View>
-   <View style={{flex:1}}><Button title="個別見積もり" secondary disabled={busy} onPress={()=>{setRoute('support')}}/></View>
+   <View style={{flex:1}}><Button title="スニダン検索" secondary onPress={()=>setRoute('snkrdunk')}/></View>
+   <View style={{flex:1}}><Button title="登録カード" secondary onPress={()=>setRoute('catalog')}/></View>
+   <View style={{flex:1}}><Button title="個別見積もり" secondary onPress={()=>setRoute('support')}/></View>
   </View>
-  {route==='support'?<SupportEstimate connected onRegistered={onApplied}/>:<>
+  {route==='snkrdunk'?<SnkrdunkSearchScreen onApplied={onApplied}/>:route==='support'?<SupportEstimate connected onRegistered={onApplied}/>:<>
    {error?<Text accessibilityRole="alert" style={ui.error}>{error}</Text>:null}
    {notice?<Text accessibilityLiveRegion="polite" style={ui.success}>{notice}</Text>:null}
    <View style={ui.card}>

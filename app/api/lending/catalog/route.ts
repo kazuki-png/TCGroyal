@@ -9,12 +9,19 @@ import {fetchSnkrdunkSnapshot} from '@/lib/lending/snkrdunk'
 import {supportCaseError} from '@/lib/lending/support-cases'
 import type {CatalogCard} from '@/lib/lending/catalog-types'
 import type {MarketSnapshot} from '@/lib/lending/types'
+import {searchSnkrdunkCards} from '@/lib/lending/snkrdunk-card-search'
 export const runtime='nodejs'
 export async function POST(request:Request){
  const actor=await lendingAccess(request,'lending:catalog',30);if(actor instanceof Response)return actor
  let input
  try{input=catalogInput.parse(JSON.parse((await boundedBody(request,8192)).toString('utf8')))}catch{return lendingJson({error:'入力内容を確認してください。'},400)}
  try{
+  if(input.action==='search_snkrdunk'){
+   const limit=await checkWorkflowRateLimit('lending:snkrdunk-search',actor.id,{limit:6,windowMs:60000})
+   if(!limit.allowed)return lendingJson({error:'検索回数が多いため、1分ほど待ってからお試しください。'},429)
+   try{return lendingJson(await searchSnkrdunkCards(input.query,input.category,input.page))}
+   catch{return lendingJson({error:'スニダンのカード検索を利用できません。時間をおくか、登録カード検索・個別見積もりをご利用ください。'},502)}
+  }
   if(input.action==='search')return lendingJson(await searchCatalog(input.query,input.category,input.page))
   if(actor.role!=='customer')return lendingJson({error:'利用者のアカウントで操作してください。'},403)
   const db=createWorkflowClient()

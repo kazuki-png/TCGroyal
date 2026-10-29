@@ -7,8 +7,8 @@ import * as Clipboard from 'expo-clipboard';
 import { buildSupportEstimateMessage, ESTIMATE_REASONS, SUPPORT_LINE_URL, type SupportEstimateDraft } from '../support-estimate';
 import { Button, Field, ui } from '../ui';
 
-export function SupportEstimate({connected=false,onRegistered,onLogin}:{connected?:boolean;onRegistered?:()=>Promise<void>;onLogin?:()=>void}) {
-  const [draft, setDraft] = useState<SupportEstimateDraft>({ reason: 'ungraded', cardName: '', cardNumber: '', condition: '', requestedAmount: '', notes: '' });
+export function SupportEstimate({connected=false,onRegistered,onLogin,initialDraft}:{connected?:boolean;onRegistered?:()=>Promise<void>;onLogin?:()=>void;initialDraft?:SupportEstimateDraft}) {
+  const [draft, setDraft] = useState<SupportEstimateDraft>(()=>initialDraft??{ reason: 'ungraded', cardName: '', cardNumber: '', condition: '', requestedAmount: '', notes: '' });
   const [consent, setConsent] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [registered,setRegistered]=useState<SupportCase|null>(null);
   const retry=useRef<{signature:string;key:string}|null>(null);

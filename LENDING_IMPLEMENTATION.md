@@ -383,6 +383,13 @@ Firebaseサーバー資格情報の登録後にPreviewを再デプロイ。設�
 
 ## Develop WIP workflow (2026-10-28)
 
+### 2026-10-29 v1.12.4: Android push registration loop
+
+- Physical Pixel 7a / Android 17 diagnostics from v1.12.3 showed hundreds of `CALL_START` events and actual HTTP 429 responses. The API was reachable, but the diagnostic requests expired while the request queue was flooded. The previous transport-timeout change did not resolve this device's failure.
+- The push-token listener called `registerStatusPush()`, which requested a token again. Installed Expo notifications 58.1.6 Android `PushTokenModule` emits `onDevicePushToken` after every explicit token read; its TypeScript listener documentation explicitly warns against reading the token inside the listener. This formed a recursive event/request loop when notification permission was granted.
+- The listener now passes the supplied token directly. Registration coalesces concurrent requests for the same account/token, ignores unchanged successfully registered tokens, and clears failed in-flight entries without automatic retry. Explicit user registration can still re-register; a genuinely rotated token is uploaded. Opt-out and logout generation checks remain in force. No tokens are added to logs or persistent diagnostics.
+- Regression tests model Android's read-and-emit behavior, assert one read/one registration at startup, no added traffic for 100 repeated events, token rotation, opt-out, retry after failure, and stale local completion after logout. Lending tests: 247 passed, one live provider test intentionally skipped. No rate limits, Vercel protection, Production settings or database records are changed by this fix.
+
 The canonical test environment is now the Git-linked develop deployment:
 `https://tcg-royal-git-develop-collectorsrepublic.vercel.app/admin`.
 Push lending WIP snapshots to `origin/develop`; do not promote to Production or merge to main.

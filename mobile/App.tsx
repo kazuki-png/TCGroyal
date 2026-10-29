@@ -19,7 +19,7 @@ import { buildInbox, type InboxItem } from './src/inbox';
 import { useInboxReceipts } from './src/useInboxReceipts';
 import type { AccountState } from '../lib/lending/mobile-types';
 import type {SupportCase,SupportCaseList} from '../lib/lending/support-case-types';
-import {registerStatusPush,unregisterStatusPush,reportStatusPush} from './src/status-push';
+import {registerStatusPush,watchStatusPushToken,unregisterStatusPush,reportStatusPush} from './src/status-push';
 
 const yen = (n: number) => `¥${n.toLocaleString('ja-JP')}`;
 const date = (value: string | null) => value ? new Date(value).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : '—';
@@ -100,7 +100,7 @@ function LendingApp() {
   useEffect(()=>{
    if(!statusPushKey)return;
    void registerStatusPush().catch(()=>{});
-   const changed=Notifications.addPushTokenListener(()=>{void registerStatusPush().catch(()=>{})});
+   const changed=watchStatusPushToken();
    void Notifications.getLastNotificationResponseAsync().then(last=>{if(last?.notification.request.content.data?.screen==='loans'){setTab('loans');setFocusedLoan(null);void reload().catch(()=>{})}}).catch(()=>{});
    return()=>changed.remove();
   },[statusPushKey,reload]);

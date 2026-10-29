@@ -1,0 +1,4 @@
+import {z} from 'zod'
+export const collateralItem=z.object({id:z.uuid(),name:z.string().trim().min(1).max(100),cardNumber:z.string().trim().max(100),quantity:z.number().int().min(1).max(100),grade:z.string().trim().max(60),condition:z.string().trim().max(300),source:z.enum(['snkrdunk','catalog','manual']),productId:z.string().regex(/^[1-9]\d{0,8}$/).nullable(),cardUid:z.uuid().nullable()}).strict().refine(item=>item.source==='snkrdunk'?item.productId!==null&&item.cardUid===null:item.source==='catalog'?item.cardUid!==null&&item.productId===null:item.productId===null&&item.cardUid===null)
+export const collateralItems=z.array(collateralItem).min(1).max(20).refine(items=>items.reduce((n,item)=>n+item.quantity,0)<=100&&new Set(items.map(item=>item.id)).size===items.length)
+export const collateralInspection=z.array(z.object({id:z.uuid(),quantity:z.number().int().min(1).max(100),location:z.string().trim().min(1).max(120),checked:z.literal(true)}).strict()).min(1).max(20)

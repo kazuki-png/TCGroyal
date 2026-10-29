@@ -1,5 +1,6 @@
 import {z} from 'zod'
-const draft=z.object({reason:z.enum(['ungraded','no_certificate','other']),cardName:z.string().trim().min(1).max(100),cardNumber:z.string().trim().max(100),condition:z.string().trim().max(300),notes:z.string().trim().max(1000),requestedAmount:z.union([z.literal(''),z.string().regex(/^[1-9]\d{0,7}$/).refine(v=>Number(v)<=10000000)])}).strict()
+import {collateralItems} from './collateral'
+const draft=z.object({reason:z.enum(['ungraded','no_certificate','other']),cardName:z.string().trim().min(1).max(100),cardNumber:z.string().trim().max(100),condition:z.string().trim().max(300),notes:z.string().trim().max(1000),requestedAmount:z.union([z.literal(''),z.string().regex(/^[1-9]\d{0,7}$/).refine(v=>Number(v)<=10000000)]),items:collateralItems.optional()}).strict()
 const money=z.number().int().min(100000).max(10000000).refine(v=>v%10000===0)
 const payload=z.object({message:z.string().trim().max(500).optional(),userId:z.uuid().optional(),amountJpy:money.optional(),valuationJpy:z.number().int().min(1).max(1000000000).optional(),termsAccepted:z.literal(true).optional(),deposit:z.enum(['mail','store']).optional()}).strict()
 export const supportCaseRequest=z.discriminatedUnion('action',[

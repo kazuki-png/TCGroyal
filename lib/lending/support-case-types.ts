@@ -2,6 +2,7 @@ import type { LoanStatus } from './workflow-types'
 export const SUPPORT_CASE_STATUS = { registered:'相談登録',reviewing:'査定中',information_required:'追加情報待ち',offered:'見積もり提示',applied:'申込済み',declined:'見送り',cancelled:'キャンセル' } as const
 export type SupportCaseStatus=keyof typeof SUPPORT_CASE_STATUS
 export interface SupportCase {
+ collateral_items?:import('./collateral-types').CollateralItem[];
  id:string;reference:string;user_id:string|null;source:'app'|'admin';reason:'ungraded'|'no_certificate'|'other';
  card_name:string;card_number:string;condition:string;notes:string;contact_label?:string;
  status:SupportCaseStatus;requested_jpy:number|null;valuation_jpy:number|null;offer_jpy:number|null;

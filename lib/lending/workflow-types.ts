@@ -8,11 +8,13 @@ export type LoanCommand = 'receive' | 'offer' | 'accept' | 'fund' | 'cancel' | '
   | 'report_repayment' | 'reject_repayment' | 'confirm_repayment' | 'return' | 'request_extension'
   | 'request_additional' | 'extend' | 'reject_request' | 'forfeit'
 export interface WorkflowLoan {
+  collateral_items?:import('./collateral-types').CollateralItem[];
+  collateral_inspection?:import('./collateral-types').CollateralInspection[];
   id: string; version: number; status: LoanStatus; cert_number: string | null; card_name: string
   card_number: string | null; requested_jpy: number; offered_jpy: number | null
   principal_jpy: number; monthly_rate_bps: number | null; due_at: string | null
   funded_at: string | null; created_at: string; evaluated_at: string; storage_location: string | null
-  payoff_jpy: number; terms: { version: number; principalJpy: number; monthlyRateBps: number; termMonths: number; feesJpy: number; documentVersion: string } | null
+  payoff_jpy: number; terms: { version: number; principalJpy: number; monthlyRateBps: number; termMonths: number; feesJpy: number; documentVersion: string;collateralItems?:import('./collateral-types').CollateralItem[] } | null
   terms_accepted_at: string | null
   events: { action: string; to_status: LoanStatus; version: number; created_at: string; reason?: string | null }[]
   ledger: { id: string; kind: string; amount_jpy: number; created_at: string }[]

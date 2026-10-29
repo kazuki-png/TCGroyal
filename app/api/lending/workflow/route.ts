@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   let body: unknown
   try {
     const raw = await request.text()
-    if (raw.length > 4096) return json({ error: '入力が大きすぎます。' }, 413)
+    if (raw.length > 16384) return json({ error: '入力が大きすぎます。' }, 413)
     body = JSON.parse(raw)
   } catch { return json({ error: '入力形式を確認してください。' }, 400) }
   const input = inputSchema.safeParse(body)

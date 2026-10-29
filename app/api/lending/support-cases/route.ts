@@ -14,7 +14,7 @@ export async function GET(request:Request){
 export async function POST(request:Request){
  const actor=await lendingAccess(request,'lending:support-write',15);if(actor instanceof Response)return actor
  let input
- try{input=supportCaseRequest.parse(JSON.parse((await boundedBody(request,8192)).toString('utf8')))}catch{return lendingJson({error:'入力内容と同意を確認してください。'},400)}
+ try{input=supportCaseRequest.parse(JSON.parse((await boundedBody(request,65536)).toString('utf8')))}catch{return lendingJson({error:'カード明細・入力内容と同意を確認してください。'},400)}
  if(actor.role!=='admin'&&(input.action==='create'?(input.userId!==undefined||input.contactLabel!==undefined):!['accept','cancel'].includes(input.action)))return lendingJson({error:'管理者権限が必要です。'},403)
  const db=createWorkflowClient()
  const result=input.action==='create'?await db.rpc('lending_support_create',{p_actor:actor.id,p_input:{...input.draft,consent:input.consent,...(input.userId?{userId:input.userId}:{}),...(input.contactLabel!==undefined?{contactLabel:input.contactLabel}:{})},p_key:input.key}):await db.rpc('lending_support_command',{p_actor:actor.id,p_case:input.caseId,p_action:input.action,p_payload:input.payload,p_key:input.key,p_version:input.version})

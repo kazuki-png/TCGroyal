@@ -4,7 +4,9 @@ import type {SnkrdunkCard,SnkrdunkCardSearch} from '../../../lib/lending/snkrdun
 import {lendingApi} from '../api';
 import {Button,Field,ui} from '../ui';
 import {SupportEstimate} from './SupportEstimate';
-export function SnkrdunkSearchScreen({onApplied}:{onApplied:()=>Promise<void>}){
+import type {CollateralItem} from '../../../lib/lending/collateral-types';
+export function SnkrdunkSearchScreen({onApplied,onAdd}:{onApplied:()=>Promise<void>;onAdd?:(item:Omit<CollateralItem,'id'|'quantity'>)=>boolean}){
+ const [added,setAdded]=useState(false);
  const [query,setQuery]=useState(''),[category,setCategory]=useState<'all'|'pokemon'|'onepiece'>('all');
  const [results,setResults]=useState<SnkrdunkCardSearch|null>(null),[selected,setSelected]=useState<SnkrdunkCard|null>(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState('');const lock=useRef(false);
@@ -24,6 +26,7 @@ export function SnkrdunkSearchScreen({onApplied}:{onApplied:()=>Promise<void>}){
   </View>
   {busy&&<ActivityIndicator accessibilityLabel="カードを検索中" color="#fcd66e"/>}
   {!!error&&<Text accessibilityRole="alert" style={ui.error}>{error}</Text>}
+  {added&&<Text style={ui.success}>申込に追加しました。続けてカードを検索・追加できます。</Text>}
   {results&&<><Text style={ui.muted}>{results.page}ページ / 候補 {results.cards.length}件</Text>
    {!results.cards.length&&<Text style={ui.body}>対象のカードが見つかりません。次のページ、検索語の変更、登録カード検索・個別見積もりをお試しください。</Text>}
    {results.cards.map(card=><Pressable key={card.productId} accessibilityRole="radio" accessibilityLabel={card.name} accessibilityState={{checked:selected?.productId===card.productId,disabled:busy}} disabled={busy} onPress={()=>setSelected(card)} style={[ui.card,selected?.productId===card.productId&&{borderColor:'#fcd66e'}]}>
@@ -32,6 +35,6 @@ export function SnkrdunkSearchScreen({onApplied}:{onApplied:()=>Promise<void>}){
    </Pressable>)}
    <View style={ui.row}><Button title="前のページ" secondary disabled={busy||results.page<=1} onPress={()=>void search(results.page-1)}/><Button title="次のページ" secondary disabled={busy||!results.hasMore} onPress={()=>void search(results.page+1)}/></View>
   </>}
-  {selected&&<SupportEstimate key={selected.productId} connected onRegistered={onApplied} initialDraft={{reason:'other',cardName:selected.name.slice(0,100),cardNumber:selected.cardNumber,condition:'',requestedAmount:'',notes:`スニダン検索で選択\n${selected.name}\n商品ID: ${selected.productId}\n${selected.sourceUrl}`}}/>}
+  {selected&&(onAdd?<Button title="このカードを申込に追加" onPress={()=>{if(onAdd({name:selected.name.slice(0,100),cardNumber:selected.cardNumber,grade:'',condition:'',source:'snkrdunk',productId:selected.productId,cardUid:null})){setSelected(null);setAdded(true)}}}/>:<SupportEstimate key={selected.productId} connected onRegistered={onApplied} initialDraft={{reason:'other',cardName:selected.name.slice(0,100),cardNumber:selected.cardNumber,condition:'',requestedAmount:'',notes:`スニダン検索で選択\n${selected.name}\n商品ID: ${selected.productId}\n${selected.sourceUrl}`}}/>)}
  </View>;
 }

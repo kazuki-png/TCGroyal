@@ -5,6 +5,7 @@ import { LOAN_STATUS_LABELS, type LoanCommand, type WorkflowLoan, type WorkflowS
 import { PsaScanner } from './PsaScanner'
 import { LendingReviewPanel } from './LendingReviewPanel'
 import { inspectionInputError } from '@/lib/lending/inspection-input'
+import {CollateralLines} from './CollateralLines'
 
 const field = 'mt-2 w-full rounded-xl border border-white/15 bg-[#121b2c] px-3 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-amber-300'
 const button = 'rounded-xl bg-amber-300 px-5 py-3 text-sm font-bold text-[#111827] disabled:opacity-40'
@@ -63,13 +64,15 @@ function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: Workf
       payload.location = String(values.get('location') ?? '').trim()
       if (loan.cert_number) payload.certNumber = String(values.get('cert') ?? '').trim()
       payload.inspected = values.has('inspected')
-      const error = inspectionInputError(loan.cert_number, payload)
+      if(loan.collateral_items?.length)payload.collateralInspection=loan.collateral_items.map(item=>({id:item.id,quantity:Number(values.get(`quantity-${item.id}`)),location:String(values.get(`location-${item.id}`)||payload.location).trim(),checked:values.has(`checked-${item.id}`)}))
+      const error = inspectionInputError(loan.cert_number, payload,loan.collateral_items??[])
       setInputError(error)
       if (error) return
     }
     if (['reject','reject_repayment'].includes(action)) payload.reason = values.get('reason')
     if (['accept','request_extension','request_additional'].includes(action)) payload.termsAccepted = values.get('consent') === 'on'
     if (action === 'forfeit') payload.reviewed = values.get('consent') === 'on'
+    if(action==='return'&&loan.collateral_items?.length)payload.allItemsReturned=values.has('allItemsReturned')
     await send({ type: 'command', loanId: loan.id, version: loan.version, action, payload })
   }
 
@@ -84,6 +87,7 @@ function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: Workf
         <p className="text-sm leading-6 text-zinc-300">現物の到着後、申込内容との照合と保管場所の登録を行います。{loan.cert_number?'現物のラベルを読み取り、申込時と同じ鑑定番号を入力してください。':'PSA鑑定番号の入力は不要です。'}</p>
         {loan.cert_number&&<label className="block text-sm">現物のPSA鑑定番号<input className={field} name="cert" inputMode="numeric" pattern="[0-9]{6,12}" required /></label>}
         <label className="block text-sm">保管場所<input className={field} name="location" maxLength={120} required placeholder="金庫A / 棚01" /></label>
+        {loan.collateral_items?.map(item=><div key={item.id} className="space-y-3 rounded-xl border border-white/10 p-4"><p>{item.name} / 申込 {item.quantity}枚 / {item.grade} / {item.condition}</p><label className="block text-sm">{item.name} の現物枚数<input className={field} name={`quantity-${item.id}`} type="number" min={1} max={100} defaultValue={item.quantity} required/></label><label className="block text-sm">{item.name} の保管場所（空欄なら共通保管場所）<input className={field} name={`location-${item.id}`} maxLength={120}/></label><label className="flex gap-3 text-sm"><input type="checkbox" name={`checked-${item.id}`} required/>この明細の現物・枚数・状態を照合しました</label></div>)}
         <label className="flex items-start gap-3 text-sm"><input type="checkbox" name="inspected" required className="mt-1" />現物のカード・状態と申込内容を照合しました（鑑定品はラベル・スラブも確認）</label>
         {inputError&&<p role="alert" className="rounded-lg bg-red-950/40 p-3 text-sm text-red-200">{inputError}</p>}
       </>}
@@ -95,6 +99,7 @@ function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: Workf
       {needsReference && <label className="block text-sm">{action === 'return' ? '返却追跡番号・店頭受領番号' : '銀行明細・現金受領記録の照合番号'}
         <input name="reference" minLength={4} maxLength={120} required className={field} />
       </label>}
+      {action==='return'&&!!loan.collateral_items?.length&&<label className="flex gap-3 text-sm"><input type="checkbox" name="allItemsReturned" required/>明細の全カード・全枚数をまとめて返却したことを確認しました</label>}
       {['reject','reject_repayment'].includes(action) && <label className="block text-sm">理由<input name="reason" maxLength={500} required className={field} /></label>}
       {action === 'request_extension' && <p className="text-sm leading-7 text-amber-100">現在の3か月分の利息 {yen(Math.ceil(loan.principal_jpy * (loan.monthly_rate_bps ?? 0) * 3 / 10000))} を精算し、現在の期限から3か月延長する申請です。入金確認までは期限は変わりません。</p>}
       {action === 'request_additional' && <p className="text-sm leading-7 text-zinc-300">追加借入は再査定・変更契約が必要です。ここでは相談を受け付け、元本は増やしません。</p>}
@@ -115,6 +120,7 @@ export function LoanCard({ loan, admin, send, busy,allowOffer=true }: { loan: Wo
       `手数料: ${yen(terms.feesJpy)}`, '期限前返済: 暦月単位の切り上げ、最低1か月・最大3か月分',
       '返済・延長の手続きがなく期限を経過した場合は質流れの確認対象になります。',
       `同意日時: ${date(loan.terms_accepted_at)}`, `条件版: ${terms.documentVersion} / ${terms.version}`,
+      ...(terms.collateralItems??[]).map(item=>`担保明細: ${item.name} / ${item.cardNumber} / ${item.quantity}枚 / ${item.grade} / ${item.condition}`),
       ...loan.requests.filter(r => r.kind === 'extension' && r.status === 'completed').map(r => `延長記録: 利息 ${yen(r.amount_jpy)} / 延長後の期限 ${date(r.consent_terms.newDueAt ?? null)}`)].join('\n')
     const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }))
     const a = document.createElement('a'); a.href = url; a.download = `loan-${loan.id}-terms.txt`; a.click()
@@ -123,6 +129,7 @@ export function LoanCard({ loan, admin, send, busy,allowOffer=true }: { loan: Wo
   return <article className="rounded-2xl border border-white/10 bg-[#111b2d] p-5 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-lg font-bold">{loan.card_name}</h3><span className="rounded-full bg-amber-200/10 px-3 py-1 text-xs font-bold text-amber-200">{LOAN_STATUS_LABELS[loan.status]}</span></div>
     <p className="mt-2 text-xs text-zinc-400">{loan.cert_number?`カード番号 ${loan.card_number??''} / PSA鑑定番号 ${loan.cert_number}`:'PSA番号なし・個別見積もり'}</p>
+    <CollateralLines items={loan.collateral_items} inspection={admin?loan.collateral_inspection:undefined}/>
     <p className="mt-5 text-xs text-zinc-400">{loan.status === 'active' || loan.status === 'repayment_pending' ? '借入元本' : '申込希望額'}</p>
     <p className="mt-1 text-3xl font-bold tracking-tight">{yen(['active','repayment_pending'].includes(loan.status) ? loan.principal_jpy : loan.requested_jpy)}</p>
     <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">

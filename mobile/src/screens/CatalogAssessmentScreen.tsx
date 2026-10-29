@@ -8,9 +8,18 @@ import {lendingApi} from '../api';
 import {SupportEstimate} from './SupportEstimate';
 import {Button,Field,ui,yen,date} from '../ui';
 import {SnkrdunkSearchScreen} from './SnkrdunkSearchScreen';
+import {CollateralBasket} from './CollateralBasket';
+import {collateralQuantity,type CollateralItem} from '../../../lib/lending/collateral-types';
 
 export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>}){
- const [route,setRoute]=useState<'snkrdunk'|'catalog'|'support'>('snkrdunk');
+ const [route,setRoute]=useState<'snkrdunk'|'catalog'|'support'|'basket'>('snkrdunk');
+ const [basket,setBasket]=useState<CollateralItem[]>([]),[basketError,setBasketError]=useState('');
+ function addItem(item:Omit<CollateralItem,'id'|'quantity'>){
+  const same=basket.find(row=>row.source===item.source&&row.productId===item.productId&&row.cardUid===item.cardUid&&row.grade===item.grade&&row.condition===item.condition&&row.name===item.name);
+  if((!same&&basket.length>=20)||collateralQuantity(basket)>=100){setBasketError('まとめて申込は20種類・合計100枚までです。');return false;}
+  setBasket(same?basket.map(row=>row.id===same.id?{...row,quantity:row.quantity+1}:row):[...basket,{...item,id:randomUUID(),quantity:1}]);setBasketError('');
+  return true;
+ }
  const [query,setQuery]=useState(''),[category,setCategory]=useState('all'),[results,setResults]=useState<CatalogSearch|null>(null);
  const [selected,setSelected]=useState<CatalogCard|null>(null),[grade,setGrade]=useState<DeclaredGrade>('ungraded');
  const [assessment,setAssessment]=useState<CatalogAssessment|null>(null),[amount,setAmount]=useState(''),[notes,setNotes]=useState('');
@@ -50,11 +59,13 @@ export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>
  }
  return <View style={{gap:20}}>
   <View style={ui.row}>
-   <View style={{flex:1}}><Button title="スニダン検索" secondary onPress={()=>setRoute('snkrdunk')}/></View>
-   <View style={{flex:1}}><Button title="登録カード" secondary onPress={()=>setRoute('catalog')}/></View>
-   <View style={{flex:1}}><Button title="個別見積もり" secondary onPress={()=>setRoute('support')}/></View>
+   <View style={{flex:1}}><Button title="スニダン検索" secondary disabled={route==='basket'} onPress={()=>setRoute('snkrdunk')}/></View>
+   <View style={{flex:1}}><Button title="登録カード" secondary disabled={route==='basket'} onPress={()=>setRoute('catalog')}/></View>
+   <View style={{flex:1}}><Button title="個別見積もり" secondary disabled={route==='basket'} onPress={()=>setRoute('support')}/></View>
   </View>
-  {route==='snkrdunk'?<SnkrdunkSearchScreen onApplied={onApplied}/>:route==='support'?<SupportEstimate connected onRegistered={onApplied}/>:<>
+  {!!basketError&&<Text style={ui.error}>{basketError}</Text>}
+  {route!=='basket'&&<Button title={`まとめて申込の内容を確認（${collateralQuantity(basket)}枚）`} onPress={()=>setRoute('basket')}/>}
+  {route==='basket'?<CollateralBasket items={basket} onChange={setBasket} onApplied={onApplied} onBack={()=>setRoute('snkrdunk')} onReset={()=>{setBasket([]);setRoute('snkrdunk')}}/>:route==='snkrdunk'?<SnkrdunkSearchScreen onApplied={onApplied} onAdd={addItem}/>:route==='support'?<SupportEstimate connected onRegistered={onApplied}/>:<>
    {error?<Text accessibilityRole="alert" style={ui.error}>{error}</Text>:null}
    {notice?<Text accessibilityLiveRegion="polite" style={ui.success}>{notice}</Text>:null}
    <View style={ui.card}>
@@ -86,6 +97,7 @@ export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>
    </View>}
    {selected&&!registered&&<View style={ui.card}>
     <Text style={ui.title}>選択したカード：{selected.name}</Text><Text style={ui.body}>{selected.card_number} / マスタ上のグレード {selected.grade}</Text><Text style={ui.label}>お手元のカードの状態</Text>
+    <Button title="この登録カードをまとめて申込に追加" disabled={busy} onPress={()=>addItem({name:selected.name.slice(0,100),cardNumber:selected.card_number??'',grade:grade==='ungraded'?'未鑑定':grade,condition:'',source:'catalog',productId:null,cardUid:selected.public_uid})}/>
     {(['ungraded','PSA10','other'] as const).map(value=><Button key={value} title={`${grade===value?'✓ ':''}${value==='ungraded'?'未鑑定':value==='PSA10'?'PSA10（自己申告）':'その他の鑑定・グレード'}`} secondary disabled={busy} onPress={()=>{setGrade(value);invalidate()}}/>)}
     <Text style={ui.muted}>カード名・型番・版・言語と実物を照合してください。鑑定情報は運営による確認待ちとして扱います。</Text>
     <Button title="このカードで査定内容を確認" disabled={busy} onPress={()=>void run(async()=>{const data=await lendingApi<{assessment:CatalogAssessment}>('/catalog',{body:{action:'assess',cardUid:selected.public_uid,declaredGrade:grade,...(results?.imageRequestId?{imageRequestId:results.imageRequestId}:{})}});setAssessment(data.assessment);setConsent(false)})}/>

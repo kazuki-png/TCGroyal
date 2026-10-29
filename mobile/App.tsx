@@ -20,6 +20,7 @@ import { useInboxReceipts } from './src/useInboxReceipts';
 import type { AccountState } from '../lib/lending/mobile-types';
 import type {SupportCase,SupportCaseList} from '../lib/lending/support-case-types';
 import {registerStatusPush,watchStatusPushToken,unregisterStatusPush,reportStatusPush} from './src/status-push';
+import {CollateralLines} from './src/screens/CollateralLines';
 
 const yen = (n: number) => `¥${n.toLocaleString('ja-JP')}`;
 const date = (value: string | null) => value ? new Date(value).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : '—';
@@ -37,6 +38,7 @@ function LoanTile({ loan, send, busy }: { loan: WorkflowLoan; send: Send; busy: 
   return <View style={styles.card}>
     <Text style={styles.badge}>{LOAN_STATUS_LABELS[loan.status]}</Text>
     <Text style={styles.title}>{loan.card_name}</Text>
+    <CollateralLines items={loan.collateral_items}/>
     <Text style={styles.muted}>{loan.cert_number?`PSA / 鑑定番号 ${loan.cert_number}`:'個別見積もり'}</Text>
     <Text style={styles.muted}>{['active','repayment_pending'].includes(loan.status) ? '借入元本' : '申込希望額'}</Text>
     <Text style={styles.amount}>{yen(['active','repayment_pending'].includes(loan.status) ? loan.principal_jpy : loan.requested_jpy)}</Text>
@@ -195,7 +197,7 @@ function LendingApp() {
         <SupabaseLogin accessUrl={accessUrl} onConnected={reload} disabled={busy || restoring} onBusyChange={setBusy} recovering={recovering} onRecovered={() => setRecovering(false)}/>
         </>}
       </>}
-      {state && tab === 'assessment' && <AssessmentScreen onApplied={reload}/>}
+      {state && <View style={tab==='assessment'?undefined:{display:'none'}} accessibilityElementsHidden={tab!=='assessment'} importantForAccessibility={tab==='assessment'?'auto':'no-hide-descendants'}><AssessmentScreen onApplied={reload}/></View>}
       {state && tab === 'loans' && <>
         <SupportCasesScreen onChanged={reload}/>
         <View style={styles.card}><Text style={styles.label}>現在融資額（元本）</Text><Text style={styles.amount}>{yen(state.outstandingJpy)}</Text><Text style={styles.muted}>申込・契約 {state.loanCount}件</Text></View>

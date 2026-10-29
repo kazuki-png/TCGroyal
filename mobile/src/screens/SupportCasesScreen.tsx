@@ -7,14 +7,16 @@ import {LOAN_STATUS_LABELS} from '../../../lib/lending/workflow-types';
 import {lendingApi} from '../api';
 import {buildSupportEstimateMessage,SUPPORT_LINE_URL} from '../support-estimate';
 import {Button,Field,ui,yen,date} from '../ui';
+import {CollateralLines} from './CollateralLines';
 
 function CaseCard({item,busy,command,now}:{item:SupportCase;busy:boolean;now:number;command:(item:SupportCase,action:string,payload:Record<string,unknown>)=>Promise<void>}){
  const [consent,setConsent]=useState(false),[amount,setAmount]=useState(String(item.offer_jpy??item.requested_jpy??100000)),[deposit,setDeposit]=useState<'mail'|'store'>('mail');
  const [contactError,setContactError]=useState('');
  const expired=!item.offer_expires_at||Date.parse(item.offer_expires_at)<=now;
- async function contact(){setContactError('');try{await Clipboard.setStringAsync(buildSupportEstimateMessage({reason:item.reason,cardName:item.card_name,cardNumber:item.card_number,condition:item.condition,notes:item.notes,requestedAmount:String(item.requested_jpy??'')},item.reference));await Linking.openURL(SUPPORT_LINE_URL);}catch{setContactError('受付番号を公式LINEへ送ってお問い合わせください。');}}
+ async function contact(){setContactError('');try{await Clipboard.setStringAsync(buildSupportEstimateMessage({reason:item.reason,cardName:item.card_name,cardNumber:item.card_number,condition:item.condition,notes:item.notes,requestedAmount:String(item.requested_jpy??''),...(item.collateral_items?.length?{items:item.collateral_items}:{})},item.reference));await Linking.openURL(SUPPORT_LINE_URL);}catch{setContactError('受付番号を公式LINEへ送ってお問い合わせください。');}}
  return <View style={ui.card}>
   <Text selectable style={ui.label}>{item.reference}</Text><Text style={ui.title}>{item.card_name}</Text>
+  <CollateralLines items={item.collateral_items}/>
   <Text style={ui.body}>{item.loan_status?LOAN_STATUS_LABELS[item.loan_status]:SUPPORT_CASE_STATUS[item.status]}</Text>
   <Text style={ui.muted}>{item.card_number||'カード番号未登録'} / 相談登録 {date(item.created_at)}</Text>
   {item.card_uid&&<><Text style={ui.muted}>{item.search_method==='image'?'画像から候補検索':'カード一覧から選択'} / 申告 {item.declared_grade} / 鑑定・現物確認待ち</Text><Text style={ui.body}>{item.condition}</Text>{item.indicative_jpy!=null&&<Text style={ui.muted}>受付時の参考額 {yen(item.indicative_jpy)}（運営の見積もりとは別です）</Text>}</>}

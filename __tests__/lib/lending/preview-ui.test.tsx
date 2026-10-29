@@ -1,41 +1,16 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { LendingPreview } from '@/app/admin/(protected)/lending/LendingPreview'
-
-const card = { public_uid: 'd97c713d-e7c3-4bf6-a4e5-647a6e1c3bc1', name: 'テストカード', card_number: '001', category: 'pokemon', grade: 'PSA10', buy_price: 1000000, buy_price_updated_at: '2026-10-26T03:00:00Z' }
-afterEach(() => { cleanup(); vi.unstubAllGlobals() })
-
-function fillForm() {
-  fireEvent.change(screen.getByLabelText('TCG ROYALのカード'), { target: { value: card.public_uid } })
-  fireEvent.change(screen.getByLabelText('スニダンの商品ID'), { target: { value: '408333' } })
-  fireEvent.click(screen.getByRole('button', { name: 'スニダンから取得して概算を確認' }))
-}
-
-describe('lending preview operator flow', () => {
-  it('shows a manual-review result and clears it when the product changes', async () => {
-    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({
-      card,
-      market: { floorPriceJpy: 1000000, fetchedAt: '2026-10-26T03:00:00Z', sourceUrl: 'https://snkrdunk.com/apparels/408333', sales: [{ priceJpy: 990000, displayedDate: '20時間前' }] },
-      quote: { status: 'manual_review_required', indicativeAmountJpy: 400000, reasons: ['現物確認が必要です。'] },
-    }) })
-    vi.stubGlobal('fetch', fetch)
-    render(<LendingPreview cards={[card]} />)
-    fillForm()
-    expect(await screen.findByText('¥400,000')).toBeInTheDocument()
-    expect(screen.getByText('要手動審査 / 参考額')).toBeInTheDocument()
-    expect(screen.getByText('20時間前')).toBeInTheDocument()
-    expect(fetch).toHaveBeenCalledWith('/api/admin/lending/preview', expect.objectContaining({
-      body: JSON.stringify({ cardUid: card.public_uid, productId: '408333' }),
-    }))
-    fireEvent.change(screen.getByLabelText('スニダンの商品ID'), { target: { value: '408334' } })
-    expect(screen.queryByText('¥400,000')).not.toBeInTheDocument()
-  })
-  it('shows the server error and lets the operator retry', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: '価格データを取得できません。' }) }))
-    render(<LendingPreview cards={[card]} />)
-    fillForm()
-    expect(await screen.findByRole('alert')).toHaveTextContent('価格データを取得できません。')
-    await waitFor(() => expect(screen.getByRole('button')).toBeEnabled())
-    expect(screen.queryByText('要手動審査 / 参考額')).not.toBeInTheDocument()
-  })
+import {afterEach,describe,it,expect} from 'vitest'
+import {cleanup,render,screen} from '@testing-library/react'
+import {LendingDashboard} from '@/app/admin/(protected)/lending/LendingDashboard'
+import type {AdminLendingDashboard} from '@/lib/lending/admin-types'
+afterEach(cleanup)
+const data:AdminLendingDashboard={page:1,pageSize:25,total:26,evaluatedAt:'2026-10-29T00:00:00Z',summary:{outstandingJpy:1250000,activeCount:4,reviewCount:2,preparingCount:3,repaymentPendingCount:1,dueSoonCount:1,overdueCount:1,returnPendingCount:0},rows:[{kind:'loan',id:'20000000-0000-4000-8000-000000000001',reference:'TR-ABC',user_id:'user',customer_name:'山田 太郎',card_name:'ピカチュウ',card_number:'025',status:'active',requested_jpy:300000,principal_jpy:250000,offer_jpy:300000,due_at:'2026-10-28T00:00:00Z',created_at:'2026-10-01T00:00:00Z',updated_at:'2026-10-28T00:00:00Z',bucket:'active',has_pending_request:true}]}
+describe('administrator lending overview',()=>{
+ it('shows whole-portfolio totals, urgency and detail links without price-linking controls',()=>{
+  render(<LendingDashboard data={data} search="ピカチュウ" filter="all"/>);
+  expect(screen.getByRole('heading',{name:'融資管理'})).toBeInTheDocument();expect(screen.getByText('¥1,250,000')).toBeInTheDocument();expect(screen.getByText('期限超過・要確認')).toBeInTheDocument();expect(screen.getByText('延長・追加相談あり')).toBeInTheDocument();expect(screen.getByText('山田 太郎')).toBeInTheDocument();
+  expect(screen.getByRole('link',{name:'TR-ABCの詳細'})).toHaveAttribute('href','/admin/lending/loan/20000000-0000-4000-8000-000000000001');expect(screen.getByRole('link',{name:'次のページ'}).getAttribute('href')).toContain('page=2');expect(screen.queryByText(/スニダン/)).not.toBeInTheDocument();
+ });
+ it('keeps the global summary and an explicit empty result after filtering',()=>{
+  render(<LendingDashboard data={{...data,rows:[],total:0}} search="なし" filter="overdue"/>);expect(screen.getByText('該当する案件はありません。')).toBeInTheDocument();expect(screen.getByText('¥1,250,000')).toBeInTheDocument();expect(screen.queryByRole('link',{name:'次のページ'})).not.toBeInTheDocument();
+ });
 })

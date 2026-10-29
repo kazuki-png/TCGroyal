@@ -4,11 +4,11 @@ import {SUPPORT_CASE_STATUS,type SupportCase,type SupportCaseList} from '@/lib/l
 import {LOAN_STATUS_LABELS} from '@/lib/lending/workflow-types'
 const input='mt-1 w-full rounded-lg border border-white/15 bg-[#0a1220] p-3 text-sm text-white'
 const button='rounded-lg bg-amber-200 px-4 py-3 text-sm font-bold text-zinc-950 disabled:opacity-40'
-function CatalogEvidence({item}:{item:SupportCase}){
+export function CatalogEvidence({item}:{item:SupportCase}){
  if(!item.card_uid)return null
  return <div className="space-y-1 rounded-lg border border-amber-200/20 p-3 text-xs text-zinc-300"><p>{item.search_method==='image'?'画像で候補検索':'カード一覧から選択'} / カードID {item.card_uid}</p><p>登録グレード {item.selected_card?.grade} / 利用者申告 {item.declared_grade} / PSA番号 {item.declared_cert_number??'未登録'}（公式未照会・現物確認待ち）</p>{item.indicative_jpy!=null&&<p>受付時の参考額 ¥{item.indicative_jpy.toLocaleString('ja-JP')}。管理者による見積もり提示とは別です。</p>}</div>
 }
-function CaseAction({item,busy,send}:{item:SupportCase;busy:boolean;send:(body:Record<string,unknown>)=>Promise<unknown>}){
+export function CaseAction({item,busy,send}:{item:SupportCase;busy:boolean;send:(body:Record<string,unknown>)=>Promise<unknown>}){
  const [action,setAction]=useState('review')
  const terminal=['applied','declined','cancelled'].includes(item.status)
  const options=[...(!item.user_id?['link']:[]),...(['registered','information_required','reviewing'].includes(item.status)?['review']:[]),'request_info',...(item.user_id&&['reviewing','information_required','offered'].includes(item.status)?['offer']:[]),'decline','cancel']

@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { workflowInputSchema as inputSchema } from '@/lib/lending/workflow-input'
 import { createWorkflowClient as createAdminClient, checkWorkflowRateLimit as checkSharedRateLimit } from '@/lib/lending/workflow-client'
 import { rateLimitResponse } from '@/lib/security/sharedRateLimit'
 import { getWorkflowActor } from '@/lib/lending/workflow-server'
@@ -10,22 +10,6 @@ export const runtime = 'nodejs'
 const json = (body: unknown, status = 200) => Response.json(body, {
   status, headers: { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' },
 })
-const money = z.number().int().min(0).max(10_000_000)
-const inputSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('quote'), cardUid: z.uuid() }).strict(),
-  z.object({ type: z.literal('apply'), quoteId: z.uuid(), certInput: z.string().max(250), amountJpy: money.min(100000), deposit: z.enum(['mail', 'store']), key: z.uuid() }).strict(),
-  z.object({ type: z.literal('verify_mapping'), cardUid: z.uuid(), productId: z.string().regex(/^[1-9]\d{0,8}$/), verified: z.literal(true) }).strict(),
-  z.object({ type: z.literal('command'), loanId: z.uuid(), version: z.number().int().positive(), key: z.uuid(),
-    action: z.enum(['receive','offer','accept','fund','cancel','reject','report_repayment','reject_repayment','confirm_repayment','return','request_extension','request_additional','extend','reject_request','forfeit']),
-    payload: z.object({ amountJpy: money.optional(), monthlyRateBps: z.number().int().min(0).max(200).optional(),
-      location: z.string().trim().max(120).optional(), certNumber: z.string().regex(/^\d{6,12}$/).optional(),
-      inspected: z.boolean().optional(), termsAccepted: z.boolean().optional(), reviewed: z.boolean().optional(),
-      reference: z.string().trim().min(4).max(120).optional(), reason: z.string().trim().min(1).max(500).optional(),
-      manualValuationJpy: z.number().int().min(1).max(1000000000).optional(), manualCapJpy: money.min(100000).optional(),
-    }).strict(),
-  }).strict(),
-])
-
 export async function GET(request: Request) {
   if (!isLendingEnabled()) return json({ error: '融資テスト環境が構成されていません。' }, 503)
   const actor = await getWorkflowActor(request)

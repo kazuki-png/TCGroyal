@@ -17,7 +17,7 @@ const actionLabels: Record<LoanCommand, string> = {
 }
 type Send = (body: Record<string, unknown>) => Promise<void>
 
-function LoanActions({ loan, admin, send, busy }: { loan: WorkflowLoan; admin: boolean; send: Send; busy: boolean }) {
+function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: WorkflowLoan; admin: boolean; send: Send; busy: boolean;allowOffer?:boolean }) {
   const actions: LoanCommand[] = []
   const pending = loan.requests.find(r => r.status === 'pending')
   if (admin) {
@@ -41,6 +41,7 @@ function LoanActions({ loan, admin, send, busy }: { loan: WorkflowLoan; admin: b
       if (!pending && loan.due_at && Date.parse(loan.evaluated_at) < Date.parse(loan.due_at)) actions.push('request_extension','request_additional')
     }
   }
+  if(!allowOffer){const position=actions.indexOf('offer');if(position>=0)actions.splice(position,1)}
   const [selected, setSelected] = useState<LoanCommand | ''>('')
   const action = actions.includes(selected as LoanCommand) ? selected as LoanCommand : actions[0]
   if (!actions.length) return null
@@ -94,7 +95,7 @@ function LoanActions({ loan, admin, send, busy }: { loan: WorkflowLoan; admin: b
   </form>
 }
 
-function LoanCard({ loan, admin, send, busy }: { loan: WorkflowLoan; admin: boolean; send: Send; busy: boolean }) {
+export function LoanCard({ loan, admin, send, busy,allowOffer=true }: { loan: WorkflowLoan; admin: boolean; send: Send; busy: boolean;allowOffer?:boolean }) {
   const terms = loan.terms
   function downloadTerms() {
     if (!terms) return
@@ -129,7 +130,7 @@ function LoanCard({ loan, admin, send, busy }: { loan: WorkflowLoan; admin: bool
       <button type="button" onClick={downloadTerms} className="mt-2 text-amber-200 underline">条件書の草案を保存</button>
     </details>}
     {loan.requests.filter(r => r.status === 'pending').map(r => <p key={r.id} className="mt-4 rounded-lg bg-amber-100/10 p-3 text-sm text-amber-100">{r.kind === 'extension' ? '延長申請' : '追加借入相談'}を確認中 / {yen(r.amount_jpy)}</p>)}
-    <LoanActions key={loan.version} loan={loan} admin={admin} send={send} busy={busy} />
+    <LoanActions key={loan.version} loan={loan} admin={admin} send={send} busy={busy} allowOffer={allowOffer}/>
     <details className="mt-5 text-xs leading-6 text-zinc-400"><summary className="cursor-pointer">手続き・入出金の履歴</summary>
       <ol className="mt-2 space-y-1">{loan.events.map(e => <li key={e.version}>{date(e.created_at)} / {actionLabels[e.action as LoanCommand] ?? e.action} / {LOAN_STATUS_LABELS[e.to_status]}{e.reason ? ` / ${e.reason}` : ''}</li>)}</ol>
       <ul className="mt-3">{loan.ledger.map(e => <li key={e.id}>{date(e.created_at)} / {({ disbursement: '出金', repayment: '返済入金', extension_interest: '延長利息入金', forfeiture: '質流れによる元本処理' } as Record<string,string>)[e.kind]} / {yen(e.amount_jpy)}</li>)}</ul>

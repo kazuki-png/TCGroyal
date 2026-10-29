@@ -5,6 +5,7 @@ import { ACCESS_RETENTION_MS, DEFAULT_PREVIEW_URL, trustedPreviewUrl, migratePre
 import { supabaseAuth, supabaseBearer, confirmedSupabaseUser } from './supabase-auth';
 import type { WorkflowState } from '../../lib/lending/workflow-types';
 import { apiResponseError } from './service-errors';
+import {mobileFetch} from './mobile-fetch';
 
 const retryKeys = new Map<string, string>();
 let previewSession: { origin: string; token: string; inboxKey: string; expiresAt?: number; firebase?:boolean; supabase?:boolean } | null = null;
@@ -20,7 +21,7 @@ export async function disconnectPreview() {
 }
 async function authFetch(url: string, options?: RequestInit) {
  const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 12000);
- try { return await fetch(url, { redirect: 'manual', ...options, signal: controller.signal }); } finally { clearTimeout(timeout); }
+ try { return await mobileFetch(url, { redirect: 'manual', ...options, signal: controller.signal }); } finally { clearTimeout(timeout); }
 }
 export function getRememberedPreviewUrl() { if (!rememberedAccess) return undefined; try { return trustedPreviewUrl(rememberedAccess.url).href; } catch { return DEFAULT_PREVIEW_URL; } }
 export async function restorePreview() {
@@ -104,7 +105,7 @@ export async function workflowRequest(body?: Record<string, unknown>) {
   const signature = body ? JSON.stringify(body) : '';
   const key = retryKeys.get(signature) ?? randomUUID();
   if (body) retryKeys.set(signature, key);
-  const response = await fetch(`${base}/api/lending/workflow`, {
+  const response = await mobileFetch(`${base}/api/lending/workflow`, {
     method: body ? 'POST' : 'GET', redirect: 'manual',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', Origin: base,
@@ -112,7 +113,7 @@ export async function workflowRequest(body?: Record<string, unknown>) {
     },
     body: body ? JSON.stringify(['apply','command'].includes(String(body.type)) ? { ...body, key } : body) : undefined,
   });
-  if (!response.headers.get('content-type')?.includes('application/json')) throw Error('Previewのアクセス保護により接続できません。共有URLから接続し直してください。');
+  if (!response.headers.get('content-type')?.includes('application/json')) throw Error(`アプリAPIから想定外の応答がありました（HTTP ${response.status}）。接続診断を実行してください。`);
   const data = await response.json();
   if (!response.ok) throw apiResponseError(data,response.status);
   retryKeys.delete(signature);
@@ -120,17 +121,17 @@ export async function workflowRequest(body?: Record<string, unknown>) {
 }
 export const loadWorkflow = async (): Promise<WorkflowState> => workflowRequest();
 
-export async function lendingApi<T = Record<string, unknown>>(path: string, options: { method?: 'GET'|'POST'|'DELETE'; body?: Record<string, unknown>|FormData } = {}): Promise<T> {
+export async function lendingApi<T = Record<string, unknown>>(path: string, options: { method?: 'GET'|'POST'|'DELETE'; body?: Record<string, unknown>|FormData; signal?:AbortSignal } = {}): Promise<T> {
   if (!/^\/(?:cards|catalog|card-image|account|documents|notifications|identity|support-cases)(?:\?id=[a-f0-9-]{36})?$/.test(path)) throw Error('APIパスが不正です。');
   const base = getApiBase();
   const multipart = options.body instanceof FormData;
-  const response = await fetch(`${base}/api/lending${path}`, {
-    method: options.method ?? (options.body ? 'POST' : 'GET'), redirect: 'manual', credentials: 'include',
+  const response = await mobileFetch(`${base}/api/lending${path}`, {
+    method: options.method ?? (options.body ? 'POST' : 'GET'), redirect: 'manual', credentials: 'include',signal:options.signal,
     headers: { Origin: base, ...(!multipart ? { 'Content-Type': 'application/json' } : {}),
       ...await authorization() },
     body: options.body ? (multipart ? options.body as FormData : JSON.stringify(options.body)) : undefined,
   });
-  if (!response.headers.get('content-type')?.includes('application/json')) throw Error('Previewの共有URLが期限切れです。接続し直してください。');
+  if (!response.headers.get('content-type')?.includes('application/json')) throw Error(`アプリAPIから想定外の応答がありました（HTTP ${response.status}）。接続診断を実行してください。`);
   const data = await response.json();
   if (!response.ok) throw apiResponseError(data,response.status);
   return data as T;

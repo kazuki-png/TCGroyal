@@ -1,10 +1,13 @@
+import {networkFailureCode,networkFailureMessage} from './network-errors';
 // Read bounded message fields, never whole responses or credentials.
 export function serviceErrorMessage(value: unknown, fallback: string): string {
+  const transport=networkFailureCode(value);if(transport)return networkFailureMessage(transport);
   const seen = new Set<object>();
   function read(item: unknown, depth: number): string | undefined {
     if (typeof item === 'string') {
       const message = item.trim();
       if (!message || message.includes('[object Object]') || /^[{[]/.test(message) || message.length > 500) return;
+      const networkCode=networkFailureCode(message);if(networkCode)return networkFailureMessage(networkCode);
       return message;
     }
     if (!item || typeof item !== 'object' || depth > 3 || seen.has(item)) return;

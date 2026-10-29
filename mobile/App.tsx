@@ -8,6 +8,7 @@ import { connectPreview, disconnectPreview, loadWorkflow, workflowRequest, lendi
 import { CatalogAssessmentScreen as AssessmentScreen } from './src/screens/CatalogAssessmentScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
+import {ConnectionDiagnostics} from './src/screens/ConnectionDiagnostics';
 import { SupportCasesScreen } from './src/screens/SupportCasesScreen';
 import { SupportEstimate } from './src/screens/SupportEstimate';
 import { SupabaseLogin } from './src/screens/SupabaseLogin';
@@ -159,7 +160,7 @@ function LendingApp() {
     finally { setBusy(false); }
   }
   async function refresh() {
-    if (busy) return; setBusy(true);
+    if (busy) return; setBusy(true);setError('');
     try { await reload(); } catch (cause) { setError(cause instanceof Error ? cause.message : '情報を更新できません。'); } finally { setBusy(false); }
   }
   function switchTab(next: typeof tab) {
@@ -229,6 +230,7 @@ function LendingApp() {
               <Action label="接続コードでログイン" disabled={busy || restoring || !accessUrl || accessCode.length < 16} onPress={() => void connect()}/>
             </> : <><Text style={styles.success}>接続済み</Text><Action label="接続先を切り替える" disabled={busy} onPress={() => void signOut()}/></>}
           </View>
+          <ConnectionDiagnostics connected={!!state}/>
           {state && <NotificationsScreen/>}
         </ScrollView>
       </View>

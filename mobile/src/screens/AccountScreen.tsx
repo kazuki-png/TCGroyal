@@ -26,7 +26,8 @@ export function AccountScreen({onUpdated}:{onUpdated:()=>Promise<void>}){
  return <View style={{gap:20}}>
   <PushSettings/>
   {error?<Text accessibilityRole="alert" style={ui.error}>{error}</Text>:null}{notice?<Text accessibilityLiveRegion="polite" style={ui.success}>{notice}</Text>:null}
-  {!account&&<ActivityIndicator color="#fcd66e"/>}
+  {!account&&!error&&<ActivityIndicator color="#fcd66e"/>}
+  {!account&&!!error&&<Button title="マイページを再取得" disabled={busy} onPress={()=>void run(async()=>{await load();await onUpdated()})}/>}
   {account&&<><View style={ui.card}><Text style={ui.title}>現在のご利用状況</Text><Text style={ui.muted}>現在融資額（元本）</Text><Text style={ui.amount}>{yen(account.summary.outstandingJpy)}</Text><Text style={ui.body}>現在の返済必要額 {yen(account.summary.payoffJpy)}</Text><Text style={ui.body}>最も近い返済期限 {date(account.summary.nextDueAt)}</Text><Text style={ui.muted}>契約中 {account.summary.activeCount}件</Text><Button title="マイページを更新" secondary disabled={busy} onPress={()=>void run(async()=>{await load();await onUpdated()})}/></View>
    {account.authentication?.email&&<View style={ui.card}><Text style={ui.title}>ログインアカウント</Text><Text style={ui.body}>{account.authentication.email}</Text><Text style={ui.muted}>{account.authentication.emailVerified?'メール確認済み':'メール未確認'}</Text></View>}
    <View style={ui.card}><Text style={ui.title}>プロフィール</Text>

@@ -12,7 +12,8 @@ beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL','https:
 afterEach(()=>vi.unstubAllEnvs())
 describe('admin cookie bridge stays inside the configured lending database',()=>{
  it('accepts the verified administrator without asking for a fixture code',async()=>{expect(await adminLendingAccess(req)).toEqual({id:'verified-admin'});expect(mocks.actor).not.toHaveBeenCalled()})
- it('rejects a customer, reviewer or missing login despite a spoofed admin header',async()=>{for(const access of [null,{user:{id:'user'},role:'customer'},{user:{id:'reviewer'},role:'kyc_reviewer'}]){mocks.access.mockResolvedValue(access);expect((await adminLendingAccess(req) as Response).status).toBe(403)}})
+ it('accepts an existing administrator with additional KYC permission',async()=>{mocks.access.mockResolvedValue({user:{id:'kyc-admin',factors:[]},role:'kyc_reviewer'});expect(await adminLendingAccess(req)).toEqual({id:'kyc-admin'})})
+ it('rejects a customer, unknown role or missing login despite a spoofed admin header',async()=>{for(const access of [null,{user:{id:'user'},role:'customer'},{user:{id:'unknown'},role:'other'}]){mocks.access.mockResolvedValue(access);expect((await adminLendingAccess(req) as Response).status).toBe(403)}})
  it('does not cross from the website database into a different lending project',async()=>{vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL','https://another.supabase.co');expect((await adminLendingAccess(req) as Response).status).toBe(503);expect(mocks.rate).not.toHaveBeenCalled()})
  it('requires AAL2 when an enrolled factor exists',async()=>{
   mocks.access.mockResolvedValue({user:{id:'verified-admin',factors:[{status:'verified'}]},role:'admin',supabase:{auth:{mfa:{getAuthenticatorAssuranceLevel:mocks.assurance}}}})

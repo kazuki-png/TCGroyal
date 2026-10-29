@@ -1,5 +1,6 @@
 import 'server-only'
 import {getAdminAccess} from '@/lib/admin/authorization'
+import {isAdministrativeRole} from '@/lib/admin/roles'
 import {isLendingEnabled,isLocalLendingEnabled,isSameOriginRequest} from './local-config'
 import {getWorkflowActor} from './workflow-server'
 import {checkWorkflowRateLimit} from './workflow-client'
@@ -12,7 +13,8 @@ export async function adminLendingAccess(request?:Request){
   const local=await getWorkflowActor(request);if(local?.role==='admin')actor=local.id
  }else{
   const access=await getAdminAccess()
-  if(!access||access.role!=='admin')return lendingJson({error:'管理者ログインが必要です。'},403)
+  if(!access)return lendingJson({error:'管理者ログインが必要です。'},403)
+  if(!isAdministrativeRole(access.role))return lendingJson({error:'管理者権限が必要です。'},403)
   if(process.env.NEXT_PUBLIC_SUPABASE_URL!==process.env.LENDING_PREVIEW_SUPABASE_URL)return lendingJson({error:'管理画面と融資管理のデータ接続先が一致していません。'},503)
   if(access.user.factors?.some(f=>f.status==='verified')){
    const assurance=await access.supabase.auth.mfa.getAuthenticatorAssuranceLevel()

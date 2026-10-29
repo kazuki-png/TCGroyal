@@ -6,6 +6,7 @@ import { readPreviewActor } from './preview-session'
 import { verifyFirebasePhone } from './firebase-auth'
 import { createWorkflowClient } from './workflow-client'
 import { readSupabaseLendingActor } from './supabase-auth'
+import { isAdministrativeRole } from '@/lib/admin/roles'
 
 export const DEMO_CUSTOMER_ID = '10000000-0000-4000-8000-000000000001'
 export const DEMO_ADMIN_ID = '10000000-0000-4000-8000-000000000002'
@@ -39,5 +40,5 @@ export async function getWorkflowActor(request: Request):Promise<WorkflowActor|n
   const { data: { user }, error } = await client.auth.getUser()
   if (error || !user) return null
   const { data } = await createAdminClient().from('admin_users').select('role').eq('id', user.id).maybeSingle()
-  return { id: user.id, role: data?.role === 'admin' ? 'admin' : 'customer', demo } as const
+  return { id: user.id, role: isAdministrativeRole(data?.role) ? 'admin' : 'customer', demo } as const
 }

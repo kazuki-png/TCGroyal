@@ -1,5 +1,6 @@
 import 'server-only'
 import { createWorkflowClient } from './workflow-client'
+import { isAdministrativeRole } from '@/lib/admin/roles'
 
 // Pin verification to the same database used by the lending workflow. Never
 // accept client-supplied IDs or user_metadata as an authorization decision.
@@ -16,6 +17,6 @@ export async function readSupabaseLendingActor(token: string) {
     }
     const admin = await db.from('admin_users').select('role').eq('id', user.id).maybeSingle()
     if (admin.error) return null
-    return { id: user.id, role: admin.data?.role === 'admin' ? 'admin' : 'customer', demo: false, authProvider: 'supabase', email: user.email ?? '' } as const
+    return { id: user.id, role: isAdministrativeRole(admin.data?.role) ? 'admin' : 'customer', demo: false, authProvider: 'supabase', email: user.email ?? '' } as const
   } catch { return null }
 }

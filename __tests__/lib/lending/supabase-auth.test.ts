@@ -25,6 +25,10 @@ describe('Supabase lending bearer authentication', () => {
     lookup.mockResolvedValue({ data: { role: 'admin' }, error: null });
     expect(await readSupabaseLendingActor(token())).toMatchObject({ role: 'admin' });
   });
+  it('preserves administrator access for the existing KYC administrator role', async () => {
+    lookup.mockResolvedValue({ data: { role: 'kyc_reviewer' }, error: null });
+    expect(await readSupabaseLendingActor(token())).toMatchObject({ id, role: 'admin' });
+  });
   it.each([{ email_confirmed_at: null }, { is_anonymous: true }, { role: 'service_role' }])('rejects unconfirmed, anonymous and non-user identities: %j', async values => {
     getUser.mockResolvedValue({ data: { user: { ...user, ...values } }, error: null });
     expect(await readSupabaseLendingActor(token())).toBeNull(); expect(lookup).not.toHaveBeenCalled();

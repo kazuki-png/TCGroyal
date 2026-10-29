@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { LOAN_STATUS_LABELS, type LoanCommand, type WorkflowLoan, type WorkflowState } from '@/lib/lending/workflow-types'
 import { PsaScanner } from './PsaScanner'
 import { LendingReviewPanel } from './LendingReviewPanel'
+import { inspectionInputError } from '@/lib/lending/inspection-input'
 
 const field = 'mt-2 w-full rounded-xl border border-white/15 bg-[#121b2c] px-3 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-amber-300'
 const button = 'rounded-xl bg-amber-300 px-5 py-3 text-sm font-bold text-[#111827] disabled:opacity-40'
@@ -43,6 +44,7 @@ function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: Workf
   }
   if(!allowOffer){const position=actions.indexOf('offer');if(position>=0)actions.splice(position,1)}
   const [selected, setSelected] = useState<LoanCommand | ''>('')
+  const [inputError, setInputError] = useState<string | null>(null)
   const action = actions.includes(selected as LoanCommand) ? selected as LoanCommand : actions[0]
   if (!actions.length) return null
   const needsAmount = ['offer','fund','confirm_repayment','extend','request_additional'].includes(action)
@@ -57,7 +59,14 @@ function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: Workf
     if (needsAmount) payload.amountJpy = Number(values.get('amount'))
     if (needsReference) payload.reference = values.get('reference')
     if (action === 'offer') {payload.monthlyRateBps = Math.round(Number(values.get('rate')) * 100);if(!loan.cert_number){payload.manualValuationJpy=Number(values.get('valuation'));payload.manualCapJpy=Number(values.get('cap'));payload.reason=values.get('basis')}}
-    if (action === 'receive') { payload.location = values.get('location'); if(loan.cert_number)payload.certNumber = values.get('cert'); payload.inspected = values.get('inspected') === 'on' }
+    if (action === 'receive') {
+      payload.location = String(values.get('location') ?? '').trim()
+      if (loan.cert_number) payload.certNumber = String(values.get('cert') ?? '').trim()
+      payload.inspected = values.has('inspected')
+      const error = inspectionInputError(loan.cert_number, payload)
+      setInputError(error)
+      if (error) return
+    }
     if (['reject','reject_repayment'].includes(action)) payload.reason = values.get('reason')
     if (['accept','request_extension','request_additional'].includes(action)) payload.termsAccepted = values.get('consent') === 'on'
     if (action === 'forfeit') payload.reviewed = values.get('consent') === 'on'
@@ -67,14 +76,16 @@ function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: Workf
   return <form onSubmit={submit} className="mt-5 border-t border-white/10 pt-5">
     <fieldset disabled={busy} className="space-y-4">
       <label className="block text-sm">{admin?'変更先ステータス・手続き':'手続き'}
-        <select className={field} value={action} onChange={e => setSelected(e.target.value as LoanCommand)}>
+        <select className={field} value={action} onChange={e => {setSelected(e.target.value as LoanCommand);setInputError(null)}}>
           {actions.map(value => {const targets:Partial<Record<LoanCommand,string>>={receive:'検品済み',offer:'条件の確認待ち',fund:'契約中',confirm_repayment:'返却待ち',reject_repayment:'契約中',return:'返却済み',reject:'見送り',cancel:loan.storage_location?'返却待ち':'キャンセル',forfeit:'質流れ'};return <option key={value} value={value}>{admin&&targets[value]?`${targets[value]}：${actionLabels[value]}`:actionLabels[value]}</option>})}
         </select>
       </label>
       {action === 'receive' && <>
+        <p className="text-sm leading-6 text-zinc-300">現物の到着後、申込内容との照合と保管場所の登録を行います。{loan.cert_number?'現物のラベルを読み取り、申込時と同じ鑑定番号を入力してください。':'PSA鑑定番号の入力は不要です。'}</p>
         {loan.cert_number&&<label className="block text-sm">現物のPSA鑑定番号<input className={field} name="cert" inputMode="numeric" pattern="[0-9]{6,12}" required /></label>}
         <label className="block text-sm">保管場所<input className={field} name="location" maxLength={120} required placeholder="金庫A / 棚01" /></label>
-        <label className="flex items-start gap-3 text-sm"><input type="checkbox" name="inspected" required className="mt-1" />カード・ラベル・スラブと申込内容の一致を検品しました</label>
+        <label className="flex items-start gap-3 text-sm"><input type="checkbox" name="inspected" required className="mt-1" />現物のカード・状態と申込内容を照合しました（鑑定品はラベル・スラブも確認）</label>
+        {inputError&&<p role="alert" className="rounded-lg bg-red-950/40 p-3 text-sm text-red-200">{inputError}</p>}
       </>}
       {needsAmount && <label key={`${action}-${amount}`} className="block text-sm">{action === 'confirm_repayment' || action === 'extend' ? '照合した実入金額（円）' : '金額（円）'}
         <input name="amount" type="number" min={0} max={10000000} step={1} defaultValue={amount} required className={field} />

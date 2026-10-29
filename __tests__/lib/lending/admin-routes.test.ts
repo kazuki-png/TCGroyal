@@ -9,6 +9,28 @@ const id='10000000-0000-4000-8000-000000000001',admin='10000000-0000-4000-8000-0
 const req=(body:unknown)=>new Request('https://preview.example/api/admin/lending',{method:'POST',body:JSON.stringify(body)})
 beforeEach(()=>{vi.resetAllMocks();mocks.access.mockResolvedValue({id:admin});mocks.client.mockReturnValue({rpc:mocks.rpc});mocks.rpc.mockResolvedValue({data:{rows:[],total:0},error:null})})
 describe('administrator lending API',()=>{
+ it.each([
+  [{location:'金庫A',certNumber:'99999999',inspected:true},'現物のPSA鑑定番号'],
+  [{location:' ',certNumber:'12345678',inspected:true},'保管場所'],
+  [{location:'金庫A',certNumber:'12345678',inspected:false},'検品確認のチェック'],
+ ])('explains the invalid inspection without writing a status',async(payload,expected)=>{
+  mocks.rpc.mockResolvedValue({data:{item:{version:1,status:'submitted',cert_number:'12345678'}},error:null})
+  const response=await POST(req({kind:'loan',type:'command',loanId:id,version:1,key:id,action:'receive',payload}))
+  expect(response.status).toBe(400);expect((await response.json()).error).toContain(expected)
+  expect(mocks.rpc).toHaveBeenCalledTimes(1)
+ })
+ it.each(['12345678',null])('preserves database validation for a valid inspection with certificate %s',async cert=>{
+  mocks.rpc.mockResolvedValueOnce({data:{item:{version:1,status:'submitted',cert_number:cert}},error:null}).mockResolvedValueOnce({data:{ok:true},error:null})
+  const payload={location:'金庫A',inspected:true,...(cert?{certNumber:cert}:{})}
+  const response=await POST(req({kind:'loan',type:'command',loanId:id,version:1,key:id,action:'receive',payload}))
+  expect(response.status).toBe(200)
+  expect(mocks.rpc).toHaveBeenLastCalledWith('lending_command',{p_actor:admin,p_loan:id,p_action:'receive',p_payload:payload,p_key:id,p_version:1})
+ })
+ it('leaves successful receive retries to the idempotent command RPC',async()=>{
+  mocks.rpc.mockResolvedValueOnce({data:{item:{version:2,status:'received',cert_number:null}},error:null}).mockResolvedValueOnce({data:{ok:true},error:null})
+  expect((await POST(req({kind:'loan',type:'command',loanId:id,version:1,key:id,action:'receive',payload:{location:'金庫A',inspected:true}}))).status).toBe(200)
+  expect(mocks.rpc).toHaveBeenCalledTimes(2)
+ })
  it('does not call database functions on an authorization failure',async()=>{mocks.access.mockResolvedValue(Response.json({error:'forbidden'},{status:403}));expect((await GET(new Request('https://preview.example/api/admin/lending'))).status).toBe(403);expect(mocks.client).not.toHaveBeenCalled()})
  it('validates paging/filters and binds dashboard/detail to the verified actor',async()=>{
   expect((await GET(new Request('https://preview.example/api/admin/lending?filter=overdue&page=2'))).status).toBe(200);expect(mocks.rpc).toHaveBeenCalledWith('lending_admin_dashboard',{p_actor:admin,p_search:'',p_filter:'overdue',p_page:2})

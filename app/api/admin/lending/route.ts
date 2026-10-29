@@ -6,6 +6,7 @@ import {ADMIN_FILTERS} from '@/lib/lending/admin-types'
 import {supportCaseRequest,supportCaseError} from '@/lib/lending/support-cases'
 import {workflowInputSchema as inputSchema} from '@/lib/lending/workflow-input'
 import {scheduleStatusNotifications} from '@/lib/lending/status-notifications'
+import {inspectionInputError} from '@/lib/lending/inspection-input'
 export const runtime='nodejs'
 export const maxDuration=60
 export async function GET(request:Request){
@@ -50,10 +51,15 @@ export async function POST(request:Request){
  if(!parsed.success||parsed.data.type!=='command')return lendingJson({error:'手続きの入力内容を確認してください。'},400)
  const v=parsed.data
  if(['accept','report_repayment','request_extension','request_additional'].includes(v.action))return lendingJson({error:'この手続きは利用者が行います。'},403)
- if(v.action==='offer'){
+ if(v.action==='offer'||v.action==='receive'){
   const original=await db.rpc('lending_admin_detail',{p_actor:actor.id,p_kind:'loan',p_id:v.loanId})
   if(original.error)return lendingJson({error:'申込を取得できません。'},404)
-  if(original.data.item.valuation_source!=='support')return lendingJson({error:'旧方式の申込です。個別見積もりとして再受付してから条件を提示してください。'},409)
+  // Let the command RPC resolve successful retries and version conflicts first.
+  if(v.action==='receive'&&original.data.item.version===v.version&&original.data.item.status==='submitted'){
+   const error=inspectionInputError(original.data.item.cert_number,v.payload)
+   if(error)return lendingJson({error},400)
+  }
+  if(v.action==='offer'&&original.data.item.valuation_source!=='support')return lendingJson({error:'旧方式の申込です。個別見積もりとして再受付してから条件を提示してください。'},409)
  }
  const result=await db.rpc('lending_command',{p_actor:actor.id,p_loan:v.loanId,p_action:v.action,p_payload:v.payload,p_key:v.key,p_version:v.version})
  if(!result.error)scheduleStatusNotifications('loan',v.loanId)

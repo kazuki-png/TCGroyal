@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { LendingWorkspace } from '@/app/lending/LendingWorkspace'
+import { LendingWorkspace, LoanCard } from '@/app/lending/LendingWorkspace'
 import type { WorkflowLoan, WorkflowState } from '@/lib/lending/workflow-types'
 
 const uid = '20000000-0000-4000-8000-000000000001'
@@ -13,6 +13,44 @@ const submitted: WorkflowLoan = { id: loanId, version: 1, status: 'submitted', c
   created_at: '2026-10-26T03:00:00Z', evaluated_at: '2026-10-26T03:00:00Z', storage_location: null,
   payoff_jpy: 0, terms: null, terms_accepted_at: null, events: [], ledger: [], requests: [] }
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+
+describe('physical inspection form', () => {
+  it.each(['12345678', null])('sends the checked inspection and storage for certificate %s', async cert => {
+    const send = vi.fn().mockResolvedValue(undefined)
+    render(<LoanCard loan={{...submitted, cert_number: cert}} admin send={send} busy={false} />)
+    if (cert) fireEvent.change(screen.getByLabelText('現物のPSA鑑定番号'), {target:{value:cert}})
+    else expect(screen.queryByLabelText('現物のPSA鑑定番号')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('保管場所'), {target:{value:'  金庫A / 棚01  '}})
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', {name:'ステータス・手続きを更新'}))
+    await waitFor(() => expect(send).toHaveBeenCalledOnce())
+    expect(send.mock.calls[0][0]).toMatchObject({action:'receive',version:1,payload:{location:'金庫A / 棚01',inspected:true}})
+    expect(send.mock.calls[0][0].payload.certNumber).toBe(cert ?? undefined)
+  })
+  it('explains a mismatched certificate and allows correction without losing the storage entry', async () => {
+    const send = vi.fn().mockResolvedValue(undefined)
+    render(<LoanCard loan={submitted} admin send={send} busy={false} />)
+    fireEvent.change(screen.getByLabelText('現物のPSA鑑定番号'), {target:{value:'99999999'}})
+    fireEvent.change(screen.getByLabelText('保管場所'), {target:{value:'金庫A'}})
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', {name:'ステータス・手続きを更新'}))
+    expect(screen.getByRole('alert')).toHaveTextContent('現物のPSA鑑定番号が申込時の番号と一致しません')
+    expect(send).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByLabelText('現物のPSA鑑定番号'), {target:{value:submitted.cert_number}})
+    fireEvent.click(screen.getByRole('button', {name:'ステータス・手続きを更新'}))
+    await waitFor(() => expect(send).toHaveBeenCalledOnce())
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+  it('rejects a whitespace-only storage location', () => {
+    const send=vi.fn()
+    render(<LoanCard loan={{...submitted,cert_number:null}} admin send={send} busy={false} />)
+    fireEvent.change(screen.getByLabelText('保管場所'), {target:{value:'   '}})
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', {name:'ステータス・手続きを更新'}))
+    expect(screen.getByRole('alert')).toHaveTextContent('保管場所を1〜120文字で入力してください。')
+    expect(send).not.toHaveBeenCalled()
+  })
+})
 
 describe('customer lending workspace', () => {
   it('submits a quote-bound application with the QR URL and a retry key', async () => {

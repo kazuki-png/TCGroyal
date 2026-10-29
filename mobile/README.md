@@ -1,5 +1,13 @@
 # TCG ROYAL mobile
 
+## v1.12.3 Androidの接続先切替（2026-10-29）
+
+React Native/Expoが共用するOkHttpClientFactoryを、Reactの起動前に設定する。標準の接続待ち0（無制限）を3秒にし、未送信の接続失敗ではシステムDNSが返した次のIPを試せるようにした。読込/送信は60秒、全体は90秒上限。
+更新系のリクエスト本文はone-shotとして扱い、送信開始後の自動再送を防ぐ。独自DNS・固定IP・証明書/ホスト名検証の無効化は使用しない。Cookie jarと各リクエストのリダイレクト設定は維持する。
+ローカルJVMテストでは、無制限設定で最初のIPが応答しないと中断まで切替できない状態を再現し、修正後は約3秒で次のIPへ接続できた。POST/DELETEを受信後にサーバーが切断しても二重送信しないことを確認した。
+診断コピーには、許可したPreviewホストだけのDNS開始/完了・接続先IP・TLS・HTTP応答の経路情報も含む。最大80件をメモリ内だけで保持し、URLのパス、認証情報、本文、会員情報は含めない。実機でこの変更が元の障害を解消するかは未確認。
+Windowsの既存Gradleキャッシュで `node scripts/test-android-network.mjs` を実行すると、APKのreleaseRuntimeClasspathで解決されたOkHttp 4.9.2に対するローカル再現テストを実行できる。
+
 ## v1.12.2 通信互換性と診断詳細（2026-10-29）
 
 業務APIは `Accept-Encoding: identity` を要求し、SDK 58が標準で要求するzstd/br応答の使用を避ける。TLS・DNS・認証・接続先の制限は維持し、更新操作を自動再送しない。

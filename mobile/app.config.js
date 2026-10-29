@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { withAppBuildGradle } = require('expo/config-plugins');
 const { applyPreviewSigning } = require('./preview-signing.cjs');
+const { withTcgNetworking } = require('./networking-plugin.cjs');
 const config = structuredClone(require('./app.json').expo);
 let projectId;
 const servicesPath = process.env.GOOGLE_SERVICES_JSON_PATH || path.join(__dirname, 'google-services.json');
@@ -27,7 +28,7 @@ if (projectId) {
   config.extra = { ...config.extra, firebaseProjectId: projectId };
 }
 // Hash long generated C++ object paths to keep Windows Ninja builds below MAX_PATH.
-module.exports = { expo: withAppBuildGradle(config, mod => {
+module.exports = { expo: withAppBuildGradle(withTcgNetworking(config), mod => {
   mod.modResults.contents = applyPreviewSigning(mod.modResults.contents);
   const marker = '// TCG ROYAL short CMake object paths';
   if (!mod.modResults.contents.includes(marker)) {

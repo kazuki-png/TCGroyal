@@ -2,9 +2,30 @@
 import {afterEach,describe,it,expect,vi} from 'vitest';
 import {probeConnection} from '../../../mobile/src/connection-diagnostics';
 import {mobileFetch} from '../../../mobile/src/mobile-fetch';
-import {networkFailureCode} from '../../../mobile/src/network-errors';
+import {networkFailureCode,diagnosticErrorDetail} from '../../../mobile/src/network-errors';
 afterEach(()=>{vi.unstubAllGlobals();vi.useRealTimers()});
 describe('mobile connection diagnostics',()=>{
+ it('distinguishes an HTTP response body/JSON failure from failure to reach the server',async()=>{
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response('invalid-json',{status:401,headers:{'Content-Type':'application/json'}})));
+  const result=await probeConnection('API','https://preview.example','unauthenticated');
+  expect(result.ok).toBe(false);expect(result.message).toContain('HTTP 401');expect(result.detail).toContain('JSON解析');
+ })
+ it('preserves native TLS exception details through a nested cause without printing secrets',async()=>{
+  const error={message:'fetch failed',cause:{message:'javax.net.ssl.SSLHandshakeException: Trust anchor not found'}};
+  expect(networkFailureCode(error)).toBe('tls');
+  vi.stubGlobal('fetch',vi.fn().mockRejectedValue(error));
+  const result=await probeConnection('API','https://preview.example','unauthenticated');
+  expect(result.message).toContain('TLS');expect(result.detail).toContain('SSLHandshakeException');
+  const token='eyJ01234567890123456789.abcdefghijklmnopqrstuv.signature';
+  const detail=diagnosticErrorDetail({message:`fetch failed https://fixture.example?secret=private Bearer ${token} password=private`,stack:'never-include-stack'});
+  expect(detail).not.toContain('private');expect(detail).not.toContain(token);expect(detail).not.toContain('never-include-stack');
+ })
+ it('requests uncompressed business JSON and preserves existing request headers',async()=>{
+  const fetch=vi.fn().mockResolvedValue(Response.json({}));vi.stubGlobal('fetch',fetch);
+  await mobileFetch('https://preview.example',{method:'POST',headers:{Authorization:'Bearer fixture','Content-Type':'application/json'},body:'{}'});
+  const headers=fetch.mock.calls[0][1].headers as Headers;
+  expect(headers.get('Accept-Encoding')).toBe('identity');expect(headers.get('Authorization')).toBe('Bearer fixture');expect(headers.get('Content-Type')).toBe('application/json');expect(fetch).toHaveBeenCalledOnce();
+ })
  it('treats an application 401 as reachable without sending login information',async()=>{
   const fetch=vi.fn().mockResolvedValue(Response.json({error:'ログインが必要です。'},{status:401}));vi.stubGlobal('fetch',fetch);
   expect(await probeConnection('API','https://preview.example/api/lending/account','unauthenticated')).toMatchObject({ok:true});

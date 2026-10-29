@@ -1,7 +1,9 @@
 import {lendingAccess,lendingJson,boundedBody} from '@/lib/lending/api-guard'
 import {createWorkflowClient} from '@/lib/lending/workflow-client'
 import {supportCaseRequest,supportCaseError} from '@/lib/lending/support-cases'
+import {scheduleStatusNotifications} from '@/lib/lending/status-notifications'
 export const runtime='nodejs'
+export const maxDuration=60
 export async function GET(request:Request){
  const actor=await lendingAccess(request,'lending:support-read',30);if(actor instanceof Response)return actor
  const search=new URL(request.url).searchParams.get('search')??''
@@ -17,5 +19,6 @@ export async function POST(request:Request){
  const db=createWorkflowClient()
  const result=input.action==='create'?await db.rpc('lending_support_create',{p_actor:actor.id,p_input:{...input.draft,consent:input.consent,...(input.userId?{userId:input.userId}:{}),...(input.contactLabel!==undefined?{contactLabel:input.contactLabel}:{})},p_key:input.key}):await db.rpc('lending_support_command',{p_actor:actor.id,p_case:input.caseId,p_action:input.action,p_payload:input.payload,p_key:input.key,p_version:input.version})
  if(result.error)return lendingJson({error:supportCaseError(result.error.message)},409)
+ scheduleStatusNotifications()
  return lendingJson({case:result.data})
 }

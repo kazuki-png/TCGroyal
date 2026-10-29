@@ -1,4 +1,5 @@
 import {beforeEach,describe,expect,it,vi} from 'vitest'
+vi.mock('server-only',()=>({}))
 const mocks=vi.hoisted(()=>({access:vi.fn(),rpc:vi.fn(),client:vi.fn()}))
 vi.mock('@/lib/lending/api-guard',()=>({lendingAccess:mocks.access,lendingJson:(value:unknown,status=200)=>Response.json(value,{status}),boundedBody:async(request:Request)=>Buffer.from(await request.text())}))
 vi.mock('@/lib/lending/workflow-client',()=>({createWorkflowClient:mocks.client}))

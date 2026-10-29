@@ -66,9 +66,9 @@ function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: Workf
 
   return <form onSubmit={submit} className="mt-5 border-t border-white/10 pt-5">
     <fieldset disabled={busy} className="space-y-4">
-      <label className="block text-sm">手続き
+      <label className="block text-sm">{admin?'変更先ステータス・手続き':'手続き'}
         <select className={field} value={action} onChange={e => setSelected(e.target.value as LoanCommand)}>
-          {actions.map(value => <option key={value} value={value}>{actionLabels[value]}</option>)}
+          {actions.map(value => {const targets:Partial<Record<LoanCommand,string>>={receive:'検品済み',offer:'条件の確認待ち',fund:'契約中',confirm_repayment:'返却待ち',reject_repayment:'契約中',return:'返却済み',reject:'見送り',cancel:loan.storage_location?'返却待ち':'キャンセル',forfeit:'質流れ'};return <option key={value} value={value}>{admin&&targets[value]?`${targets[value]}：${actionLabels[value]}`:actionLabels[value]}</option>})}
         </select>
       </label>
       {action === 'receive' && <>
@@ -90,7 +90,7 @@ function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: Workf
       {needsConsent && <label className="flex items-start gap-3 text-sm leading-6"><input name="consent" type="checkbox" required className="mt-1" />
         {action === 'forfeit' ? '期限と入金状況・申請状況を確認しました' : '表示された条件と手続き内容を確認し、同意します'}
       </label>}
-      <button className={button} type="submit">{busy ? '処理中…' : actionLabels[action]}</button>
+      <button className={button} type="submit">{busy ? '処理中…' : admin?'ステータス・手続きを更新':actionLabels[action]}</button>
     </fieldset>
   </form>
 }

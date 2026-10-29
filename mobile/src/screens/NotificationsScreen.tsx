@@ -17,7 +17,7 @@ export function NotificationsScreen(){
   return()=>{live=false};
  },[]);
  async function permissions(){
-  if(Platform.OS==='android')await Notifications.setNotificationChannelAsync('lending-test',{name:'TCG ROYAL テスト通知',importance:Notifications.AndroidImportance.HIGH,sound:'default'});
+  if(Platform.OS==='android')await Notifications.setNotificationChannelAsync('lending-test',{name:'TCG ROYAL お知らせ',importance:Notifications.AndroidImportance.HIGH,sound:'default'});
   const p=await Notifications.requestPermissionsAsync();setStatus(p.granted?'許可済み':'未許可');if(!p.granted)throw Error('通知が許可されていません。端末の設定から許可してください。');
  }
  return <View style={{gap:20}}>

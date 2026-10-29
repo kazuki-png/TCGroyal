@@ -19,6 +19,8 @@ import { InboxScreen } from './src/screens/InboxScreen';
 import { buildInbox, type InboxItem } from './src/inbox';
 import { useInboxReceipts } from './src/useInboxReceipts';
 import type { AccountState } from '../lib/lending/mobile-types';
+import type {SupportCase,SupportCaseList} from '../lib/lending/support-case-types';
+import {registerStatusPush,unregisterStatusPush,reportStatusPush} from './src/status-push';
 
 const yen = (n: number) => `¥${n.toLocaleString('ja-JP')}`;
 const date = (value: string | null) => value ? new Date(value).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : '—';
@@ -86,6 +88,7 @@ function LendingApp() {
   const [legacy, setLegacy] = useState(false);
   const [state, setState] = useState<WorkflowState | null>(null);
   const [inboxAccount, setInboxAccount] = useState<AccountState | null>(null);
+  const [inboxCases,setInboxCases]=useState<SupportCase[]>([]);
   const [focusedLoan, setFocusedLoan] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now);
   const [busy, setBusy] = useState(false);
@@ -101,8 +104,16 @@ function LendingApp() {
   const [permission, requestPermission] = useCameraPermissions();
   const [accessUrl, setAccessUrl] = useState(process.env.EXPO_PUBLIC_LENDING_API_URL ?? DEFAULT_PREVIEW_URL);
   const [accessCode, setAccessCode] = useState('');
-  const reload = useCallback(async () => { const key = getInboxStorageKey(); const [data, account] = await Promise.all([loadWorkflow(), lendingApi<AccountState>('/account')]); if (key !== getInboxStorageKey()) return; setState(data); setInboxAccount(account); setNow(Date.now()); }, []);
-  const inbox = useMemo(() => buildInbox(state, inboxAccount, now), [state, inboxAccount, now]);
+  const reload = useCallback(async () => { const key = getInboxStorageKey(); const [data, account,cases] = await Promise.all([loadWorkflow(), lendingApi<AccountState>('/account'),lendingApi<SupportCaseList>('/support-cases')]); if (key !== getInboxStorageKey()) return; setState(data); setInboxAccount(account);setInboxCases(cases.cases); setNow(Date.now()); }, []);
+  const inbox = useMemo(() => buildInbox(state, inboxAccount, now,inboxCases), [state, inboxAccount, now,inboxCases]);
+  const statusPushKey=state?getInboxStorageKey():null;
+  useEffect(()=>{
+   if(!statusPushKey)return;
+   void registerStatusPush().catch(()=>{});
+   const changed=Notifications.addPushTokenListener(()=>{void registerStatusPush().catch(()=>{})});
+   void Notifications.getLastNotificationResponseAsync().then(last=>{if(last?.notification.request.content.data?.screen==='loans'){setTab('loans');setFocusedLoan(null);void reload().catch(()=>{})}}).catch(()=>{});
+   return()=>changed.remove();
+  },[statusPushKey,reload]);
   const receipts = useInboxReceipts(state ? getInboxStorageKey() : null);
   const readIds = new Set(receipts.readIds);
   const unreadCount = receipts.ready ? inbox.filter(item => !readIds.has(item.id)).length : 0;
@@ -119,8 +130,8 @@ function LendingApp() {
   useEffect(() => {
     let live = true;
     const subscription = supabaseAuth.auth.onAuthStateChange(event => {
-      if (event === 'PASSWORD_RECOVERY') { clearRuntimeSession(); setState(null); setInboxAccount(null); setRecovering(true); }
-      if (event === 'SIGNED_OUT' && isSupabasePreviewConnected()) { clearRuntimeSession(); setState(null); setInboxAccount(null); }
+      if (event === 'PASSWORD_RECOVERY') { clearRuntimeSession(); setState(null); setInboxAccount(null);setInboxCases([]); setRecovering(true); }
+      if (event === 'SIGNED_OUT' && isSupabasePreviewConnected()) {void unregisterStatusPush(false).catch(()=>{}); clearRuntimeSession(); setState(null); setInboxAccount(null);setInboxCases([]); }
     }).data.subscription;
     async function open(url: string) {
       try { if (await handleSupabaseAuthLink(url) && live) { setState(null); setInboxAccount(null); setNotice('メールの確認が完了しました。画面の案内に沿って続けてください。'); } }
@@ -133,9 +144,10 @@ function LendingApp() {
   useEffect(() => {
     const report = (data: Record<string, unknown> | undefined) => {
       if (typeof data?.testId === 'string') void lendingApi('/notifications', { body: { action: 'received', testId: data.testId } }).catch(() => {});
+      if(typeof data?.notificationId==='string')void reportStatusPush(data.notificationId).catch(()=>{});
     };
-    const received = Notifications.addNotificationReceivedListener(n => { setNotice('通知を受信しました。'); report(n.request.content.data); });
-    const tapped = Notifications.addNotificationResponseReceivedListener(n => { const data = n.notification.request.content.data; if (data?.testId || data?.screen === 'notifications') setToolsOpen(true); else { setTab('inbox'); void reload().catch(() => {}); } report(data); });
+    const received = Notifications.addNotificationReceivedListener(n => { setNotice('通知を受信しました。'); report(n.request.content.data);if(n.request.content.data?.screen==='loans')void reload().catch(()=>{}); });
+    const tapped = Notifications.addNotificationResponseReceivedListener(n => { const data = n.notification.request.content.data; if (data?.testId || data?.screen === 'notifications') setToolsOpen(true); else { setTab(data?.screen==='loans'?'loans':'inbox');setFocusedLoan(null); void reload().catch(() => {}); } report(data); });
     return () => { received.remove(); tapped.remove(); };
   }, [reload]);
   const send: Send = async body => {
@@ -173,7 +185,8 @@ function LendingApp() {
   }
   async function signOut() {
     if (busy || restoring) return; setBusy(true);
-    try { await disconnectPreview(); } catch { setError('ログイン情報を削除できません。もう一度お試しください。'); setBusy(false); return; } setState(null); setInboxAccount(null); setFocusedLoan(null); setQuote(null); setSelected(''); setCert('');
+    await unregisterStatusPush(false).catch(()=>{});
+    try { await disconnectPreview(); } catch { setError('ログイン情報を削除できません。もう一度お試しください。'); setBusy(false); return; } setState(null); setInboxAccount(null);setInboxCases([]); setFocusedLoan(null); setQuote(null); setSelected(''); setCert('');
     setAcknowledged(false); setNotice(''); setError(''); setLegacy(false); setScanning(false);
     setTab('assessment'); setBusy(false);
   }

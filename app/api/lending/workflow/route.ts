@@ -5,8 +5,10 @@ import { getWorkflowActor } from '@/lib/lending/workflow-server'
 import { isLendingEnabled, isSameOriginRequest } from '@/lib/lending/local-config'
 import { fetchSnkrdunkSnapshot } from '@/lib/lending/snkrdunk'
 import { parsePsaCert } from '@/lib/lending/psa'
+import { scheduleStatusNotifications } from '@/lib/lending/status-notifications'
 
 export const runtime = 'nodejs'
+export const maxDuration=60
 const json = (body: unknown, status = 200) => Response.json(body, {
   status, headers: { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' },
 })
@@ -91,5 +93,6 @@ export async function POST(request: Request) {
     return json({ error: message }, 409)
   }
   // Business RPC results contain internal columns; callers refresh their scoped view.
+  if(v.type==='apply'||v.type==='command')scheduleStatusNotifications()
   return json({ ok: true, ...(v.type === 'quote' ? { quote: response.data } : {}) })
 }

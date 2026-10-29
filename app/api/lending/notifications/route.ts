@@ -7,6 +7,7 @@ const schema=z.discriminatedUnion('action',[
  z.object({action:z.literal('register'),token:z.string().min(20).max(4096),platform:z.literal('android')}).strict(),
  z.object({action:z.literal('test'),deviceId:z.uuid()}).strict(),
  z.object({action:z.literal('received'),testId:z.uuid()}).strict(),
+ z.object({action:z.literal('received_status'),notificationId:z.uuid(),deviceId:z.uuid()}).strict(),
  z.object({action:z.literal('unregister'),deviceId:z.uuid()}).strict(),
 ])
 export async function POST(request:Request){
@@ -14,6 +15,12 @@ export async function POST(request:Request){
  let input:z.infer<typeof schema>
  try{input=schema.parse(JSON.parse((await boundedBody(request,6000)).toString('utf8')))}catch{return lendingJson({error:'通知設定の入力が不正です。'},400)}
  const db=createWorkflowClient()
+ if(input.action==='received_status'){
+  const {data:event}=await db.from('lending_status_notifications').select('id').eq('id',input.notificationId).eq('user_id',actor.id).maybeSingle()
+  if(!event)return lendingJson({error:'通知が見つかりません。'},404)
+  const {error}=await db.from('lending_push_deliveries').update({received_at:new Date().toISOString()}).eq('notification_id',event.id).eq('device_id',input.deviceId).in('status',['sending','accepted'])
+  return error?lendingJson({error:'受信申告を保存できません。'},503):lendingJson({ok:true})
+ }
  if(input.action==='received'){
   const {error}=await db.from('lending_notification_tests').update({status:'received',received_at:new Date().toISOString()}).eq('id',input.testId).eq('user_id',actor.id).in('status',['sending','accepted'])
   return error?lendingJson({error:'受信記録を保存できません。'},503):lendingJson({ok:true})
@@ -22,8 +29,12 @@ export async function POST(request:Request){
   if(!process.env.LENDING_FCM_SERVICE_ACCOUNT_JSON)return lendingJson({error:'サーバーのFCM設定が必要です。端末内通知テストは利用できます。'},503)
   const {data:existing}=await db.from('lending_push_devices').select('id,user_id').eq('token',input.token).maybeSingle()
   if(existing&&existing.user_id!==actor.id)return lendingJson({error:'この通知端末は別の会員に登録されています。'},409)
-  if(existing)return lendingJson({deviceId:existing.id})
+  if(existing){await db.from('lending_push_devices').update({updated_at:new Date().toISOString()}).eq('id',existing.id).eq('user_id',actor.id);return lendingJson({deviceId:existing.id})}
   const {data,error}=await db.from('lending_push_devices').insert({user_id:actor.id,token:input.token,platform:input.platform}).select('id').single()
+  if(error?.code==='23505'){
+   const {data:concurrent}=await db.from('lending_push_devices').select('id').eq('token',input.token).eq('user_id',actor.id).maybeSingle()
+   if(concurrent)return lendingJson({deviceId:concurrent.id})
+  }
   return error?lendingJson({error:'通知端末を登録できません。'},503):lendingJson({deviceId:data.id})
  }
  const {data:device}=await db.from('lending_push_devices').select('id,token').eq('id',input.deviceId).eq('user_id',actor.id).maybeSingle()

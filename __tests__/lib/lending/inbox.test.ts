@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildInbox, parseReadIds } from '../../../mobile/src/inbox';
 import type { WorkflowLoan, WorkflowState } from '@/lib/lending/workflow-types';
 import type { AccountState } from '@/lib/lending/mobile-types';
+import type {SupportCase} from '@/lib/lending/support-case-types';
 
 const now = Date.parse('2026-10-27T00:00:00Z');
 const day = 86400000;
@@ -23,6 +24,10 @@ const account: AccountState = {
 };
 
 describe('business inbox', () => {
+  it('shows consultation status changes and avoids a duplicate case-to-loan application notice',()=>{
+    const item={id:'case-a',reference:'TR-ABC',card_name:'カードA',events:[{id:'e1',version:2,to_status:'reviewing',created_at:new Date(now).toISOString(),action:'review',message:'確認中'},{id:'e2',version:3,to_status:'applied',created_at:new Date(now).toISOString(),action:'accept',message:''}]} as SupportCase;
+    const items=buildInbox(null,null,now,[item]);expect(items).toHaveLength(1);expect(items[0]).toMatchObject({id:'case:case-a:2',title:'査定状況が「査定中」になりました',target:'loans'});
+  });
   it('does not turn push test logs into business notifications', () => {
     expect(buildInbox(state([]), account, now)).toEqual([]);
     expect(buildInbox(null, null, now)).toEqual([]);

@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import type { AccountState,LendingProfile } from '../../../lib/lending/mobile-types';
 import { lendingApi } from '../api';
 import { Button,Field,ui,yen,date } from '../ui';
+import {PushSettings} from './PushSettings';
 const docTypes={drivers_license:'運転免許証',passport:'パスポート',mynumber_front:'マイナンバーカード表面',address_proof:'住所確認書類'} as const;
 const statuses:Record<string,string>={uploading:'送信未完了',pending:'確認待ち',verified:'確認済み',rejected:'再提出が必要',deleted:'削除済み'};
 export function AccountScreen({onUpdated}:{onUpdated:()=>Promise<void>}){
@@ -23,6 +24,7 @@ export function AccountScreen({onUpdated}:{onUpdated:()=>Promise<void>}){
  }
  function update(key:keyof LendingProfile,value:string){if(profile)setProfile({...profile,[key]:value})}
  return <View style={{gap:20}}>
+  <PushSettings/>
   {error?<Text accessibilityRole="alert" style={ui.error}>{error}</Text>:null}{notice?<Text accessibilityLiveRegion="polite" style={ui.success}>{notice}</Text>:null}
   {!account&&<ActivityIndicator color="#fcd66e"/>}
   {account&&<><View style={ui.card}><Text style={ui.title}>現在のご利用状況</Text><Text style={ui.muted}>現在融資額（元本）</Text><Text style={ui.amount}>{yen(account.summary.outstandingJpy)}</Text><Text style={ui.body}>現在の返済必要額 {yen(account.summary.payoffJpy)}</Text><Text style={ui.body}>最も近い返済期限 {date(account.summary.nextDueAt)}</Text><Text style={ui.muted}>契約中 {account.summary.activeCount}件</Text><Button title="マイページを更新" secondary disabled={busy} onPress={()=>void run(async()=>{await load();await onUpdated()})}/></View>

@@ -211,7 +211,7 @@ function LendingApp() {
         {state.loans.filter(loan => !focusedLoan || loan.id === focusedLoan).map(loan => <LoanTile key={`${loan.id}-${loan.version}`} loan={loan} send={send} busy={busy} />)}
       </>}
       {state && tab === 'inbox' && <InboxScreen items={inbox} readIds={receipts.readIds} ready={receipts.ready} saving={receipts.saving} error={receipts.error} onRead={receipts.markRead} onOpen={openInboxItem} onRefresh={() => { if (receipts.error) receipts.retry(); void refresh(); }} refreshing={busy}/>}
-      {state && tab === 'account' && <><AccountScreen onUpdated={reload}/><Action label="ログアウト" disabled={busy} onPress={() => void signOut()}/></>}
+      {state && tab === 'account' && <AccountScreen onUpdated={reload} onSignOut={()=>void signOut()} signingOut={busy}/>}
     </ScrollView>
     <View accessibilityRole="tablist" style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
       {([['assessment','融資申請','＋'],['loans','貸付状況','≡'],['inbox','お知らせ','✉'],['account','マイページ','○']] as const).map(([key,label,icon]) => <Pressable key={key} accessibilityRole="tab" accessibilityLabel={key === 'inbox' && unreadCount ? `お知らせ、未読${unreadCount}件` : label} accessibilityState={{selected: tab === key}} onPress={() => switchTab(key)} style={[styles.tab, tab === key && styles.activeTab]}>

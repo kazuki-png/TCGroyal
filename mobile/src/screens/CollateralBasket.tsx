@@ -7,11 +7,13 @@ import {Button,Field,ui} from '../ui';
 import {SupportEstimate} from './SupportEstimate';
 import {useReferenceEstimate} from '../use-reference-estimate';
 import {ReferenceEstimate} from './ReferenceEstimate';
-export function CollateralBasket({items,onChange,onApplied,onBack,onReset}:{items:CollateralItem[];onChange:(items:CollateralItem[])=>void;onApplied:()=>Promise<void>;onBack:()=>void;onReset:()=>void}){
+import {useAppBack} from '../use-app-back';
+export function CollateralBasket({items,onChange,onApplied,onBack,onReset,active=true}:{items:CollateralItem[];onChange:(items:CollateralItem[])=>void;onApplied:()=>Promise<void>;onBack:()=>void;onReset:()=>void;active?:boolean}){
  const [busy,setBusy]=useState(false),[submitted,setSubmitted]=useState(false),[manual,setManual]=useState('');
  const [review,setReview]=useState(false),[error,setError]=useState('');
  const [requested,setRequested]=useState('');
- const signature=JSON.stringify(items),reference=useReferenceEstimate(items,!submitted);
+ const signature=JSON.stringify(items),reference=useReferenceEstimate(items,!submitted&&active);
+ useAppBack(active&&(review||submitted||busy),35,()=>{if(!busy){if(submitted)onReset();else{setReview(false);setRequested('')}}return true});
  function invalidate(){setReview(false);setRequested('')}
  function update(id:string,patch:Partial<CollateralItem>){onChange(items.map(item=>item.id===id?{...item,...patch}:item));invalidate()}
  const valid=items.length>0&&items.length<=20&&collateralQuantity(items)<=100&&items.every(item=>Number.isInteger(item.quantity)&&item.quantity>=1&&item.quantity<=100);

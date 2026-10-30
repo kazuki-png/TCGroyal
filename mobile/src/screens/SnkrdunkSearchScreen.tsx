@@ -8,14 +8,16 @@ import {SupportEstimate} from './SupportEstimate';
 import type {CollateralItem} from '../../../lib/lending/collateral-types';
 import {useReferenceEstimate} from '../use-reference-estimate';
 import {ReferenceEstimate} from './ReferenceEstimate';
-export function SnkrdunkSearchScreen({onApplied,onAdd}:{onApplied:()=>Promise<void>;onAdd?:(item:Omit<CollateralItem,'id'|'quantity'>)=>boolean}){
+import {useAppBack} from '../use-app-back';
+export function SnkrdunkSearchScreen({onApplied,onAdd,active=true}:{onApplied:()=>Promise<void>;onAdd?:(item:Omit<CollateralItem,'id'|'quantity'>)=>boolean;active?:boolean}){
  const [added,setAdded]=useState(false);
  const [query,setQuery]=useState(''),[category,setCategory]=useState<'all'|'pokemon'|'onepiece'>('all');
  const [results,setResults]=useState<SnkrdunkCardSearch|null>(null),[selected,setSelected]=useState<SnkrdunkCard|null>(null);
  const [grade,setGrade]=useState('PSA10');
- const reference=useReferenceEstimate(selected?[{id:'00000000-0000-4000-8000-000000000001',name:selected.name.slice(0,100),cardNumber:selected.cardNumber,quantity:1,grade,condition:'',source:'snkrdunk',productId:selected.productId,cardUid:null}]:[]);
+ const reference=useReferenceEstimate(selected?[{id:'00000000-0000-4000-8000-000000000001',name:selected.name.slice(0,100),cardNumber:selected.cardNumber,quantity:1,grade,condition:'',source:'snkrdunk',productId:selected.productId,cardUid:null}]:[],active);
  const [busy,setBusy]=useState(false),[error,setError]=useState('');const lock=useRef(false);
  const searched=useRef({query:'',category:'all' as typeof category});
+ useAppBack(active&&selected!==null,30,()=>{setSelected(null);setAdded(false);return true});
  async function search(page=1){
   if(lock.current||!query.trim())return;lock.current=true;setBusy(true);setError('');setSelected(null);
   const input=page===1?{query:query.trim(),category}:searched.current;

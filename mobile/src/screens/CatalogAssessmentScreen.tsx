@@ -11,8 +11,9 @@ import {RoyalSwitch as Switch,Button,Field,ui,yen,date} from '../ui';
 import {SnkrdunkSearchScreen} from './SnkrdunkSearchScreen';
 import {CollateralBasket} from './CollateralBasket';
 import {collateralQuantity,type CollateralItem} from '../../../lib/lending/collateral-types';
+import {useAppBack} from '../use-app-back';
 
-export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>}){
+export function CatalogAssessmentScreen({onApplied,active=true}:{onApplied:()=>Promise<void>;active?:boolean}){
  const [route,setRoute]=useState<'snkrdunk'|'catalog'|'support'|'basket'>('snkrdunk');
  const [basket,setBasket]=useState<CollateralItem[]>([]),[basketError,setBasketError]=useState('');
  function addItem(item:Omit<CollateralItem,'id'|'quantity'>){
@@ -31,6 +32,14 @@ export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>
  useEffect(()=>{let live=true;void lendingApi<CatalogSearch>('/catalog',{body:{action:'search',query:'',category:'all',page:1}}).then(d=>{if(live)setResults(d)}).catch(e=>{if(live)setError(e.message)}).finally(()=>{if(live){lock.current=false;setBusy(false)}});return()=>{live=false}},[]);
  const run=async(work:()=>Promise<void>)=>{if(lock.current)return;lock.current=true;setBusy(true);setError('');setNotice('');try{await work()}catch(e){setError(e instanceof Error?e.message:'通信に失敗しました。')}finally{lock.current=false;setBusy(false)}};
  const invalidate=()=>{setAssessment(null);setConsent(false);setRegistered(null);submitKey.current=null};
+ useAppBack(active&&route!=='snkrdunk',20,()=>{
+  if(busy)return true;
+  if(route==='catalog'&&imageMode){setImageMode(false);setAsset(null);setImageConsent(false)}
+  else if(route==='catalog'&&(assessment||registered))invalidate();
+  else if(route==='catalog'&&selected){setSelected(null);invalidate()}
+  else setRoute('snkrdunk');
+  return true;
+ });
  async function search(page=1){
   const data=await lendingApi<CatalogSearch>('/catalog',{body:{action:'search',query,category,page}});
   setResults(data);setSelected(null);invalidate();if(!data.total)setNotice('候補がありません。検索語を変えるか、個別見積もりをご利用ください。');
@@ -66,7 +75,7 @@ export function CatalogAssessmentScreen({onApplied}:{onApplied:()=>Promise<void>
   </View>
   {!!basketError&&<Text style={ui.error}>{basketError}</Text>}
   {route!=='basket'&&<Button title={`まとめて申込の内容を確認（${collateralQuantity(basket)}枚）`} onPress={()=>setRoute('basket')}/>}
-  {route==='basket'?<CollateralBasket items={basket} onChange={setBasket} onApplied={onApplied} onBack={()=>setRoute('snkrdunk')} onReset={()=>{setBasket([]);setRoute('snkrdunk')}}/>:route==='snkrdunk'?<SnkrdunkSearchScreen onApplied={onApplied} onAdd={addItem}/>:route==='support'?<SupportEstimate connected onRegistered={onApplied}/>:<>
+  {route==='basket'?<CollateralBasket active={active} items={basket} onChange={setBasket} onApplied={onApplied} onBack={()=>setRoute('snkrdunk')} onReset={()=>{setBasket([]);setRoute('snkrdunk')}}/>:route==='snkrdunk'?<SnkrdunkSearchScreen active={active} onApplied={onApplied} onAdd={addItem}/>:route==='support'?<SupportEstimate connected onRegistered={onApplied}/>:<>
    {error?<Text accessibilityRole="alert" style={ui.error}>{error}</Text>:null}
    {notice?<Text accessibilityLiveRegion="polite" style={ui.success}>{notice}</Text>:null}
    <View style={ui.card}>

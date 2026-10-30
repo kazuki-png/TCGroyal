@@ -8,6 +8,8 @@ import {AccountDetails} from './AccountDetails';
 import {AccountSecurity} from './AccountSecurity';
 import {PushSettings} from './PushSettings';
 import {SettingsIcon,type SettingsIconName} from './SettingsIcon';
+import {appBackActions} from '../back-actions';
+import {useAppBack} from '../use-app-back';
 type Page='profile'|'identity'|'summary'|'history'|'email'|'password'|'notifications'|'terms'|'privacy'|'support'|'delete';
 const titles:Record<Page,string>={profile:'プロフィール・登録情報',identity:'本人確認書類',summary:'融資・返済状況',history:'査定履歴',email:'メールアドレスの変更',password:'パスワードの変更',notifications:'通知設定',terms:'利用規約',privacy:'プライバシーポリシー',support:'お問い合わせ',delete:'退会・アカウント削除'};
 const groups:{title:string;rows:{page:Page;icon:SettingsIconName}[]}[]=[
@@ -23,13 +25,14 @@ function MenuRow({label,icon,onPress,last=false,danger=false,disabled=false}:{la
 export function AccountMenu({onUpdated,onSignOut,signingOut=false}:{onUpdated:()=>Promise<void>;onSignOut:()=>void;signingOut?:boolean}){
  const [page,setPage]=useState<Page|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');const insets=useSafeAreaInsets();
  function close(){if(!busy){setPage(null);setError('')}}
+ useAppBack(page!==null,40,()=>{close();return true});
  async function contact(){try{await Linking.openURL(SUPPORT_LINE_URL)}catch{setError('LINEを開けませんでした。TCG ROYAL公式LINEからお問い合わせください。')}}
  return <View style={{gap:26,paddingBottom:10}}>
   {groups.map(group=><View key={group.title} style={{gap:10}}><Text style={s.groupTitle}>{group.title}</Text><View style={s.group}>{group.rows.map((row,index)=><MenuRow key={row.page} label={titles[row.page]} icon={row.icon} last={index===group.rows.length-1} danger={row.page==='delete'} onPress={()=>setPage(row.page)}/>)}</View></View>)}
   <View style={s.group}><MenuRow label="ログアウト" icon="logout" danger last disabled={signingOut} onPress={()=>Alert.alert('ログアウト','この端末からログアウトしますか？',[{text:'戻る',style:'cancel'},{text:'ログアウト',style:'destructive',onPress:onSignOut}])}/></View>
-  <Modal visible={page!==null} animationType="slide" onRequestClose={close}>
+  <Modal visible={page!==null} animationType="slide" onRequestClose={()=>{appBackActions.dispatch()}}>
    <View style={[s.modal,{paddingTop:insets.top}]}>
-    <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel="マイページに戻る" disabled={busy} onPress={close} style={s.back}><Text style={{fontSize:28,color:colors.gold}}>‹</Text><Text style={{fontSize:14,color:colors.gold}}>戻る</Text></Pressable><Text accessibilityRole="header" style={s.pageTitle}>{page?titles[page]:''}</Text></View>
+    <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel="前の画面に戻る" disabled={busy} onPress={()=>{appBackActions.dispatch()}} style={s.back}><Text style={{fontSize:28,color:colors.gold}}>‹</Text><Text style={{fontSize:14,color:colors.gold}}>戻る</Text></Pressable><Text accessibilityRole="header" style={s.pageTitle}>{page?titles[page]:''}</Text></View>
     <ScrollView contentContainerStyle={{padding:20,paddingBottom:Math.max(insets.bottom,24),gap:18}} keyboardShouldPersistTaps="handled">
      {(page==='profile'||page==='identity'||page==='summary'||page==='history')&&<AccountDetails key={page} section={page} onUpdated={onUpdated} onBusyChange={setBusy}/>}
      {(page==='email'||page==='password')&&<AccountSecurity key={page} mode={page} onBusyChange={setBusy}/>}

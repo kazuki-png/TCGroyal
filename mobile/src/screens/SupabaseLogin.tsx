@@ -4,6 +4,7 @@ import { Button, Field, ui } from '../ui';
 import { supabaseAuth, signupWithConfirmation, supabaseAuthError, supabaseBearer } from '../supabase-auth';
 import { AUTH_REDIRECT_URL } from '../supabase-config';
 import { connectSupabasePreview } from '../api';
+import {useAppBack} from '../use-app-back';
 export function SupabaseLogin({ accessUrl, onConnected, disabled, onBusyChange, recovering, onRecovered }: {
   accessUrl: string; onConnected: () => Promise<void>; disabled: boolean; onBusyChange: (busy: boolean) => void; recovering: boolean; onRecovered: () => void;
 }) {
@@ -30,6 +31,7 @@ export function SupabaseLogin({ accessUrl, onConnected, disabled, onBusyChange, 
   }
   async function checkFactors() { if (await ensureAssurance()) await finish(); }
   function changeMode(next: typeof mode) { setMode(next); setError(''); setNotice(''); setPassword(''); setConfirm(''); setFactorId(null); setOtp(''); }
+  useAppBack(recovering||mode!=='login'||factorId!==null,20,()=>{if(busy||disabled)return true;if(factorId){setFactorId(null);setOtp('')}else{if(recovering)onRecovered();changeMode('login')}return true});
   return <View style={ui.card}>
     <Text style={ui.title}>{passwordUpdated && !factorId ? 'パスワードを更新しました' : factorId ? '多要素認証' : recovering ? '新しいパスワードを設定' : mode === 'signup' ? '会員登録' : mode === 'reset' ? 'パスワードの再設定' : 'ログイン'}</Text>
     <Text style={ui.muted}>TCG ROYALのメールアドレス・パスワードでログインできます。</Text>

@@ -8,6 +8,7 @@ import {lendingApi} from '../api';
 import {buildSupportEstimateMessage,SUPPORT_LINE_URL} from '../support-estimate';
 import {RoyalSwitch as Switch,Button,Field,ui,yen,date} from '../ui';
 import {CollateralLines} from './CollateralLines';
+import {useAppBack} from '../use-app-back';
 
 function CaseCard({item,busy,command,now}:{item:SupportCase;busy:boolean;now:number;command:(item:SupportCase,action:string,payload:Record<string,unknown>)=>Promise<void>}){
  const [consent,setConsent]=useState(false),[amount,setAmount]=useState(String(item.offer_jpy??item.requested_jpy??100000)),[deposit,setDeposit]=useState<'mail'|'store'>('mail');
@@ -39,6 +40,7 @@ export function SupportCasesScreen({onChanged}:{onChanged:()=>Promise<void>}){
  const [now,setNow]=useState(Date.now);
  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),60000);return()=>clearInterval(timer);},[]);
  const [data,setData]=useState<SupportCaseList|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ useAppBack(busy,90,()=>true);
  const retries=useRef(new Map<string,string>());
  useEffect(()=>{let live=true;void lendingApi<SupportCaseList>('/support-cases').then(value=>{if(live)setData(value);}).catch(cause=>{if(live)setError(cause.message);});return()=>{live=false;};},[]);
  async function refresh(){if(busy)return;setBusy(true);setError('');try{setData(await lendingApi<SupportCaseList>('/support-cases'));}catch(cause){setError(cause instanceof Error?cause.message:'相談を取得できません。');}finally{setBusy(false);}}

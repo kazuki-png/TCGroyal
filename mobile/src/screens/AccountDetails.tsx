@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import type { AccountState,LendingProfile } from '../../../lib/lending/mobile-types';
 import { lendingApi } from '../api';
 import {RoyalSwitch as Switch, Button,Field,ui,yen,date } from '../ui';
+import {useAppBack} from '../use-app-back';
 const docTypes={drivers_license:'運転免許証',passport:'パスポート',mynumber_front:'マイナンバーカード表面',address_proof:'住所確認書類'} as const;
 const statuses:Record<string,string>={uploading:'送信未完了',pending:'確認待ち',verified:'確認済み',rejected:'再提出が必要',deleted:'削除済み'};
 export function AccountDetails({onUpdated,section,onBusyChange}:{onUpdated:()=>Promise<void>;section:'summary'|'profile'|'identity'|'history';onBusyChange:(busy:boolean)=>void}){
@@ -13,6 +14,7 @@ export function AccountDetails({onUpdated,section,onBusyChange}:{onUpdated:()=>P
  const [side,setSide]=useState<'front'|'back'>('front');
  const [asset,setAsset]=useState<ImagePicker.ImagePickerAsset|null>(null),[consent,setConsent]=useState(false);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ useAppBack(editing,50,()=>{if(!busy){setProfile(account?.profile??null);setEditing(false)}return true});
  async function load(){const data=await lendingApi<AccountState>('/account');setAccount(data);setProfile(data.profile)}
  useEffect(()=>{let live=true;void lendingApi<AccountState>('/account').then(d=>{if(live){setAccount(d);setProfile(d.profile)}}).catch(e=>{if(live)setError(e.message)});return()=>{live=false}},[]);
  const run=async(work:()=>Promise<void>)=>{if(busy)return;setBusy(true);onBusyChange(true);setError('');setNotice('');try{await work()}catch(e){setError(e instanceof Error?e.message:'処理に失敗しました。')}finally{setBusy(false);onBusyChange(false)}};

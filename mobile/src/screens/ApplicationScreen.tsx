@@ -14,9 +14,11 @@ import {ReferenceEstimate} from './ReferenceEstimate';
 import {CollateralBasket} from './CollateralBasket';
 
 type Selection={card:DiscoveryCard;id:string};
-export function ApplicationScreen({active,items,onChange,onApplied,ready,error:draftError}:{active:boolean;items:CollateralItem[];onChange:(items:CollateralItem[])=>void;onApplied:()=>Promise<void>;ready:boolean;error:string}){
+export function ApplicationScreen({active,items,onChange,onApplied,ready,error:draftError,basketOpen=false,onBasketClose=()=>{}}:{active:boolean;items:CollateralItem[];onChange:(items:CollateralItem[])=>void;onApplied:()=>Promise<void>;ready:boolean;error:string;basketOpen?:boolean;onBasketClose?:()=>void}){
  const {width,fontScale}=useWindowDimensions();const columns=width>=360&&fontScale<1.3;
- const [route,setRoute]=useState<'search'|'image'|'basket'>('search'),[selected,setSelected]=useState<Selection|null>(null);
+ const [localRoute,setRoute]=useState<'search'|'image'|'basket'>('search'),[selected,setSelected]=useState<Selection|null>(null);
+ const route=basketOpen?'basket':localRoute;
+ const closeBasket=()=>{onBasketClose();setRoute('search');setSelected(null)};
  const [query,setQuery]=useState(''),[category,setCategory]=useState<'all'|'pokemon'|'onepiece'>('all');
  const [results,setResults]=useState<DiscoverySearch|null>(null),[grade,setGrade]=useState(''),[quantity,setQuantity]=useState('1'),[condition,setCondition]=useState('');
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[manual,setManual]=useState('');
@@ -24,7 +26,7 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
  const current=useRef(0),mounted=useRef(true),controller=useRef<AbortController|null>(null),lastSearch=useRef({query:'',category:'all' as typeof category}),imageKey=useRef('');
  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;controller.current?.abort()}},[]);
  useEffect(()=>{if(!active)controller.current?.abort()},[active]);
- useAppBack(active&&(selected!==null||route!=='search'),25,()=>{if(busy){controller.current?.abort();current.current++;setBusy(false)}if(selected)setSelected(null);else{setRoute('search');setAsset(null);setConsent(false)}return true});
+ useAppBack(active&&(selected!==null||route!=='search'),25,()=>{if(busy){controller.current?.abort();current.current++;setBusy(false)}if(route==='basket')closeBasket();else if(selected)setSelected(null);else{setRoute('search');setAsset(null);setConsent(false)}return true});
  const line=useMemo<CollateralItem|null>(()=>selected&&grade&&/^\d+$/.test(quantity)&&Number(quantity)>0?{id:selected.id,name:selected.card.name.slice(0,100),cardNumber:selected.card.cardNumber,quantity:Number(quantity),grade,condition,source:selected.card.kind==='external'?'snkrdunk':'catalog',productId:selected.card.productId,cardUid:selected.card.cardUid}:null,[selected,grade,quantity,condition]);
  const reference=useReferenceEstimate(line?[line]:[],active&&route!=='basket');
  function choose(card:DiscoveryCard){setSelected({card,id:randomUUID()});setGrade('');setQuantity('1');setCondition('');setError('');setNotice('')}
@@ -60,7 +62,7 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
  return <View style={{gap:20}}>
   {!!draftError&&<Text accessibilityRole="alert" style={ui.error}>{draftError}</Text>}
   {route!=='basket'&&<Button title={`申込リストを確認 · ${items.length}種類 / ${collateralQuantity(items)}枚`} onPress={()=>{setSelected(null);setRoute('basket')}}/>}
-  {route==='basket'?<CollateralBasket active={active} items={items} onChange={onChange} onApplied={onApplied} onBack={()=>setRoute('search')} onReset={()=>{onChange([]);setRoute('search')}} onSubmitted={()=>onChange([])}/>:<>
+  {route==='basket'?<CollateralBasket active={active} items={items} onChange={onChange} onApplied={onApplied} onBack={closeBasket} onReset={()=>{onChange([]);closeBasket()}} onSubmitted={()=>onChange([])}/>:<>
    {!!error&&<Text accessibilityRole="alert" style={ui.error}>{error}</Text>}{!!notice&&<Text accessibilityLiveRegion="polite" style={ui.success}>{notice}</Text>}
    {selected?<>
     <Button title="候補一覧に戻る" secondary onPress={()=>setSelected(null)}/>

@@ -109,6 +109,7 @@ function LendingApp() {
   const [inboxCases,setInboxCases]=useState<SupportCase[]>([]);
   const [focusedLoan, setFocusedLoan] = useState<string | null>(null);
   const [accountPage,setAccountPage]=useState<'identity'|undefined>();
+  const [basketOpen,setBasketOpen]=useState(false);
   const [returnToInbox,setReturnToInbox]=useState(false);
   const [now, setNow] = useState(Date.now);
   const draft=useApplicationDraft(state?getInboxStorageKey():null);
@@ -204,7 +205,7 @@ function LendingApp() {
     await unregisterStatusPush(false).catch(()=>{});
     try { const key=getInboxStorageKey();if(key)await clearApplicationDraft(key);await disconnectPreview(); } catch { setError('ログイン情報を削除できません。もう一度お試しください。'); setBusy(false); return; } setState(null); setInboxAccount(null);setInboxCases([]); setFocusedLoan(null);
     setNotice(''); setError('');
-    setTab('home');setReturnToInbox(false); setBusy(false);
+    setTab('home');setBasketOpen(false);setReturnToInbox(false); setBusy(false);
   }
   function openInboxItem(item: InboxItem) { switchTab(item.target);setReturnToInbox(true); setFocusedLoan(item.loanId?`loan:${item.loanId}`:item.caseId?`case:${item.caseId}`:null); }
   const heading = !state && supportOpen && !recovering ? '個別見積もり相談' : tab==='home'?'ホーム':tab === 'assessment' ? '申し込み' : tab === 'loans' ? '取引状況' : tab === 'inbox' ? 'お知らせ' : 'マイページ';
@@ -231,7 +232,7 @@ function LendingApp() {
       </>}
       {state&&tab==='home'&&<HomeScreen state={state} items={transactions} draftCount={collateralQuantity(draft.items)} onApply={()=>switchTab('assessment')} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onOpen={id=>{switchTab('loans');setFocusedLoan(id);requestAnimationFrame(()=>scroll.current?.scrollTo({y:0,animated:false}))}} onIdentity={()=>{switchTab('account');setAccountPage('identity')}} onInbox={()=>switchTab('inbox')} notices={inbox}/>}
       {state?.transactionsUnavailable&&<Text style={styles.error}>査定依頼の一部を取得できません。一覧を更新してください。</Text>}
-      {state && <View key={getInboxStorageKey()} style={tab==='assessment'?undefined:{display:'none'}} accessibilityElementsHidden={tab!=='assessment'} importantForAccessibility={tab==='assessment'?'auto':'no-hide-descendants'}><AssessmentScreen onApplied={reload} active={tab==='assessment'&&!toolsOpen} items={draft.items} onChange={draft.change} ready={draft.ready} error={draft.error}/></View>}
+      {state && <View key={getInboxStorageKey()} style={tab==='assessment'?undefined:{display:'none'}} accessibilityElementsHidden={tab!=='assessment'} importantForAccessibility={tab==='assessment'?'auto':'no-hide-descendants'}><AssessmentScreen onApplied={reload} active={tab==='assessment'&&!toolsOpen} items={draft.items} onChange={draft.change} ready={draft.ready} error={draft.error} basketOpen={basketOpen} onBasketClose={()=>setBasketOpen(false)}/></View>}
       {state && tab==='loans'&&<TransactionList items={transactions} selectedId={focusedLoan} onSelect={id=>{setFocusedLoan(id);scroll.current?.scrollTo({y:0,animated:false})}} onApply={()=>switchTab('assessment')} renderDetail={item=>{
        const loan=state.loans.find(loan=>loan.id===item.loanId);
        return <>{loan?<LoanTile key={`${loan.id}-${loan.version}`} loan={loan} send={send} busy={busy}/>:item.caseId?<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>:<Text style={styles.muted}>一覧を更新してください。</Text>}{loan&&item.caseId&&<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>}</>;
@@ -239,6 +240,7 @@ function LendingApp() {
       {state && tab === 'inbox' && <InboxScreen items={inbox} readIds={receipts.readIds} ready={receipts.ready} saving={receipts.saving} error={receipts.error} onRead={receipts.markRead} onOpen={openInboxItem} onRefresh={() => { if (receipts.error) receipts.retry(); void refresh(); }} refreshing={busy}/>}
       {state && tab === 'account' && <AccountScreen initialPage={accountPage} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onUpdated={reload} onSignOut={()=>void signOut()} signingOut={busy}/>}
     </ScrollView>
+    {state&&tab==='assessment'&&draft.items.length>0&&!basketOpen&&<View style={{paddingHorizontal:20,paddingVertical:8,borderTopWidth:1,borderColor:colors.border}}><Action label={`申込リスト ${collateralQuantity(draft.items)}枚を確認`} onPress={()=>{setBasketOpen(true);scroll.current?.scrollTo({y:0,animated:false})}}/></View>}
     <View accessibilityRole="tablist" style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
       {([['home','ホーム','⌂'],['loans','取引状況','≡'],['assessment','申し込み','＋'],['inbox','お知らせ','✉'],['account','マイページ','○']] as const).map(([key,label,icon]) => <Pressable key={key} accessibilityRole="tab" accessibilityLabel={key==='assessment'?`申し込み、申込リスト${collateralQuantity(draft.items)}枚`:key === 'inbox' && unreadCount ? `お知らせ、未読${unreadCount}件` : label} accessibilityState={{selected: tab === key}} onPress={() => switchTab(key)} style={[styles.tab, tab === key && key!=='assessment'&&styles.activeTab]}>
         {key==='assessment'?<View style={[styles.applyCircle,tab===key&&styles.applySelected]}><Text accessible={false} style={styles.applyIcon}>＋</Text></View>:<Text accessible={false} style={[styles.tabIcon, tab === key && styles.activeText]}>{icon}</Text>}

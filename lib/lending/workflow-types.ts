@@ -21,6 +21,9 @@ export interface WorkflowLoan {
   requests: { id: string; kind: 'extension' | 'additional'; amount_jpy: number; status: string; consent_terms: { oldDueAt?: string; newDueAt?: string; requiresNewAssessment?: boolean; requiresNewAgreement?: boolean } }[]
 }
 export interface WorkflowState {
+  transactions?:import('./transactions').LendingTransaction[]
+  supportCases?:import('./support-case-types').SupportCase[]
+  transactionsUnavailable?:boolean
   outstandingJpy: number; loanCount: number
   role: 'customer' | 'admin'; demo: boolean; marketFixture: boolean; identityVerified: boolean
   cards: { public_uid: string; name: string; card_number: string | null; productId: string }[]

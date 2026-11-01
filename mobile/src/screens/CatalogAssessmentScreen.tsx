@@ -69,7 +69,7 @@ export function CatalogAssessmentScreen({onApplied,active=true}:{onApplied:()=>P
  }
  return <View style={{gap:20}}>
   <View style={ui.row}>
-   <View style={{flex:1}}><Button title="スニダン検索" secondary disabled={route==='basket'} onPress={()=>setRoute('snkrdunk')}/></View>
+   <View style={{flex:1}}><Button title="カード検索" secondary disabled={route==='basket'} onPress={()=>setRoute('snkrdunk')}/></View>
    <View style={{flex:1}}><Button title="登録カード" secondary disabled={route==='basket'} onPress={()=>setRoute('catalog')}/></View>
    <View style={{flex:1}}><Button title="個別見積もり" secondary disabled={route==='basket'} onPress={()=>setRoute('support')}/></View>
   </View>

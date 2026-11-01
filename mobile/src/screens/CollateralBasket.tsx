@@ -8,7 +8,9 @@ import {SupportEstimate} from './SupportEstimate';
 import {useReferenceEstimate} from '../use-reference-estimate';
 import {ReferenceEstimate} from './ReferenceEstimate';
 import {useAppBack} from '../use-app-back';
-export function CollateralBasket({items,onChange,onApplied,onBack,onReset,active=true}:{items:CollateralItem[];onChange:(items:CollateralItem[])=>void;onApplied:()=>Promise<void>;onBack:()=>void;onReset:()=>void;active?:boolean}){
+import type {SupportCase} from '../../../lib/lending/support-case-types';
+export function CollateralBasket({items,onChange,onApplied,onBack,onReset,onSubmitted,active=true}:{items:CollateralItem[];onChange:(items:CollateralItem[])=>void;onApplied:()=>Promise<void>;onBack:()=>void;onReset:()=>void;onSubmitted?:()=>void;active?:boolean}){
+ const [receipt,setReceipt]=useState<SupportCase|null>(null);
  const [busy,setBusy]=useState(false),[submitted,setSubmitted]=useState(false),[manual,setManual]=useState('');
  const [review,setReview]=useState(false),[error,setError]=useState('');
  const [requested,setRequested]=useState('');
@@ -29,11 +31,12 @@ export function CollateralBasket({items,onChange,onApplied,onBack,onReset,active
    {!submitted&&<Button title={`${index+1}番目のカードを削除`} secondary disabled={busy} onPress={()=>{onChange(items.filter(row=>row.id!==item.id));invalidate()}}/>}
   </View>)}
   {!submitted&&<View style={ui.card}><Field label="手入力で追加するカード名" value={manual} onChangeText={setManual} maxLength={100} editable={!busy}/><Button title="手入力のカードを追加" secondary disabled={busy||!manual.trim()||items.length>=20||collateralQuantity(items)>=100} onPress={()=>{onChange([...items,{id:randomUUID(),name:manual.trim(),cardNumber:'',quantity:1,grade:'',condition:'',source:'manual',productId:null,cardUid:null}]);setManual('');invalidate()}}/></View>}
-  {!valid&&<Text accessibilityRole="alert" style={ui.error}>カードを追加し、20種類・合計100枚以内で、各カードの枚数を1枚以上にしてください。</Text>}
+  {!submitted&&!valid&&<Text accessibilityRole="alert" style={ui.error}>カードを追加し、20種類・合計100枚以内で、各カードの枚数を1枚以上にしてください。</Text>}
   {!!error&&<Text style={ui.error}>{error}</Text>}
   {!submitted&&<ReferenceEstimate {...reference} onRefresh={()=>{invalidate();reference.refresh()}} disabled={busy||!valid} onUse={amount=>{if(!reference.estimate||Date.parse(reference.estimate.expiresAt)<=Date.now()){setError('参考額の期限が切れています。再取得してください。');return}setRequested(String(amount));setReview(true)}}/>}
   {!review&&!submitted&&<Button title="この内容でまとめて査定を依頼" disabled={busy||!valid} onPress={()=>{setError('');setReview(true)}}/>}
-  {review&&valid&&<SupportEstimate key={signature+requested} connected items={items} onBusyChange={setBusy} initialDraft={{reason:'other',cardName:collateralTitle(items),cardNumber:'',condition:'カード別の状態は明細を参照',requestedAmount:requested,notes:''}} onRegistered={async()=>{setSubmitted(true);await onApplied()}}/>}
+  {review&&valid&&!submitted&&<SupportEstimate key={signature+requested} connected items={items} onBusyChange={setBusy} initialDraft={{reason:'other',cardName:collateralTitle(items),cardNumber:'',condition:'カード別の状態は明細を参照',requestedAmount:requested,notes:''}} onRegistered={async item=>{setReceipt(item);setSubmitted(true);onSubmitted?.();await onApplied()}}/>}
+  {submitted&&receipt&&<View style={ui.card}><Text style={ui.title}>査定依頼を受け付けました</Text><Text selectable style={ui.amount}>{receipt.reference}</Text><Text style={ui.body}>取引状況で進捗をご確認ください。正式な融資契約は、現物確認後の条件への同意が必要です。</Text></View>}
   {submitted&&<Button title="別の申込を作る" secondary disabled={busy} onPress={onReset}/>}
  </View>;
 }

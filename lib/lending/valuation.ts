@@ -34,7 +34,7 @@ export function calculateIndicativeQuote(
   }
   const marketAge = now.getTime() - Date.parse(market.fetchedAt)
   if (!Number.isFinite(marketAge) || marketAge < 0 || marketAge > 5 * 60_000) {
-    reasons.push('スニダンのデータを再取得してください。')
+    reasons.push('価格情報を再取得してください。')
   }
   if (market.grade !== 'PSA10' || market.currency !== 'JPY' || !Number.isSafeInteger(market.floorPriceJpy)
     || market.floorPriceJpy === null || market.floorPriceJpy <= 0 || market.floorPriceJpy > 1_000_000_000) {

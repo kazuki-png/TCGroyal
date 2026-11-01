@@ -31,6 +31,13 @@ beforeEach(()=>{
 })
 afterEach(()=>vi.unstubAllEnvs())
 describe('catalog and image routes',()=>{
+ it('provides authenticated neutral discovery with local fallback and no price payload',async()=>{
+  mocks.external.mockResolvedValue({cards:[{productId:'123',name:'カード',cardNumber:'123/100',category:'pokemon',imageUrl:null,sourceUrl:'https://snkrdunk.com/apparels/123'}],page:1,hasMore:false});
+  const response=await catalog(request({action:'discover',query:'123/100'}));expect(response.status).toBe(200);const body=await response.json();expect(body.cards[0]).toMatchObject({kind:'external',productId:'123'});expect(JSON.stringify(body)).not.toMatch(/sourceUrl|buy_price|snkrdunk/);
+  expect((await catalog(request({action:'discover',query:'123/100',upstreamUrl:'https://evil.invalid'}))).status).toBe(400);
+  mocks.rate.mockResolvedValue({allowed:false});mocks.external.mockClear();expect((await catalog(request({action:'discover',query:'123/100'}))).status).toBe(200);expect(mocks.external).not.toHaveBeenCalled();
+  mocks.access.mockResolvedValue(Response.json({error:'login'},{status:401}));expect((await catalog(request({action:'discover',query:'123/100'}))).status).toBe(401);expect(rpc).not.toHaveBeenCalled();
+ })
  it('authenticates, bounds and rate-limits bundle estimates and refuses client prices',async()=>{
   const item={id,name:'カード',cardNumber:'001',quantity:1,grade:'PSA10',condition:'',source:'snkrdunk',productId:'123',cardUid:null},body={action:'quote_bundle',items:[item]};
   mocks.estimate.mockResolvedValue({status:'manual',amountJpy:null});

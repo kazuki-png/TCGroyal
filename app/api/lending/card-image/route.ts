@@ -6,16 +6,18 @@ import {createWorkflowClient,checkWorkflowRateLimit} from '@/lib/lending/workflo
 import {extractCardHints} from '@/lib/lending/card-image'
 import {imageSearchQuery} from '@/lib/lending/catalog'
 import {searchCatalog} from '@/lib/lending/catalog-server'
+import {discoverCards} from '@/lib/lending/discovery'
 export const runtime='nodejs'
 export const maxDuration=30
 export async function POST(request:Request){
  const actor=await lendingAccess(request,'lending:card-image',6);if(actor instanceof Response)return actor
  if(!process.env.OPENAI_API_KEY?.trim())return lendingJson({error:'画像検索は準備中です。カード名・型番で検索するか、個別見積もりをご利用ください。'},503)
- let image:Buffer,key:string
+ let image:Buffer,key:string,discovery=false
  try{
   const raw=await boundedBody(request,3*1024*1024+65536)
   const form=await new Response(new Uint8Array(raw),{headers:{'Content-Type':request.headers.get('content-type')??''}}).formData()
   key=z.uuid().parse(form.get('key'))
+  discovery=form.get('format')==='discovery'
   if(form.get('consent')!=='true')throw Error('consent')
   const file=form.get('file');if(!(file instanceof File)||!file.size||file.size>3*1024*1024)throw Error('file')
   const decoder=sharp(Buffer.from(await file.arrayBuffer()),{limitInputPixels:24000000,animated:false,failOn:'warning'})
@@ -39,7 +41,7 @@ export async function POST(request:Request){
   const usageSaved=await db.from('lending_image_searches').update({model,input_tokens:usage.inputTokens,output_tokens:usage.outputTokens}).eq('id',key).eq('user_id',actor.id)
   if(usageSaved.error)throw Error('usage_save')
   const query=imageSearchQuery(hints)
-  const matches=query?await searchCatalog(query,hints.category??'all'):{cards:[],total:0,page:1}
+  const matches=discovery?(query?await discoverCards(query,hints.category??'all',1,(await checkWorkflowRateLimit('lending:snkrdunk-search',actor.id,{limit:6,windowMs:60000})).allowed):{cards:[],page:1,hasMore:false,partial:false}):query?await searchCatalog(query,hints.category??'all'):{cards:[],total:0,page:1}
   const result={...matches,hints,imageRequestId:key}
   const saved=await db.from('lending_image_searches').update({status:'completed',result,model,input_tokens:usage.inputTokens,output_tokens:usage.outputTokens}).eq('id',key).eq('user_id',actor.id)
   if(saved.error)throw Error('save')

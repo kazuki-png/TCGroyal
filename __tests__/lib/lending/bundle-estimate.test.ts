@@ -10,6 +10,7 @@ beforeEach(()=>{vi.resetModules();vi.clearAllMocks();vi.useFakeTimers();vi.setSy
 afterEach(()=>vi.useRealTimers())
 function provider(count=150,price=400000){vi.mocked(fetchPublicRemoteUrl).mockImplementation(async url=>url.pathname.endsWith('sales-history')?Response.json({history:Array.from({length:count},()=>({price,date:'1日前',condition:'PSA10',size:''})),minPrice:999999}):Response.json({...product,id:Number(url.pathname.split('/').at(-1))}))}
 describe('bundle reference estimates',()=>{
+ it('uses manual appraisal when damage is declared without querying prices',async()=>{provider();const {estimateBundle}=await import('@/lib/lending/bundle-estimate');const result=await estimateBundle([{...item,condition:'ケース破損'}]);expect(result.amountJpy).toBeNull();expect(result.lines[0].reason).toContain('申告');expect(fetchPublicRemoteUrl).not.toHaveBeenCalled()})
  it('validates server product metadata, derives LTV and never returns raw prices or writes a loan',async()=>{
   provider();const {estimateBundle}=await import('@/lib/lending/bundle-estimate');const result=await estimateBundle([item]);
   expect(result).toMatchObject({status:'reference',amountJpy:200000,lines:[{name:product.localizedName,score:2,ltvPercent:50,amountJpy:200000}]})

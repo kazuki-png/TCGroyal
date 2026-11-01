@@ -26,10 +26,10 @@ export function SnkrdunkSearchScreen({onApplied,onAdd,active=true}:{onApplied:()
   finally{lock.current=false;setBusy(false)}
  }
  return <View style={{gap:20}}>
-  <View style={ui.card}><Text style={ui.title}>スニダンでカードを検索</Text><Text style={ui.muted}>カード名・型番からポケモンカード、ワンピースカードを探せます。選択後に状態を入力して査定を依頼してください。</Text>
+  <View style={ui.card}><Text style={ui.title}>カードを検索</Text><Text style={ui.muted}>カード名・型番からポケモンカード、ワンピースカードを探せます。選択後に状態を入力して査定を依頼してください。</Text>
    <Field label="カード名・型番" value={query} onChangeText={setQuery} maxLength={100} editable={!busy}/>
    <View style={ui.row}>{(['all','pokemon','onepiece'] as const).map(value=><View key={value} style={{flex:1}}><Button title={`${category===value?'✓ ':''}${value==='all'?'すべて':value==='pokemon'?'ポケモン':'ワンピース'}`} secondary disabled={busy} onPress={()=>setCategory(value)}/></View>)}</View>
-   <Button title="スニダンで検索する" disabled={busy||!query.trim()} onPress={()=>void search()}/>
+   <Button title="検索する" disabled={busy||!query.trim()} onPress={()=>void search()}/>
   </View>
   {busy&&<ActivityIndicator accessibilityLabel="カードを検索中" color={colors.gold}/>}
   {!!error&&<Text accessibilityRole="alert" style={ui.error}>{error}</Text>}
@@ -45,7 +45,7 @@ export function SnkrdunkSearchScreen({onApplied,onAdd,active=true}:{onApplied:()
      {(['PSA10','未鑑定','その他'] as const).map(value=><Button key={value} title={`${grade===value?'✓ ':''}${value==='PSA10'?'PSA10（自己申告）':value}`} secondary disabled={busy} onPress={()=>setGrade(value)}/>)}
     </View>
     <ReferenceEstimate {...reference} onRefresh={reference.refresh} disabled={busy}/>
-    {onAdd?<Button title="このカードを申込に追加" disabled={busy} onPress={()=>{if(onAdd({name:card.name.slice(0,100),cardNumber:card.cardNumber,grade,condition:'',source:'snkrdunk',productId:card.productId,cardUid:null})){setSelected(null);setAdded(true)}}}/>:<SupportEstimate key={card.productId} connected onRegistered={onApplied} initialDraft={{reason:'other',cardName:card.name.slice(0,100),cardNumber:card.cardNumber,condition:grade,requestedAmount:'',notes:`スニダン検索で選択\n${card.name}\n商品ID: ${card.productId}\n${card.sourceUrl}`}}/>}
+    {onAdd?<Button title="このカードを申込に追加" disabled={busy} onPress={()=>{if(onAdd({name:card.name.slice(0,100),cardNumber:card.cardNumber,grade,condition:'',source:'snkrdunk',productId:card.productId,cardUid:null})){setSelected(null);setAdded(true)}}}/>:<SupportEstimate key={card.productId} connected onRegistered={onApplied} initialDraft={{reason:'other',cardName:card.name.slice(0,100),cardNumber:card.cardNumber,condition:grade,requestedAmount:'',notes:`カード検索で選択\n${card.name}\n商品ID: ${card.productId}\n${card.sourceUrl}`}}/>}
    </>}
    </View>)}
    <View style={ui.row}><Button title="前のページ" secondary disabled={busy||results.page<=1} onPress={()=>void search(results.page-1)}/><Button title="次のページ" secondary disabled={busy||!results.hasMore} onPress={()=>void search(results.page+1)}/></View>

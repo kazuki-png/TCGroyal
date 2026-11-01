@@ -4,6 +4,7 @@ import {parseSnkrdunkCard} from './snkrdunk-card-search'
 import {observeMarket,valueObservedMarket,type ObservedMarket} from './observed-valuation'
 import type {CollateralItem} from './collateral-types'
 import type {BundleEstimate} from './bundle-estimate-types'
+import {conditionNeedsReview} from './collateral-types'
 
 type Snapshot={name:string;cardNumber:string;market:ObservedMarket}
 const psa10=(grade:string)=>grade.normalize('NFKC').replace(/\s/g,'').toUpperCase()==='PSA10'
@@ -37,7 +38,7 @@ export async function estimateBundle(items:CollateralItem[]):Promise<BundleEstim
  const started=Date.now(),lines:BundleEstimate['lines']=[],quantities=new Map<string,number>()
  for(const item of items)if(item.source==='snkrdunk'&&item.productId)quantities.set(item.productId,(quantities.get(item.productId)??0)+item.quantity)
  const snapshots=new Map<string,Snapshot|null>()
- const ids=[...new Set(items.filter(item=>item.source==='snkrdunk'&&item.productId&&psa10(item.grade)).map(item=>item.productId!))]
+ const ids=[...new Set(items.filter(item=>item.source==='snkrdunk'&&item.productId&&psa10(item.grade)&&!conditionNeedsReview(item.condition)).map(item=>item.productId!))]
  // Two reads in flight per process; a single basket gets a bounded time budget.
  for(let i=0;i<ids.length;i+=2){
   if(Date.now()-started>20000)break
@@ -48,7 +49,8 @@ export async function estimateBundle(items:CollateralItem[]):Promise<BundleEstim
   const line:BundleEstimate['lines'][number]={id:item.id,name:item.name,quantity:item.quantity,amountJpy:null,score:null,ltvPercent:null,reason:'登録カード・手入力カードは、サポートが商品対応を確認して個別査定します。'}
   if(item.source==='snkrdunk'&&item.productId){
    const data=snapshots.get(item.productId)
-   if(!psa10(item.grade))line.reason='自動参考額はPSA10が対象です。その他の鑑定・未鑑定カードは個別査定します。'
+   if(conditionNeedsReview(item.condition))line.reason='傷・ケース等の申告内容を確認するため、個別査定します。'
+   else if(!psa10(item.grade))line.reason='自動参考額はPSA10が対象です。その他の鑑定・未鑑定カードは個別査定します。'
    else if(!data)line.reason='成約データを取得できません。時間をおいて再計算するか、個別査定を依頼してください。'
    else{
     line.name=data.name;expiresAt=Math.min(expiresAt,Date.parse(data.market.fetchedAt)+300000)

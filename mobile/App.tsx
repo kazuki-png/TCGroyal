@@ -8,7 +8,13 @@ import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { LOAN_STATUS_LABELS, type LoanCommand, type WorkflowLoan, type WorkflowState } from '../lib/lending/workflow-types';
 import { connectPreview, disconnectPreview, loadWorkflow, workflowRequest, lendingApi, getInboxStorageKey, restorePreview, getRememberedPreviewUrl, clearRuntimeSession, isSupabasePreviewConnected } from './src/api';
-import { CatalogAssessmentScreen as AssessmentScreen } from './src/screens/CatalogAssessmentScreen';
+import {ApplicationScreen as AssessmentScreen} from './src/screens/ApplicationScreen';
+import {HomeScreen} from './src/screens/HomeScreen';
+import {TransactionList} from './src/screens/TransactionList';
+import {buildTransactions} from '../lib/lending/transactions';
+import {useApplicationDraft,clearApplicationDraft} from './src/use-application-draft';
+import {collateralQuantity} from '../lib/lending/collateral-types';
+import {RepaymentPreview} from './src/screens/RepaymentPreview';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import {ConnectionDiagnostics} from './src/screens/ConnectionDiagnostics';
@@ -40,6 +46,8 @@ function LoanTile({ loan, send, busy }: { loan: WorkflowLoan; send: Send; busy: 
   const command = (action: LoanCommand, payload: Record<string, unknown> = {}) => void send({ type: 'command', loanId: loan.id, version: loan.version, action, payload });
   const pending = loan.requests.find(r => r.status === 'pending');
   const terms = loan.terms;
+  const [panel,setPanel]=useState<'summary'|'terms'|'repayment'|'extension'|'additional'|'history'>('summary');
+  useAppBack(panel!=='summary',20,()=>{if(!busy)setPanel('summary');return true});
   return <View style={styles.card}>
     <Text style={styles.badge}>{LOAN_STATUS_LABELS[loan.status]}</Text>
     <Text style={styles.title}>{loan.card_name}</Text>
@@ -49,33 +57,37 @@ function LoanTile({ loan, send, busy }: { loan: WorkflowLoan; send: Send; busy: 
     <Text style={styles.amount}>{yen(['active','repayment_pending'].includes(loan.status) ? loan.principal_jpy : loan.requested_jpy)}</Text>
     <Text style={styles.body}>返済必要額: {loan.payoff_jpy ? yen(loan.payoff_jpy) : '—'}</Text>
     <Text style={styles.body}>返済期限: {date(loan.due_at)}</Text>
-    {terms && <View style={styles.inset}>
+    {panel!=='summary'&&<Action label="取引詳細に戻る" disabled={busy} onPress={()=>setPanel('summary')}/>}
+    {panel==='summary'&&<><Action label={loan.status==='offered'?'融資条件を確認する':'契約条件を見る'} onPress={()=>setPanel('terms')}/>{['active','repayment_pending'].includes(loan.status)&&<Action label="返済手続きを確認" onPress={()=>setPanel('repayment')}/>}<Action label="手続き履歴を見る" onPress={()=>setPanel('history')}/></>}
+    {terms && panel==='terms'&& <View style={styles.inset}>
       <Text style={styles.label}>契約条件</Text>
       <Text style={styles.body}>元本 {yen(terms.principalJpy)} / 月利 {terms.monthlyRateBps / 100}% / {terms.termMonths}か月 / 手数料 {yen(terms.feesJpy)}</Text>
       <Text style={styles.body}>満期返済額 {yen(terms.principalJpy + Math.ceil(terms.principalJpy * terms.monthlyRateBps * terms.termMonths / 10000))}</Text>
       <Text style={styles.muted}>期間は出金日から数えます。期限前返済の利息は暦月単位で切り上げ、最低1か月・最大3か月分です。期限経過後は質流れの確認対象になります。</Text>
       {loan.requests.filter(r => r.kind === 'extension' && r.status === 'completed').map(r => <Text key={r.id} style={styles.muted}>延長記録: 利息 {yen(r.amount_jpy)} / 期限 {date(r.consent_terms.newDueAt ?? null)}</Text>)}
     </View>}
-    {loan.status === 'offered' && <>
+    {loan.status === 'offered' && panel==='terms'&& <>
       <View style={styles.row}><Switch accessibilityLabel="契約条件への同意" value={consent} onValueChange={setConsent} disabled={busy} /><Text style={styles.body}>条件を確認し、同意します</Text></View>
       <Action label="この条件に同意する" disabled={busy || !consent} onPress={() => command('accept', { termsAccepted: true })} />
     </>}
-    {['submitted','received','offered','accepted'].includes(loan.status) && <Action label="申込をキャンセル" disabled={busy} onPress={() => Alert.alert('申込のキャンセル', '預入済みのカードは返却待ちになります。', [{ text: '戻る', style: 'cancel' }, { text: 'キャンセルする', onPress: () => command('cancel') }])} />}
+    {panel==='summary'&&['submitted','received','offered','accepted'].includes(loan.status) && <Action label="申込をキャンセル" disabled={busy} onPress={() => Alert.alert('申込のキャンセル', '預入済みのカードは返却待ちになります。', [{ text: '戻る', style: 'cancel' }, { text: 'キャンセルする', onPress: () => command('cancel') }])} />}
+    {['active','repayment_pending'].includes(loan.status)&&panel==='repayment'&&<RepaymentPreview loanId={loan.id}/>}
     {loan.status === 'active' && <>
-      <Action label="振込済みを申告" disabled={busy} onPress={() => command('report_repayment')} />
+      {panel==='repayment'&&<><Text style={styles.muted}>振込先は取引の案内をご確認ください。アプリから送金は行いません。振込先が不明な場合は、受付番号を添えてサポートへお問い合わせください。</Text><Action label="振込済みを申告" disabled={busy} onPress={()=>Alert.alert('振込済みの申告','この契約の振込が完了している場合に申告してください。運営の入金確認後に返却手続きを進めます。',[{text:'戻る',style:'cancel'},{text:'振込済みを申告',onPress:()=>command('report_repayment')}])}/></>}
       {!pending && loan.due_at && Date.parse(loan.evaluated_at) < Date.parse(loan.due_at) && <>
-        <View style={styles.row}><Switch accessibilityLabel="追加手続きへの同意" value={consent} onValueChange={setConsent} disabled={busy} /><Text style={[styles.body, styles.flex]}>延長時は現在の3か月分の利息 {yen(Math.ceil(loan.principal_jpy * (loan.monthly_rate_bps ?? 0) * 3 / 10000))} を精算し、期限を3か月延長することに同意します</Text></View>
-        <Action label="3か月延長を申請" disabled={busy || !consent} onPress={() => command('request_extension', { termsAccepted: true })} />
-        <TextInput accessibilityLabel="追加借入の相談額" value={additional} onChangeText={setAdditional} keyboardType="number-pad" style={styles.input} editable={!busy} />
+        {panel==='summary'&&<><Action label="期限の延長を確認" onPress={()=>setPanel('extension')}/><Action label="追加借入を相談" onPress={()=>setPanel('additional')}/></>}
+        {panel==='extension'&&<><Text style={styles.title}>期限延長の条件</Text><Text style={styles.body}>現在の期限 {date(loan.due_at)}</Text><View style={styles.row}><Switch accessibilityLabel="追加手続きへの同意" value={consent} onValueChange={setConsent} disabled={busy} /><Text style={[styles.body, styles.flex]}>延長時は現在の3か月分の利息 {yen(Math.ceil(loan.principal_jpy * (loan.monthly_rate_bps ?? 0) * 3 / 10000))} を精算し、期限を3か月延長することに同意します</Text></View>
+        <Action label="3か月延長を申請" disabled={busy || !consent} onPress={() => command('request_extension', { termsAccepted: true })} /></>}
+        {panel==='additional'&&<><TextInput accessibilityLabel="追加借入の相談額" value={additional} onChangeText={setAdditional} keyboardType="number-pad" style={styles.input} editable={!busy} />
         <Text style={styles.muted}>追加借入は再査定・変更契約が必要です。ここでは相談のみ受け付けます。</Text>
         <View style={styles.row}><Switch accessibilityLabel="追加借入の相談申請への同意" value={additionalConsent} onValueChange={setAdditionalConsent} disabled={busy} /><Text style={styles.body}>相談申請の内容を確認しました</Text></View>
-        <Action label="追加借入を相談" disabled={busy || !additionalConsent || !/^\d+$/.test(additional) || Number(additional) < 10000 || Number(additional) % 10000 !== 0 || Number(additional) > 10000000 - loan.principal_jpy} onPress={() => command('request_additional', { amountJpy: Number(additional), termsAccepted: true })} />
+        <Action label="追加借入を相談" disabled={busy || !additionalConsent || !/^\d+$/.test(additional) || Number(additional) < 10000 || Number(additional) % 10000 !== 0 || Number(additional) > 10000000 - loan.principal_jpy} onPress={() => command('request_additional', { amountJpy: Number(additional), termsAccepted: true })} /></>}
       </>}
     </>}
     {pending && <Text style={styles.badge}>{pending.kind === 'extension' ? '延長申請' : '追加借入相談'}を確認中</Text>}
     {loan.status === 'repayment_pending' && <Text style={styles.muted}>運営が入金を照合しています。確認後にカードを返却します。</Text>}
-    <Text style={styles.label}>手続き履歴</Text>
-    {loan.events.map(event => <Text key={event.version} style={styles.muted}>{date(event.created_at)} / {LOAN_STATUS_LABELS[event.to_status]}{event.reason ? ` / ${event.reason}` : ''}</Text>)}
+    {panel==='history'&&<><Text style={styles.label}>手続き履歴</Text>
+    {loan.events.map(event => <Text key={event.version} style={styles.muted}>{date(event.created_at)} / {LOAN_STATUS_LABELS[event.to_status]}{event.reason ? ` / ${event.reason}` : ''}</Text>)}</>}
   </View>;
 }
 
@@ -85,18 +97,22 @@ export default function App() {
 function LendingApp() {
   const insets = useSafeAreaInsets();
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const scrollPositions=useRef<Record<string,number>>({});
   const [toolsOpen, setToolsOpen] = useState(false);
   const [restoring, setRestoring] = useState(true);
   const [supportOpen, setSupportOpen] = useState(false);
   const [recovering, setRecovering] = useState(false);
 
-  const [tab, setTab] = useState<'assessment'|'loans'|'inbox'|'account'>('assessment');
+  const [tab, setTab] = useState<'home'|'assessment'|'loans'|'inbox'|'account'>('home');
   const [state, setState] = useState<WorkflowState | null>(null);
   const [inboxAccount, setInboxAccount] = useState<AccountState | null>(null);
   const [inboxCases,setInboxCases]=useState<SupportCase[]>([]);
   const [focusedLoan, setFocusedLoan] = useState<string | null>(null);
+  const [accountPage,setAccountPage]=useState<'identity'|undefined>();
   const [returnToInbox,setReturnToInbox]=useState(false);
   const [now, setNow] = useState(Date.now);
+  const draft=useApplicationDraft(state?getInboxStorageKey():null);
+  const transactions=useMemo(()=>buildTransactions(state?.loans??[],inboxCases,now),[state,inboxCases,now]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -105,13 +121,13 @@ function LendingApp() {
   useEffect(()=>{const subscription=BackHandler.addEventListener('hardwareBackPress',()=>appBackActions.dispatch());return()=>subscription.remove()},[]);
   useAppBack(busy,90,()=>true);
   useAppBack(toolsOpen,100,()=>{if(!busy)setToolsOpen(false);return true});
-  useAppBack(!!state&&(returnToInbox||!!focusedLoan)||!state&&supportOpen,10,()=>{
+  useAppBack(!!state&&(returnToInbox||tab==='loans'&&!!focusedLoan)||!state&&supportOpen,10,()=>{
    if(state&&returnToInbox){setReturnToInbox(false);setTab('inbox');setFocusedLoan(null)}
    else if(state&&focusedLoan)setFocusedLoan(null);
    else setSupportOpen(false);
    scroll.current?.scrollTo({y:0,animated:false});return true;
   });
-  const reload = useCallback(async () => { const key = getInboxStorageKey(); const [data, account,cases] = await Promise.all([loadWorkflow(), lendingApi<AccountState>('/account'),lendingApi<SupportCaseList>('/support-cases')]); if (key !== getInboxStorageKey()) return; setState(data); setInboxAccount(account);setInboxCases(cases.cases); setNow(Date.now()); }, []);
+  const reload = useCallback(async () => { const key=getInboxStorageKey();const [data,account]=await Promise.all([loadWorkflow(),lendingApi<AccountState>('/account')]);const cases=data.supportCases??(await lendingApi<SupportCaseList>('/support-cases')).cases;if(key!==getInboxStorageKey())return;setState(data);setInboxAccount(account);setInboxCases(cases);setNow(Date.now()); },[]);
   const inbox = useMemo(() => buildInbox(state, inboxAccount, now,inboxCases), [state, inboxAccount, now,inboxCases]);
   const statusPushKey=state?getInboxStorageKey():null;
   useEffect(()=>{
@@ -181,55 +197,53 @@ function LendingApp() {
     try { await reload(); } catch (cause) { setError(cause instanceof Error ? cause.message : '情報を更新できません。'); } finally { setBusy(false); }
   }
   function switchTab(next: typeof tab) {
-    setTab(next); setFocusedLoan(null);setReturnToInbox(false); setError(''); setNotice(''); if (next === 'inbox' && state) void refresh(); scroll.current?.scrollTo({ y: 0, animated: false });
+    setTab(next);setAccountPage(undefined);setReturnToInbox(false); setError(''); setNotice(''); if (next === 'inbox' && state) void refresh(); requestAnimationFrame(()=>scroll.current?.scrollTo({y:scrollPositions.current[next]??0,animated:false}));
   }
   async function signOut() {
     if (busy || restoring) return; setBusy(true);
     await unregisterStatusPush(false).catch(()=>{});
-    try { await disconnectPreview(); } catch { setError('ログイン情報を削除できません。もう一度お試しください。'); setBusy(false); return; } setState(null); setInboxAccount(null);setInboxCases([]); setFocusedLoan(null);
+    try { const key=getInboxStorageKey();if(key)await clearApplicationDraft(key);await disconnectPreview(); } catch { setError('ログイン情報を削除できません。もう一度お試しください。'); setBusy(false); return; } setState(null); setInboxAccount(null);setInboxCases([]); setFocusedLoan(null);
     setNotice(''); setError('');
-    setTab('assessment');setReturnToInbox(false); setBusy(false);
+    setTab('home');setReturnToInbox(false); setBusy(false);
   }
-  function openInboxItem(item: InboxItem) { switchTab(item.target);setReturnToInbox(true); setFocusedLoan(item.loanId ?? null); }
-  const heading = !state && supportOpen && !recovering ? '個別見積もり相談' : tab === 'assessment' ? '融資申請' : tab === 'loans' ? '貸付状況' : tab === 'inbox' ? 'お知らせ' : 'マイページ';
+  function openInboxItem(item: InboxItem) { switchTab(item.target);setReturnToInbox(true); setFocusedLoan(item.loanId?`loan:${item.loanId}`:item.caseId?`case:${item.caseId}`:null); }
+  const heading = !state && supportOpen && !recovering ? '個別見積もり相談' : tab==='home'?'ホーム':tab === 'assessment' ? '申し込み' : tab === 'loans' ? '取引状況' : tab === 'inbox' ? 'お知らせ' : 'マイページ';
   return <KeyboardAvoidingView style={[styles.screen, { paddingTop: insets.top }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <StatusBar style="light" />
     <View style={styles.header}>
       <Image source={siteLogo} accessibilityRole="image" accessibilityLabel="TCG ROYAL" alt="TCG ROYAL" style={styles.brandLogo} resizeMode="contain"/>
-      <Pressable accessibilityRole="button" accessibilityLabel="テスト環境の設定と機能を開く" onPress={() => setToolsOpen(true)} style={styles.environment}>
+      {process.env.EXPO_PUBLIC_LENDING_CHANNEL!=='production'&&<Pressable accessibilityRole="button" accessibilityLabel="テスト環境の設定と機能を開く" onPress={() => setToolsOpen(true)} style={styles.environment}>
         <View style={styles.environmentDot}/><Text maxFontSizeMultiplier={1.3} style={styles.badge}>テスト環境</Text>
-      </Pressable>
+      </Pressable>}
     </View>
-    <ScrollView ref={scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.gold} />:undefined}>
+    <ScrollView ref={scroll} onScroll={event=>{scrollPositions.current[tab]=event.nativeEvent.contentOffset.y}} scrollEventThrottle={100} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.gold} />:undefined}>
       <Text accessibilityRole="header" style={styles.heading}>{heading}</Text>
-      {state&&returnToInbox&&<Action label="お知らせ一覧に戻る" disabled={busy} onPress={()=>{appBackActions.dispatch()}}/>}
+      {state&&returnToInbox&&<Action label="お知らせ一覧に戻る" disabled={busy} onPress={()=>{setReturnToInbox(false);setFocusedLoan(null);setTab('inbox');scroll.current?.scrollTo({y:0,animated:false})}}/>}
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       {notice ? <Text accessibilityLiveRegion="polite" style={styles.success}>{notice}</Text> : null}
       {!state && (busy || restoring) && <ActivityIndicator accessibilityLabel="接続を確認中" color={colors.gold} />}
-      {!state && <>
+      {!state && tab==='home'&&!recovering?<View style={styles.card}><Text style={styles.title}>カードを選んで申し込む</Text><Text style={styles.body}>名前・型番・写真からカードを探し、複数枚まとめて査定を依頼できます。</Text><Action label="申し込みを始める" onPress={()=>switchTab('assessment')}/><Text style={styles.muted}>査定依頼 → カードの現物確認 → 正式な条件の確認。契約にはログインと本人確認が必要です。</Text></View>:!state && <>
         <Text style={styles.muted}>{supportOpen && !recovering ? '登録カードが見つからない場合や未鑑定カードも、サポートへ相談できます。' : tab === 'assessment' ? 'カードの査定・申込にはログインが必要です。' : tab === 'loans' ? '申込状況・返済額・返済期限を確認できます。ログインしてください。' : tab === 'inbox' ? '申込や本人確認に関するお知らせを確認できます。ログインしてください。' : '登録情報・本人確認書類を管理できます。ログインしてください。'}</Text>
         {supportOpen && !recovering ? <><SupportEstimate onLogin={()=>setSupportOpen(false)}/><Action label="ログインへ戻る" onPress={() => setSupportOpen(false)}/></> : <>
         {!recovering && <Action label="個別見積もりを相談" onPress={() => setSupportOpen(true)}/>}
         <SupabaseLogin accessUrl={accessUrl} onConnected={reload} disabled={busy || restoring} onBusyChange={setBusy} recovering={recovering} onRecovered={() => setRecovering(false)}/>
         </>}
       </>}
-      {state && <View style={tab==='assessment'?undefined:{display:'none'}} accessibilityElementsHidden={tab!=='assessment'} importantForAccessibility={tab==='assessment'?'auto':'no-hide-descendants'}><AssessmentScreen onApplied={reload} active={tab==='assessment'&&!toolsOpen}/></View>}
-      {state && tab === 'loans' && <>
-        <SupportCasesScreen onChanged={reload}/>
-        <View style={styles.card}><Text style={styles.label}>現在融資額（元本）</Text><Text style={styles.amount}>{yen(state.outstandingJpy)}</Text><Text style={styles.muted}>申込・契約 {state.loanCount}件</Text></View>
-        <Text style={styles.title}>{focusedLoan ? '申込・契約の詳細' : '申込・契約一覧'}</Text>
-        {focusedLoan && <Action label="すべての申込・契約を表示" onPress={() => setFocusedLoan(null)}/>}
-        {state.loanCount > state.loans.length && <Text style={styles.muted}>最新50件を表示。元本の合計は全契約を集計しています。</Text>}
-        {!state.loans.length && <View style={styles.card}><Text style={styles.title}>申込はまだありません</Text><Text style={styles.muted}>カードを査定すると、融資の申込に進めます。</Text><Action label="融資申請へ" onPress={() => switchTab('assessment')}/></View>}
-        {state.loans.filter(loan => !focusedLoan || loan.id === focusedLoan).map(loan => <LoanTile key={`${loan.id}-${loan.version}`} loan={loan} send={send} busy={busy} />)}
-      </>}
+      {state&&tab==='home'&&<HomeScreen state={state} items={transactions} draftCount={collateralQuantity(draft.items)} onApply={()=>switchTab('assessment')} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onOpen={id=>{switchTab('loans');setFocusedLoan(id);requestAnimationFrame(()=>scroll.current?.scrollTo({y:0,animated:false}))}} onIdentity={()=>{switchTab('account');setAccountPage('identity')}} onInbox={()=>switchTab('inbox')} notices={inbox}/>}
+      {state?.transactionsUnavailable&&<Text style={styles.error}>査定依頼の一部を取得できません。一覧を更新してください。</Text>}
+      {state && <View key={getInboxStorageKey()} style={tab==='assessment'?undefined:{display:'none'}} accessibilityElementsHidden={tab!=='assessment'} importantForAccessibility={tab==='assessment'?'auto':'no-hide-descendants'}><AssessmentScreen onApplied={reload} active={tab==='assessment'&&!toolsOpen} items={draft.items} onChange={draft.change} ready={draft.ready} error={draft.error}/></View>}
+      {state && tab==='loans'&&<TransactionList items={transactions} selectedId={focusedLoan} onSelect={id=>{setFocusedLoan(id);scroll.current?.scrollTo({y:0,animated:false})}} onApply={()=>switchTab('assessment')} renderDetail={item=>{
+       const loan=state.loans.find(loan=>loan.id===item.loanId);
+       return <>{loan?<LoanTile key={`${loan.id}-${loan.version}`} loan={loan} send={send} busy={busy}/>:item.caseId?<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>:<Text style={styles.muted}>一覧を更新してください。</Text>}{loan&&item.caseId&&<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>}</>;
+      }}/>}
       {state && tab === 'inbox' && <InboxScreen items={inbox} readIds={receipts.readIds} ready={receipts.ready} saving={receipts.saving} error={receipts.error} onRead={receipts.markRead} onOpen={openInboxItem} onRefresh={() => { if (receipts.error) receipts.retry(); void refresh(); }} refreshing={busy}/>}
-      {state && tab === 'account' && <AccountScreen onUpdated={reload} onSignOut={()=>void signOut()} signingOut={busy}/>}
+      {state && tab === 'account' && <AccountScreen initialPage={accountPage} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onUpdated={reload} onSignOut={()=>void signOut()} signingOut={busy}/>}
     </ScrollView>
     <View accessibilityRole="tablist" style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-      {([['assessment','融資申請','＋'],['loans','貸付状況','≡'],['inbox','お知らせ','✉'],['account','マイページ','○']] as const).map(([key,label,icon]) => <Pressable key={key} accessibilityRole="tab" accessibilityLabel={key === 'inbox' && unreadCount ? `お知らせ、未読${unreadCount}件` : label} accessibilityState={{selected: tab === key}} onPress={() => switchTab(key)} style={[styles.tab, tab === key && styles.activeTab]}>
-        <Text accessible={false} style={[styles.tabIcon, tab === key && styles.activeText]}>{icon}</Text>
+      {([['home','ホーム','⌂'],['loans','取引状況','≡'],['assessment','申し込み','＋'],['inbox','お知らせ','✉'],['account','マイページ','○']] as const).map(([key,label,icon]) => <Pressable key={key} accessibilityRole="tab" accessibilityLabel={key==='assessment'?`申し込み、申込リスト${collateralQuantity(draft.items)}枚`:key === 'inbox' && unreadCount ? `お知らせ、未読${unreadCount}件` : label} accessibilityState={{selected: tab === key}} onPress={() => switchTab(key)} style={[styles.tab, tab === key && key!=='assessment'&&styles.activeTab]}>
+        {key==='assessment'?<View style={[styles.applyCircle,tab===key&&styles.applySelected]}><Text accessible={false} style={styles.applyIcon}>＋</Text></View>:<Text accessible={false} style={[styles.tabIcon, tab === key && styles.activeText]}>{icon}</Text>}
         <Text style={[styles.tabText, tab === key && styles.activeText]}>{label}</Text>
+        {key==='assessment'&&draft.items.length>0&&<View style={styles.unreadBadge}><Text style={styles.unreadText}>{collateralQuantity(draft.items)}</Text></View>}
         {key === 'inbox' && unreadCount > 0 && <View style={styles.unreadBadge}><Text style={styles.unreadText}>{unreadCount > 99 ? '99+' : unreadCount}</Text></View>}
       </Pressable>)}
     </View>
@@ -263,7 +277,8 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', paddingTop: 10, paddingHorizontal: 12, backgroundColor: colors.background, borderTopWidth: 1, borderColor: colors.border },
   tab: { flex: 1, minHeight: 60, paddingVertical: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 12, gap: 3 },
   unreadBadge: { position: 'absolute', top: 2, right: 10, borderRadius: 10, backgroundColor: colors.gold, paddingHorizontal: 5, minWidth: 19, alignItems: 'center' }, unreadText: { color: colors.background, fontSize: 11, fontWeight: '800' },
-  activeTab: { backgroundColor: colors.active }, tabIcon: { fontSize: 24, color: colors.muted, fontWeight: '600' }, tabText: { fontSize: 12, fontWeight: '700', color: colors.muted }, activeText: { color: colors.gold },
+  applyCircle:{width:56,height:56,borderRadius:28,backgroundColor:colors.gold,alignItems:'center',justifyContent:'center',borderWidth:2,borderColor:colors.goldMuted},applySelected:{borderColor:colors.text},applyIcon:{fontSize:34,color:colors.background,fontWeight:'600'},
+  activeTab: { backgroundColor: colors.active }, tabIcon: { fontSize: 24, color: colors.muted, fontWeight: '600' }, tabText: { fontSize: 10, fontWeight: '700', color: colors.muted }, activeText: { color: colors.gold },
   toolsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, borderColor: colors.border },
   close: { minHeight: 52, minWidth: 64, justifyContent: 'center', alignItems: 'center' },
   screen: { flex: 1, backgroundColor: colors.background }, content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 32, gap: 20 },

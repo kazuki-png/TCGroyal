@@ -2,11 +2,12 @@ import {useEffect,useState} from 'react';
 import type {CollateralItem} from '../../lib/lending/collateral-types';
 import type {BundleEstimate} from '../../lib/lending/bundle-estimate-types';
 import {lendingApi} from './api';
+import {conditionNeedsReview} from '../../lib/lending/collateral-types';
 
 export function useReferenceEstimate(items:CollateralItem[],enabled=true){
- // Condition notes do not change the price calculation. Keep them out of the
- // dependency so typing a note cannot trigger repeated provider requests.
- const key=JSON.stringify(items.map(item=>({...item,condition:''})));
+ // Recalculate when a declared defect first appears/disappears, rather than
+ // requesting prices for every character typed in a condition note.
+ const key=JSON.stringify(items.map(item=>({...item,condition:conditionNeedsReview(item.condition)?'傷・破損の申告あり':''})));
  const [retry,setRetry]=useState(0);
  const [state,setState]=useState<{key:string;retry:number;estimate:BundleEstimate|null;error:string;loading:boolean}|null>(null);
  const valid=items.length>0&&items.length<=20&&items.every(item=>Number.isInteger(item.quantity)&&item.quantity>=1&&item.quantity<=100)&&items.reduce((sum,item)=>sum+item.quantity,0)<=100;

@@ -6,6 +6,10 @@ import { isLendingEnabled, isSameOriginRequest } from '@/lib/lending/local-confi
 import { fetchSnkrdunkSnapshot } from '@/lib/lending/snkrdunk'
 import { parsePsaCert } from '@/lib/lending/psa'
 import { scheduleStatusNotifications } from '@/lib/lending/status-notifications'
+import {buildTransactions} from '@/lib/lending/transactions'
+import type {WorkflowState} from '@/lib/lending/workflow-types'
+import type {SupportCaseList} from '@/lib/lending/support-case-types'
+import {repaymentPreview,repaymentPreviewInput} from '@/lib/lending/repayment-preview'
 
 export const runtime = 'nodejs'
 export const maxDuration=60
@@ -16,9 +20,22 @@ export async function GET(request: Request) {
   if (!isLendingEnabled()) return json({ error: '融資テスト環境が構成されていません。' }, 503)
   const actor = await getWorkflowActor(request)
   if (!actor) return json({ error: 'ログインが必要です。' }, 401)
-  const { data, error } = await createAdminClient().rpc('lending_list', { p_actor: actor.id })
+  const params=new URL(request.url).searchParams
+  if(params.get('view')==='repayment'){
+   const input=repaymentPreviewInput.safeParse({loanId:params.get('loanId'),date:params.get('date')})
+   if(!input.success)return json({error:'契約と返済予定日を確認してください。'},400)
+   const limit=await checkSharedRateLimit('lending:repayment-preview',actor.id,{limit:20,windowMs:60000})
+   if(!limit.allowed)return rateLimitResponse(limit)
+   try{return json({preview:await repaymentPreview(actor,input.data)})}catch(cause){
+    const code=cause instanceof Error?cause.message:''
+    return json({error:code==='repayment_date_outside_term'?'返済予定日は本日から契約期限までで指定してください。':code==='repayment_not_found'?'返済額を確認できる契約がありません。':'返済必要額を取得できません。時間をおいてお試しください。'},code==='repayment_not_found'?404:code==='repayment_date_outside_term'?400:503)
+   }
+  }
+  const db=createAdminClient()
+  const [{ data, error },support] = await Promise.all([db.rpc('lending_list', { p_actor: actor.id }),db.rpc('lending_support_list',{p_actor:actor.id,p_search:''})])
   if (error) return json({ error: '融資データを取得できません。テストDBの稼働状態と設定を確認してください。' }, 503)
-  return json({ ...data, role: actor.role, demo: actor.demo, marketFixture: actor.demo && process.env.LENDING_MARKET_FIXTURE === 'true' })
+  const cases=support.error?[]:(support.data as SupportCaseList)?.cases??[]
+  return json({ ...data,supportCases:cases,transactionsUnavailable:!!support.error,transactions:buildTransactions((data as WorkflowState).loans??[],cases),role: actor.role, demo: actor.demo, marketFixture: actor.demo && process.env.LENDING_MARKET_FIXTURE === 'true' })
 }
 
 export async function POST(request: Request) {
@@ -54,7 +71,7 @@ export async function POST(request: Request) {
     try {
       const market = await marketForCard(v.cardUid)
       response = await db.rpc('lending_create_quote', { p_actor: actor.id, p_card: v.cardUid, p_market: market })
-    } catch { return json({ error: 'スニダンの価格を取得できません。手動査定が必要です。' }, 502) }
+    } catch { return json({ error: '価格情報を取得できません。個別査定が必要です。' }, 502) }
   } else if (v.type === 'apply') {
     const cert = parsePsaCert(v.certInput)
     if (!cert) return json({ error: 'PSA鑑定番号またはPSA公式のQRコードURLを入力してください。' }, 400)

@@ -10,6 +10,7 @@ export interface InboxItem {
   dateLabel: string;
   target: 'loans' | 'account';
   loanId?: string;
+  caseId?: string;
   urgent?: boolean;
 }
 
@@ -43,7 +44,7 @@ export function buildInbox(workflow: WorkflowState | null, account: AccountState
         body: `${loan.card_name}の返済期限をご確認ください。`, date: loan.due_at!, dateLabel: '返済期限', target: 'loans', loanId: loan.id, urgent: true });
     }
   }
-  for(const item of cases){for(const event of item.events??[]){if(event.to_status==='applied'||!Number.isFinite(Date.parse(event.created_at)))continue;items.push({id:`case:${item.id}:${event.version}`,title:`査定状況が「${SUPPORT_CASE_STATUS[event.to_status]}」になりました`,body:`${item.card_name} / 受付番号 ${item.reference}`,date:event.created_at,dateLabel:'更新日時',target:'loans'});}}
+  for(const item of cases){for(const event of item.events??[]){if(event.to_status==='applied'||!Number.isFinite(Date.parse(event.created_at)))continue;items.push({id:`case:${item.id}:${event.version}`,title:`査定状況が「${SUPPORT_CASE_STATUS[event.to_status]}」になりました`,body:`${item.card_name} / 受付番号 ${item.reference}`,date:event.created_at,dateLabel:'更新日時',target:'loans',...(item.loan_id?{loanId:item.loan_id}:{caseId:item.id})});}}
   for (const document of account?.documents ?? []) {
     const status = { pending: '本人確認書類を受け付けました', verified: '本人確認書類の確認が完了しました', rejected: '本人確認書類の再提出が必要です' }[document.status];
     if (!status || !Number.isFinite(Date.parse(document.uploaded_at))) continue;

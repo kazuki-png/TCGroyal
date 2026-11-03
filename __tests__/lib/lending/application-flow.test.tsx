@@ -47,6 +47,7 @@ describe('camera-first lending application',()=>{
   fireEvent.click(await screen.findByRole('button',{name:'ピカチュウ 132/106 を確認'},{timeout:2500}))
   expect(api.mock.calls.filter(([,options])=>options.body?.action==='discover')).toHaveLength(1)
   expect(api.mock.calls[0][1].body.query).toBe('132/106');fireEvent.click(screen.getByText('申込に追加'));expect(screen.getByText('ピカチュウを申請に追加しました。')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button',{name:'ピカチュウを申込から削除'}));expect(screen.getByText('カードがまだ追加されていません。')).toBeTruthy();expect(screen.getByRole('button',{name:'申請に進む'}).hasAttribute('disabled')).toBe(true)
   expect(api.mock.calls.some(([path])=>path==='/card-image')).toBe(false)
  })
 })

@@ -8,11 +8,25 @@ const hints={name:'ピカチュウ',cardNumber:'132/106',category:'pokemon' as c
 const match={cards:[{id:'1',name:'ピカチュウ SAR',cardNumber:'SV8 132/106',category:'pokemon',kind:'external',productId:'1',cardUid:null,imageUrl:null}],page:1,hasMore:true,partial:false}
 beforeEach(()=>vi.resetAllMocks())
 describe('bounded image discovery',()=>{
- it('searches the printed number first and stops on usable candidates',async()=>{
+ it('searches the printed number first and supplements fewer than three candidates by name',async()=>{
   discover.mockResolvedValue(match);const allow=vi.fn(async()=>true)
   const result=await discoverImageCards(hints,allow)
-  expect(discover).toHaveBeenCalledExactlyOnceWith('132/106','pokemon',1,true)
+  expect(discover).toHaveBeenNthCalledWith(1,'132/106','pokemon',1,true);expect(discover).toHaveBeenNthCalledWith(2,'ピカチュウ','pokemon',1,true)
   expect(result).toMatchObject({hasMore:false,searchQuery:'132/106',cards:[{id:'1',imageMatch:{matchedOn:['number','set','name','rarity']}}]})
+ })
+ it('keeps the exact number first and fills three distinct suggestions without another image call',async()=>{
+  discover.mockResolvedValueOnce(match).mockResolvedValueOnce({...match,cards:[{...match.cards[0],id:'2',cardNumber:'001/100'},{...match.cards[0],id:'3',cardNumber:'002/100'}]})
+  const result=await discoverImageCards(hints,async()=>true)
+  expect(result.cards.map(card=>card.id)).toEqual(['1','2','3'])
+  expect(result.cards[1].imageMatch?.matchedOn).not.toContain('number')
+  expect(discover).toHaveBeenCalledTimes(2)
+ })
+ it('stops when three exact matches are available and never fills with unrelated cards',async()=>{
+  discover.mockResolvedValueOnce({...match,cards:[1,2,3].map(id=>({...match.cards[0],id:String(id)}))})
+  expect((await discoverImageCards(hints,async()=>true)).cards).toHaveLength(3)
+  expect(discover).toHaveBeenCalledTimes(1)
+  discover.mockReset();discover.mockResolvedValue({...match,cards:[match.cards[0],{...match.cards[0],id:'2',name:'ゲンガー',cardNumber:'001/100'},{...match.cards[0],id:'3',name:'ピカチュウ English',cardNumber:'002/100'}]})
+  expect((await discoverImageCards(hints,async()=>true)).cards.map(card=>card.id)).toEqual(['1'])
  })
  it('falls back once to the printed name when the number query has no usable candidates',async()=>{
   discover.mockResolvedValueOnce({...match,cards:[{...match.cards[0],cardNumber:'001/100'}]}).mockResolvedValueOnce(match)

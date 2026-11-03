@@ -7,7 +7,7 @@ const normalized=(value:string)=>folded(value).replace(/\s/g,'')
 // Keep the numerator AND denominator. Reprints can share a numerator.
 const numbers=printedCardNumbers
 
-export function rankImageCandidates(cards:DiscoveryCard[],hints:Hints):DiscoveryCard[]{
+export function rankImageCandidates(cards:DiscoveryCard[],hints:Hints,related=false):DiscoveryCard[]{
  const expected=numbers(hints.cardNumber??'')
  const setCode=normalized(hints.setName??'').match(/^(?:sv|sm|s|xy|bw|dp|pt)\d+[a-z]*$/)?.[0]??folded(hints.cardNumber??'').match(/\b(?:sv|sm|s|xy|bw|dp|pt)\d+[a-z]*\b/)?.[0]
  const language=normalized(hints.language??'')
@@ -16,14 +16,14 @@ export function rankImageCandidates(cards:DiscoveryCard[],hints:Hints):Discovery
  return cards.flatMap((card,index)=>{
   if(hints.category&&card.category!==hints.category)return []
   const fullText=folded(`${card.name} ${card.cardNumber}`),text=normalized(fullText),actual=numbers(card.cardNumber||card.name)
-  if(expected.length&&actual.length&&!expected.some(number=>actual.includes(number)))return []
+  if(!related&&expected.length&&actual.length&&!expected.some(number=>actual.includes(number)))return []
   // Only exclude explicit language labels; absence of a label is not evidence.
   if(japanese&&/英語版|english/.test(text)||english&&/日本語版|japanese/.test(text))return []
   const matchedOn:NonNullable<DiscoveryCard['imageMatch']>['matchedOn']=[]
   if(expected.length&&expected.some(number=>actual.includes(number)))matchedOn.push('number')
   if(setCode){
    const codes:string[]=fullText.match(/\b(?:sv|sm|s|xy|bw|dp|pt)\d+[a-z]*\b/g)??[]
-   if(codes.length&&!codes.includes(setCode))return []
+   if(!related&&codes.length&&!codes.includes(setCode))return []
    if(codes.includes(setCode))matchedOn.push('set')
   }else if(hints.setName&&text.includes(normalized(hints.setName)))matchedOn.push('set')
   if(hints.name&&normalized(hints.name).length>=3&&text.includes(normalized(hints.name)))matchedOn.push('name')

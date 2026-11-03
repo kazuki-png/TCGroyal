@@ -9,6 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { LOAN_STATUS_LABELS, type LoanCommand, type WorkflowLoan, type WorkflowState } from '../lib/lending/workflow-types';
 import { connectPreview, disconnectPreview, loadWorkflow, workflowRequest, lendingApi, getInboxStorageKey, restorePreview, getRememberedPreviewUrl, clearRuntimeSession, isSupabasePreviewConnected } from './src/api';
+import {ApplicationCartButton} from './src/screens/ApplicationCartButton';
 import {ApplicationScreen as AssessmentScreen} from './src/screens/ApplicationScreen';
 import {HomeScreen} from './src/screens/HomeScreen';
 import {TransactionList} from './src/screens/TransactionList';
@@ -100,7 +101,7 @@ function LendingApp() {
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const scrollPositions=useRef<Record<string,number>>({});
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [cameraMode,setCameraMode]=useState(false);
+  const [basketRequest,setBasketRequest]=useState(0);
   const [restoring, setRestoring] = useState(true);
   const [supportOpen, setSupportOpen] = useState(false);
   const [recovering, setRecovering] = useState(false);
@@ -212,15 +213,17 @@ function LendingApp() {
   }
   function openInboxItem(item: InboxItem) { switchTab(item.target);setReturnToInbox(true); setFocusedLoan(item.loanId?`loan:${item.loanId}`:item.caseId?`case:${item.caseId}`:null); }
   const heading = !state && supportOpen && !recovering ? '個別見積もり相談' : tab==='home'?'ホーム':tab === 'assessment' ? '申し込み' : tab === 'loans' ? '取引状況' : tab === 'inbox' ? 'お知らせ' : 'マイページ';
-  const cameraFullscreen=!!state&&tab==='assessment'&&cameraMode&&!toolsOpen;
-  return <KeyboardAvoidingView style={[styles.screen, { paddingTop: cameraFullscreen?0:insets.top }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <StatusBar style="light" hidden={cameraFullscreen} />
-    {!cameraFullscreen&&<View style={styles.header}>
+  return <KeyboardAvoidingView style={[styles.screen, { paddingTop: insets.top }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <StatusBar style="light" />
+    <View style={styles.header}>
       <Image source={siteLogo} accessibilityRole="image" accessibilityLabel="TCG ROYAL" alt="TCG ROYAL" style={styles.brandLogo} resizeMode="contain"/>
+      <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
       {process.env.EXPO_PUBLIC_LENDING_CHANNEL!=='production'&&<Pressable accessibilityRole="button" accessibilityLabel="テスト環境の設定と機能を開く" onPress={() => setToolsOpen(true)} style={styles.environment}>
         <View style={styles.environmentDot}/><Text maxFontSizeMultiplier={1.3} style={styles.badge}>テスト環境</Text>
       </Pressable>}
-    </View>}
+      <ApplicationCartButton count={collateralQuantity(draft.items)} onPress={()=>{setTab('assessment');setBasketRequest(value=>value+1);setError('');setNotice('')}}/>
+      </View>
+    </View>
     {!(state&&tab==='assessment')&&<ScrollView ref={scroll} onScroll={event=>{scrollPositions.current[tab]=event.nativeEvent.contentOffset.y}} scrollEventThrottle={100} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.gold} />:undefined}>
       {!(state&&tab==='assessment')&&<Text accessibilityRole="header" style={styles.heading}>{heading}</Text>}
       {state&&returnToInbox&&<Action label="お知らせ一覧に戻る" disabled={busy} onPress={()=>{setReturnToInbox(false);setFocusedLoan(null);setTab('inbox');scroll.current?.scrollTo({y:0,animated:false})}}/>}
@@ -243,7 +246,7 @@ function LendingApp() {
       {state && tab === 'inbox' && <InboxScreen items={inbox} readIds={receipts.readIds} ready={receipts.ready} saving={receipts.saving} error={receipts.error} onRead={receipts.markRead} onOpen={openInboxItem} onRefresh={() => { if (receipts.error) receipts.retry(); void refresh(); }} refreshing={busy}/>}
       {state && tab === 'account' && <AccountScreen initialPage={accountPage} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onUpdated={reload} onSignOut={()=>void signOut()} signingOut={busy}/>}
     </ScrollView>}
-      {state && <View key={getInboxStorageKey()+':'+applyRequest} style={tab==='assessment'?{flex:1}:{display:'none'}} accessibilityElementsHidden={tab!=='assessment'} importantForAccessibility={tab==='assessment'?'auto':'no-hide-descendants'}><AssessmentScreen onApplied={reload} active={tab==='assessment'&&!toolsOpen} items={draft.items} onChange={draft.change} ready={draft.ready} error={draft.error} onCameraModeChange={setCameraMode} onCloseCamera={()=>switchTab('home')}/></View>}
+      {state && <View key={getInboxStorageKey()+':'+applyRequest} style={tab==='assessment'?{flex:1}:{display:'none'}} accessibilityElementsHidden={tab!=='assessment'} importantForAccessibility={tab==='assessment'?'auto':'no-hide-descendants'}><AssessmentScreen onApplied={reload} active={tab==='assessment'&&!toolsOpen} items={draft.items} onChange={draft.change} ready={draft.ready} error={draft.error} basketRequest={basketRequest} onCloseCamera={()=>switchTab('home')}/></View>}
     <View accessibilityRole="tablist" style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
       {([['home','ホーム','home'],['loans','取引状況','transactions'],['assessment','申し込み','plus'],['inbox','お知らせ','mail'],['account','マイページ','person']] as const).map(([key,label,icon]) => <Pressable key={key} accessibilityRole="tab" accessibilityLabel={key==='assessment'?`申し込み、申込リスト${collateralQuantity(draft.items)}枚`:key === 'inbox' && unreadCount ? `お知らせ、未読${unreadCount}件` : label} accessibilityState={{selected: tab === key}} onPress={() => switchTab(key)} style={[styles.tab, tab === key && key!=='assessment'&&styles.activeTab]}>
         {key==='assessment'?<View style={[styles.applyCircle,tab===key&&styles.applySelected]}><RoyalIcon name="plus" size={22} color={colors.gold}/></View>:<RoyalIcon name={icon} size={20} color={tab===key?colors.gold:colors.muted}/>}

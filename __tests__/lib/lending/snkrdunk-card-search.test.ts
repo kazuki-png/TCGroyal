@@ -14,6 +14,13 @@ describe('Snkrdunk JSON card discovery',()=>{
   const {searchSnkrdunkCards}=await import('@/lib/lending/snkrdunk-card-search');await searchSnkrdunkCards('150/XY-P','pokemon',1);
   expect(vi.mocked(fetchPublicRemoteUrl).mock.calls[0][0].searchParams.get('keyword')).toBe('150 XY-P');
  });
+ it('uses dotted level syntax and a separately cached larger bounded image-search page',async()=>{
+  vi.mocked(fetchPublicRemoteUrl).mockImplementation(async()=>Response.json({streetwears:[]}));
+  const {searchSnkrdunkCards}=await import('@/lib/lending/snkrdunk-card-search');
+  await searchSnkrdunkCards('ライチュウ LV32','pokemon',1,12);await searchSnkrdunkCards('ライチュウ LV32','pokemon',1);
+  const urls=vi.mocked(fetchPublicRemoteUrl).mock.calls.map(call=>call[0]);
+  expect(urls[0].searchParams.get('keyword')).toBe('ライチュウ LV.32');expect(urls.map(url=>url.searchParams.get('perPage'))).toEqual(['12','6']);
+ });
  it('shares an eight-second budget across the keyword request and detail reads',async()=>{
   vi.useFakeTimers();vi.setSystemTime(new Date('2026-11-03T00:00:00Z'));
   vi.mocked(fetchPublicRemoteUrl).mockImplementation(async url=>{

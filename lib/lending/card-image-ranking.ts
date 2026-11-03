@@ -10,7 +10,7 @@ export async function rankCardImages(image:Buffer,cards:DiscoveryCard[],onUsage:
  const key=process.env.OPENAI_API_KEY?.trim();if(!key)throw Error('image_search_unconfigured')
  const candidates=cards.filter(card=>{
   try{const url=new URL(card.imageUrl??'');return url.protocol==='https:'&&url.hostname==='cdn.snkrdunk.com'&&!url.username&&!url.password&&!url.port}catch{return false}
- }).slice(0,6)
+ }).slice(0,12)
  const images:{card:DiscoveryCard;data:string}[]=[],deadline=Date.now()+6000
  for(let offset=0;offset<candidates.length;offset+=2){
   const group=await Promise.all(candidates.slice(offset,offset+2).map(async card=>{

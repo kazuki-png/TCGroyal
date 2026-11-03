@@ -11,7 +11,7 @@ describe('bounded image discovery',()=>{
  it('searches the printed number first and supplements fewer than three candidates by name',async()=>{
   discover.mockResolvedValue(match);const allow=vi.fn(async()=>true)
   const result=await discoverImageCards(hints,allow)
-  expect(discover).toHaveBeenNthCalledWith(1,'132/106','pokemon',1,true);expect(discover).toHaveBeenNthCalledWith(2,'ピカチュウ','pokemon',1,true)
+  expect(discover).toHaveBeenNthCalledWith(1,'132/106','pokemon',1,true,12);expect(discover).toHaveBeenNthCalledWith(2,'ピカチュウ','pokemon',1,true,12)
   expect(result).toMatchObject({hasMore:false,searchQuery:'ピカチュウ',cards:[{id:'1',imageMatch:{matchedOn:['number','set','name','rarity']}}]})
  })
  it('keeps the exact number first and fills three distinct suggestions without another image call',async()=>{
@@ -51,7 +51,7 @@ describe('bounded image discovery',()=>{
   const allow=vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false)
   const result=await discoverImageCards(hints,allow)
   expect(result.cards).toHaveLength(1);expect(discover).toHaveBeenCalledTimes(2)
-  expect(discover).toHaveBeenLastCalledWith('ピカチュウ','pokemon',1,false)
+  expect(discover).toHaveBeenLastCalledWith('ピカチュウ','pokemon',1,false,12)
  })
  it('returns extracted text on an outage so a user can retry text search without another image analysis',async()=>{
   discover.mockRejectedValue(Error('private provider detail'))

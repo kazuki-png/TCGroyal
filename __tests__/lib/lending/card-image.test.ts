@@ -14,6 +14,10 @@ describe('bounded card image provider',()=>{
   const [url,options]=vi.mocked(fetch).mock.calls[0];expect(url).toBe('https://api.openai.com/v1/responses')
   const body=JSON.parse(options!.body as string);expect(body.store).toBe(false);expect(body.text.format.strict).toBe(true);expect(body.max_output_tokens).toBe(600);expect(body.text.format.schema.required).toEqual(expect.arrayContaining(['specificTerms','oldBack']));expect(body.input[0].content).toContain('Pokédex number')
  })
+ it('does not expose a vintage Pokedex number as the identifying card number even when the model returns it',async()=>{
+  vi.mocked(fetch).mockResolvedValue(response({...hints,name:'ライチュウ',cardNumber:'No.026',specificTerms:['HP70','ろうでん'],oldBack:true}))
+  expect((await extractCardHints(Buffer.from('fixture'))).hints).toMatchObject({cardNumber:null,oldBack:true,specificTerms:['HP70','ろうでん']})
+ })
  it('does not contact OpenAI if not configured',async()=>{
   vi.stubEnv('OPENAI_API_KEY','');await expect(extractCardHints(Buffer.alloc(1))).rejects.toThrow('unconfigured');expect(fetch).not.toHaveBeenCalled()
  })

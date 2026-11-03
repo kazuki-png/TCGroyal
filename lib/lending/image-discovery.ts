@@ -13,7 +13,7 @@ export async function discoverImageCards(hints:ImageDiscoverySearch['hints'],all
   if(Date.now()>=deadline){partial=true;break}
   searchQuery=query;broad ||= tier>=3
   try{
-   const result=await discoverCards(query,hints.category??'all',1,await allowExternal())
+   const result=await discoverCards(query,hints.category??'all',1,await allowExternal(),12)
    partial ||= result.partial
    for(const card of result.cards){const index=pool.findIndex(prior=>prior.id===card.id);if(index<0)pool.push(card);else pool[index]=card}
    const ranked=rankImageCandidates(pool,hints,true,12)

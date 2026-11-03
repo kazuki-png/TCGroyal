@@ -6,10 +6,10 @@ import type {CatalogCard} from './catalog-types'
 
 export const catalogDiscoveryCard=(card:CatalogCard):DiscoveryCard=>({id:`catalog:${card.public_uid}`,kind:'catalog',cardUid:card.public_uid,productId:null,name:card.name,cardNumber:card.card_number??'',category:card.category,imageUrl:card.image_url})
 const normalize=(value:string)=>value.normalize('NFKC').toLocaleLowerCase('ja').replace(/\s+/g,' ').trim()
-export async function discoverCards(query:string,category='all',page=1,externalAllowed=true):Promise<DiscoverySearch>{
+export async function discoverCards(query:string,category='all',page=1,externalAllowed=true,externalLimit:6|12=6):Promise<DiscoverySearch>{
  const [local,external]=await Promise.allSettled([
   searchCatalog(query,category,page),
-  query.trim()&&externalAllowed?searchSnkrdunkCards(query,category as 'all'|'pokemon'|'onepiece',page):Promise.resolve(null),
+  query.trim()&&externalAllowed?(externalLimit===6?searchSnkrdunkCards(query,category as 'all'|'pokemon'|'onepiece',page):searchSnkrdunkCards(query,category as 'all'|'pokemon'|'onepiece',page,externalLimit)):Promise.resolve(null),
  ])
  const cards:DiscoveryCard[]=external.status==='fulfilled'&&external.value?external.value.cards.map(card=>({id:`external:${card.productId}`,kind:'external',cardUid:null,productId:card.productId,name:card.name,cardNumber:card.cardNumber,category:card.category,imageUrl:card.imageUrl})):[]
  if(local.status==='fulfilled')cards.push(...local.value.cards.map(catalogDiscoveryCard))

@@ -11,7 +11,10 @@ export async function extractCardHints(image:Buffer){
    text:{format:{type:'json_schema',name:'card_hints',strict:true,schema:{type:'object',additionalProperties:false,properties:{name:{type:['string','null']},cardNumber:{type:['string','null']},category:{type:['string','null'],enum:['pokemon','onepiece',null]},setName:{type:['string','null']},language:{type:['string','null']},rarity:{type:['string','null']},specificTerms:{type:'array',items:{type:'string'},maxItems:4},oldBack:{type:['boolean','null']}},required:['name','cardNumber','category','setName','language','rarity','specificTerms','oldBack']}}}}),
  })
  const raw=await readImageResponse(response)
- return {hints:imageHints.parse(raw.value),usage:raw.usage,model:process.env.LENDING_IMAGE_MODEL||'gpt-4.1-mini'}
+ const hints=imageHints.parse(raw.value)
+ // Enforce the Pokédex-number boundary even when the model ignores the prompt.
+ if(hints.category==='pokemon'&&/^no[.\s]*\d{1,4}$/i.test((hints.cardNumber??'').normalize('NFKC')))hints.cardNumber=null
+ return {hints,usage:raw.usage,model:process.env.LENDING_IMAGE_MODEL||'gpt-4.1-mini'}
 }
 
 export async function readImageResponse(response:Response){

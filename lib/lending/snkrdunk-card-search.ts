@@ -4,7 +4,7 @@ import {fetchPublicRemoteUrl} from '@/lib/security/safeRemoteFetch'
 import type {SnkrdunkCard,SnkrdunkCardSearch} from './snkrdunk-card-types'
 import {saveCardReferences} from './card-references'
 
-const pageSize=6,ttl=5*60*1000
+const ttl=5*60*1000
 const cache=new Map<string,{until:number;result:SnkrdunkCardSearch}>()
 const pending=new Map<string,Promise<SnkrdunkCardSearch>>()
 const id=z.number().int().positive().max(999999999)
@@ -30,9 +30,9 @@ export function parseSnkrdunkCard(value:unknown,productId:string):SnkrdunkCard|n
  try{const url=new URL(product.primaryMedia?.imageUrl??'');if(url.protocol==='https:'&&url.hostname==='cdn.snkrdunk.com'&&!url.username&&!url.password&&!url.port)imageUrl=url.href}catch{}
  return {productId,name:product.localizedName,category,cardNumber:product.localizedName.match(/\[([^\]]{1,100})\]/)?.[1]??'',imageUrl,sourceUrl:`https://snkrdunk.com/apparels/${productId}`}
 }
-export async function searchSnkrdunkCards(query:string,category:'all'|'pokemon'|'onepiece',page:number):Promise<SnkrdunkCardSearch>{
- if(!query.trim()||query.length>100||!Number.isInteger(page)||page<1||page>100)throw Error('カード名・型番を入力してください。')
- const key=JSON.stringify([query.trim(),category,page]),now=Date.now()
+export async function searchSnkrdunkCards(query:string,category:'all'|'pokemon'|'onepiece',page:number,pageSize:6|12=6):Promise<SnkrdunkCardSearch>{
+ if(![6,12].includes(pageSize)||!query.trim()||query.length>100||!Number.isInteger(page)||page<1||page>100)throw Error('カード名・型番を入力してください。')
+ const key=JSON.stringify([query.trim(),category,page,pageSize]),now=Date.now()
  for(const [entry,value] of cache)if(value.until<=now)cache.delete(entry)
  const saved=cache.get(key);if(saved)return saved.result
  const active=pending.get(key);if(active)return active
@@ -45,7 +45,7 @@ export async function searchSnkrdunkCards(query:string,category:'all'|'pokemon'|
   // This source tokenizes promo slashes poorly: 150/XY-P returned unrelated
   // cards containing 150, while 150 XY-P retrieves the promo. Keep full-number
   // validation in image-candidates; never use a loose numeric match as identity.
-  const keyword=query.trim().normalize('NFKC').replace(/\b(\d{1,4})\s*\/\s*([a-z]{1,6})\s*-\s*p\b/gi,'$1 $2-P')
+  const keyword=query.trim().normalize('NFKC').replace(/\bLV[.\s]*(\d{1,3})\b/gi,'LV.$1').replace(/\b(\d{1,4})\s*\/\s*([a-z]{1,6})\s*-\s*p\b/gi,'$1 $2-P')
   url.searchParams.set('keyword',keyword);url.searchParams.set('perPage',String(pageSize));url.searchParams.set('page',String(page))
   const data=searchSchema.parse(await json(url,deadline)),candidates=[...new Set(data.streetwears.filter(p=>p.isTradingCard===true).map(p=>String(p.id)))].slice(0,pageSize)
   const cards:SnkrdunkCard[]=[],references:SnkrdunkCard[]=[]

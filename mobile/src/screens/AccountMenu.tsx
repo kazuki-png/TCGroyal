@@ -8,6 +8,7 @@ import {AccountDetails} from './AccountDetails';
 import {AccountSecurity} from './AccountSecurity';
 import {PushSettings} from './PushSettings';
 import {SettingsIcon,type SettingsIconName} from './SettingsIcon';
+import {RoyalIcon} from '../RoyalIcon';
 import {appBackActions} from '../back-actions';
 import {useAppBack} from '../use-app-back';
 type Page='profile'|'identity'|'summary'|'history'|'email'|'password'|'notifications'|'terms'|'privacy'|'support'|'delete';
@@ -20,7 +21,7 @@ const groups:{title:string;rows:{page:Page;icon:SettingsIconName}[]}[]=[
  {title:'その他',rows:[{page:'delete',icon:'delete'}]},
 ];
 function MenuRow({label,icon,onPress,last=false,danger=false,disabled=false}:{label:string;icon:SettingsIconName;onPress:()=>void;last?:boolean;danger?:boolean;disabled?:boolean}){
- return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled}} disabled={disabled} onPress={onPress} style={({pressed})=>[s.row,pressed&&{backgroundColor:colors.raised},disabled&&{opacity:.45}]}><SettingsIcon name={icon} danger={danger}/><View style={[s.rowBody,!last&&s.divider]}><Text style={[s.rowLabel,danger&&s.danger]}>{label}</Text><Text accessible={false} style={s.chevron}>›</Text></View></Pressable>;
+ return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled}} disabled={disabled} onPress={onPress} style={({pressed})=>[s.row,pressed&&{backgroundColor:colors.raised},disabled&&{opacity:.45}]}><SettingsIcon name={icon} danger={danger}/><View style={[s.rowBody,!last&&s.divider]}><Text style={[s.rowLabel,danger&&s.danger]}>{label}</Text><RoyalIcon name="right" size={17} color={colors.muted}/></View></Pressable>;
 }
 export function AccountMenu({onUpdated,onSignOut,signingOut=false,onTransactions,initialPage}:{onUpdated:()=>Promise<void>;onSignOut:()=>void;signingOut?:boolean;onTransactions?:()=>void;initialPage?:'identity'}){
  const [page,setPage]=useState<Page|null>(initialPage??null),[busy,setBusy]=useState(false),[error,setError]=useState('');const insets=useSafeAreaInsets();
@@ -32,7 +33,7 @@ export function AccountMenu({onUpdated,onSignOut,signingOut=false,onTransactions
   <View style={s.group}><MenuRow label="ログアウト" icon="logout" danger last disabled={signingOut} onPress={()=>Alert.alert('ログアウト','この端末からログアウトしますか？ 保存した申込下書きはこの端末から削除されます。',[{text:'戻る',style:'cancel'},{text:'ログアウト',style:'destructive',onPress:onSignOut}])}/></View>
   <Modal visible={page!==null} animationType="slide" onRequestClose={()=>{appBackActions.dispatch()}}>
    <View style={[s.modal,{paddingTop:insets.top}]}>
-    <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel="前の画面に戻る" disabled={busy} onPress={()=>{appBackActions.dispatch()}} style={s.back}><Text style={{fontSize:28,color:colors.gold}}>‹</Text><Text style={{fontSize:14,color:colors.gold}}>戻る</Text></Pressable><Text accessibilityRole="header" style={s.pageTitle}>{page?titles[page]:''}</Text></View>
+    <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel="前の画面に戻る" disabled={busy} onPress={()=>{appBackActions.dispatch()}} style={s.back}><RoyalIcon name="back" size={18}/><Text style={{fontSize:14,color:colors.gold}}>戻る</Text></Pressable><Text accessibilityRole="header" style={s.pageTitle}>{page?titles[page]:''}</Text></View>
     <ScrollView contentContainerStyle={{padding:20,paddingBottom:Math.max(insets.bottom,24),gap:18}} keyboardShouldPersistTaps="handled">
      {(page==='profile'||page==='identity'||page==='summary'||page==='history')&&<AccountDetails key={page} section={page} onUpdated={onUpdated} onBusyChange={setBusy}/>}
      {(page==='email'||page==='password')&&<AccountSecurity key={page} mode={page} onBusyChange={setBusy}/>}

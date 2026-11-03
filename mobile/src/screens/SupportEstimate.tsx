@@ -1,3 +1,4 @@
+import {RoyalIcon} from '../RoyalIcon';
 import {colors} from '../theme';
 import { useRef, useState } from 'react';
 import { randomUUID } from 'expo-crypto';
@@ -50,7 +51,7 @@ export function SupportEstimate({connected=false,onRegistered,onLogin,initialDra
     {notice ? <Text accessibilityLiveRegion="polite" style={ui.success}>{notice}</Text> : null}
     {registered?<><Text selectable style={ui.amount}>{registered.reference}</Text><Text style={ui.body}>査定依頼を受付済み</Text><Button title="受付番号付きの相談文をコピーしてLINEを開く" disabled={busy} onPress={()=>void contact()}/><Text style={ui.muted}>取引状況からいつでも進捗を確認できます。LINEを開いただけでは送信済みにはなりません。</Text></>:<>
     <View accessibilityRole="radiogroup" accessibilityLabel="見積もり相談の種類" style={{ gap: 8 }}>
-      {(Object.keys(ESTIMATE_REASONS) as (keyof typeof ESTIMATE_REASONS)[]).map(reason => <Pressable key={reason} accessibilityRole="radio" accessibilityLabel={ESTIMATE_REASONS[reason]} accessibilityState={{ checked: draft.reason === reason, disabled: busy }} disabled={busy} style={[ui.button, ui.secondary, draft.reason === reason && { borderColor: colors.gold }]} onPress={() => change('reason', reason)}><Text style={ui.body}>{draft.reason === reason ? '✓ ' : ''}{ESTIMATE_REASONS[reason]}</Text></Pressable>)}
+      {(Object.keys(ESTIMATE_REASONS) as (keyof typeof ESTIMATE_REASONS)[]).map(reason => <Pressable key={reason} accessibilityRole="radio" accessibilityLabel={ESTIMATE_REASONS[reason]} accessibilityState={{ checked: draft.reason === reason, disabled: busy }} disabled={busy} style={[ui.button, ui.secondary, draft.reason === reason && { borderColor: colors.gold }]} onPress={() => change('reason', reason)}><View style={{flexDirection:'row',alignItems:'center',gap:8}}>{draft.reason===reason&&<RoyalIcon name="check" size={16}/>}<Text style={ui.body}>{ESTIMATE_REASONS[reason]}</Text></View></Pressable>)}
     </View>
     {!items&&<Field label="カード名（必須）" value={draft.cardName} onChangeText={value => change('cardName', value)} maxLength={100} editable={!busy}/>}
     {!items&&<Field label="収録セット・カード番号（任意）" value={draft.cardNumber} onChangeText={value => change('cardNumber', value)} maxLength={100} editable={!busy}/>}

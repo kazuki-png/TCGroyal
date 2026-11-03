@@ -82,7 +82,7 @@ export function CatalogAssessmentScreen({onApplied,active=true}:{onApplied:()=>P
    <View style={ui.card}>
     <Text style={ui.title}>カードを選択</Text><Text style={ui.muted}>TCG ROYALに登録されたカードからお選びください。カード画像から候補を探すこともできます。</Text>
     <Field label="カード名・型番" value={query} maxLength={100} editable={!busy} onChangeText={setQuery}/>
-    <View style={ui.row}>{(['all','pokemon','onepiece'] as const).map(v=><View style={{flex:1}} key={v}><Button title={`${category===v?'✓ ':''}${v==='all'?'すべて':v==='pokemon'?'ポケモン':'ワンピース'}`} secondary disabled={busy} onPress={()=>setCategory(v)}/></View>)}</View>
+    <View style={ui.row}>{(['all','pokemon','onepiece'] as const).map(v=><View style={{flex:1}} key={v}><Button icon={category===v?'check':undefined} title={`${v==='all'?'すべて':v==='pokemon'?'ポケモン':'ワンピース'}`} secondary disabled={busy} onPress={()=>setCategory(v)}/></View>)}</View>
     <Button title="検索する" disabled={busy} onPress={()=>void run(()=>search())}/>
     <Button title="画像で探す" secondary disabled={busy} onPress={()=>setImageMode(!imageMode)}/>
     {imageMode&&<>
@@ -109,7 +109,7 @@ export function CatalogAssessmentScreen({onApplied,active=true}:{onApplied:()=>P
    {selected&&!registered&&<View style={ui.card}>
     <Text style={ui.title}>選択したカード：{selected.name}</Text><Text style={ui.body}>{selected.card_number} / マスタ上のグレード {selected.grade}</Text><Text style={ui.label}>お手元のカードの状態</Text>
     <Button title="この登録カードをまとめて申込に追加" disabled={busy} onPress={()=>addItem({name:selected.name.slice(0,100),cardNumber:selected.card_number??'',grade:grade==='ungraded'?'未鑑定':grade,condition:'',source:'catalog',productId:null,cardUid:selected.public_uid})}/>
-    {(['ungraded','PSA10','other'] as const).map(value=><Button key={value} title={`${grade===value?'✓ ':''}${value==='ungraded'?'未鑑定':value==='PSA10'?'PSA10（自己申告）':'その他の鑑定・グレード'}`} secondary disabled={busy} onPress={()=>{setGrade(value);invalidate()}}/>)}
+    {(['ungraded','PSA10','other'] as const).map(value=><Button key={value} icon={grade===value?'check':undefined} title={`${value==='ungraded'?'未鑑定':value==='PSA10'?'PSA10（自己申告）':'その他の鑑定・グレード'}`} secondary disabled={busy} onPress={()=>{setGrade(value);invalidate()}}/>)}
     <Text style={ui.muted}>カード名・型番・版・言語と実物を照合してください。鑑定情報は運営による確認待ちとして扱います。</Text>
     <Button title="このカードで査定内容を確認" disabled={busy} onPress={()=>void run(async()=>{const data=await lendingApi<{assessment:CatalogAssessment}>('/catalog',{body:{action:'assess',cardUid:selected.public_uid,declaredGrade:grade,...(results?.imageRequestId?{imageRequestId:results.imageRequestId}:{})}});setAssessment(data.assessment);setConsent(false)})}/>
    </View>}

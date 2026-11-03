@@ -27,7 +27,7 @@ function CaseCard({item,busy,command,now}:{item:SupportCase;busy:boolean;now:num
   {item.status==='offered'&&!item.loan_id&&<>
    {expired?<Text style={ui.error}>見積もりの期限が切れています。サポートへ再見積もりを依頼してください。</Text>:<>
     <Field label="借入希望額（1万円単位・10万円以上）" value={amount} onChangeText={setAmount} keyboardType="number-pad" editable={!busy}/>
-    <View style={ui.row}>{(['mail','store'] as const).map(value=><Button key={value} title={`${deposit===value?'✓ ':''}${value==='mail'?'郵送':'店頭'}`} secondary disabled={busy} onPress={()=>setDeposit(value)}/>)}</View>
+    <View style={ui.row}>{(['mail','store'] as const).map(value=><Button key={value} icon={deposit===value?'check':undefined} title={`${value==='mail'?'郵送':'店頭'}`} secondary disabled={busy} onPress={()=>setDeposit(value)}/>)}</View>
     <View style={ui.row}><Switch accessibilityLabel="個別見積もりと現物検品への同意" value={consent} onValueChange={setConsent} disabled={busy}/><Text style={[ui.body,{flex:1}]}>見積もりを確認し、現物検品後の最終条件に改めて同意することを確認しました</Text></View>
     <Button title="この見積もりで申し込む" disabled={busy||!consent||!/^\d+$/.test(amount)||Number(amount)<100000||Number(amount)%10000!==0||Number(amount)>(item.offer_jpy??0)} onPress={()=>void command(item,'accept',{amountJpy:Number(amount),deposit,termsAccepted:true})}/>
    </>}

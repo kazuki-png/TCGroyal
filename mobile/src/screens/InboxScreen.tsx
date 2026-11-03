@@ -1,3 +1,4 @@
+import {RoyalIcon} from '../RoyalIcon';
 import {colors} from '../theme';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -26,7 +27,7 @@ export function InboxScreen({ items, readIds, ready, saving, error, onRead, onOp
       <View style={ui.row}>{ready && !read.has(item.id) && <Text style={{ color: colors.gold, fontSize: 12, fontWeight: '700' }}>未読</Text>}{item.urgent && <Text style={{ color: '#fda4af', fontSize: 12 }}>要確認</Text>}</View>
       <Text style={ui.title}>{item.title}</Text><Text style={ui.body}>{item.body}</Text>
       <Text style={ui.muted}>{item.dateLabel} {date(item.date)}</Text>
-      <Text style={{ color: colors.gold, fontSize: 13 }}>{item.target === 'loans' ? '貸付状況を確認する ›' : 'マイページを確認する ›'}</Text>
+      <View style={{flexDirection:'row',alignItems:'center',gap:6}}><Text style={{ color: colors.gold, fontSize: 13 }}>{item.target === 'loans' ? '貸付状況を確認する' : 'マイページを確認する'}</Text><RoyalIcon name="right" size={12}/></View>
     </Pressable>)}
     <Text style={ui.muted}>最近の申込・書類・査定情報を表示しています。既読状態はこの端末に保存されます。</Text>
   </View>;

@@ -4,6 +4,7 @@ import {CameraView,useCameraPermissions} from 'expo-camera';
 import {selectCardImage} from '../select-card-image';
 import {Button,ui} from '../ui';
 import {colors} from '../theme';
+import {RoyalIcon} from '../RoyalIcon';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {ApplicationCartButton} from './ApplicationCartButton';
 
@@ -39,14 +40,14 @@ export function CardCapture({onCapture,onManual,onBasket,onClose,error:outerErro
    <View style={{width:Math.min(width*.72,height*.50*63/88),aspectRatio:63/88,borderWidth:2,borderColor:colors.gold,borderRadius:14}}/>
   </View>
   <View style={{position:'absolute',top:insets.top+12,left:16,right:16,flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
-   <Pressable accessibilityRole="button" accessibilityLabel="撮影画面を閉じる" disabled={busy} onPress={onClose} style={{width:52,height:52,borderRadius:26,backgroundColor:'#00000099',alignItems:'center',justifyContent:'center'}}><Text accessible={false} style={{color:'#fff',fontSize:32}}>×</Text></Pressable>
+   <Pressable accessibilityRole="button" accessibilityLabel="撮影画面を閉じる" disabled={busy} onPress={onClose} style={{width:52,height:52,borderRadius:26,backgroundColor:'#00000099',alignItems:'center',justifyContent:'center'}}><RoyalIcon name="close" size={26} color="#fff"/></Pressable>
    <ApplicationCartButton onPress={onBasket} disabled={busy}/>
   </View>
   {!!(error||outerError)&&<Text accessibilityRole="alert" style={[ui.error,{position:'absolute',top:insets.top+76,left:16,right:16}]}>{error||outerError}</Text>}
   <View style={{position:'absolute',bottom:Math.max(insets.bottom,12)+18,left:16,right:16,paddingVertical:16,paddingHorizontal:8,borderRadius:26,backgroundColor:'#00000088',flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8}}>
-   <Pressable accessibilityRole="button" accessibilityLabel="画像をアップロード" disabled={busy} onPress={()=>void capture(true)} style={{width:84,minHeight:76,alignItems:'center',justifyContent:'center',gap:8,opacity:busy?.4:1}}><View style={{width:30,height:26,borderWidth:2,borderColor:'#fff',borderRadius:4,alignItems:'center',justifyContent:'center'}}><Text accessible={false} style={{fontSize:23,lineHeight:25,color:'#fff'}}>↑</Text></View><Text style={{fontSize:12,fontWeight:'700',color:'#fff'}}>アップロード</Text></Pressable>
+   <Pressable accessibilityRole="button" accessibilityLabel="画像をアップロード" disabled={busy} onPress={()=>void capture(true)} style={{width:84,minHeight:76,alignItems:'center',justifyContent:'center',gap:8,opacity:busy?.4:1}}><RoyalIcon name="upload" size={30} color="#fff"/><Text style={{fontSize:12,fontWeight:'700',color:'#fff'}}>アップロード</Text></Pressable>
    <Pressable accessibilityRole="button" accessibilityLabel="撮影して検索" accessibilityState={{busy,disabled}} disabled={disabled} onPress={()=>void capture()} style={({pressed})=>({width:82,height:82,borderRadius:41,borderWidth:4,borderColor:'#fff',padding:5,opacity:disabled?.45:pressed?.7:1})}>{busy?<ActivityIndicator color="#fff" style={{flex:1}}/>:<View style={{flex:1,borderRadius:36,backgroundColor:'#fff'}}/>}</Pressable>
-   <Pressable accessibilityRole="button" accessibilityLabel="手動で検索" disabled={busy} onPress={onManual} style={{width:84,minHeight:76,alignItems:'center',justifyContent:'center',gap:8,opacity:busy?.4:1}}><View style={{width:30,height:26}}><View style={{width:22,height:22,borderWidth:2,borderColor:'#fff',borderRadius:11}}/><View style={{position:'absolute',width:12,height:2,backgroundColor:'#fff',left:18,top:22,transform:[{rotate:'45deg'}]}}/></View><Text style={{fontSize:12,fontWeight:'700',color:'#fff'}}>手動で検索</Text></Pressable>
+   <Pressable accessibilityRole="button" accessibilityLabel="手動で検索" disabled={busy} onPress={onManual} style={{width:84,minHeight:76,alignItems:'center',justifyContent:'center',gap:8,opacity:busy?.4:1}}><RoyalIcon name="search" size={30} color="#fff"/><Text style={{fontSize:12,fontWeight:'700',color:'#fff'}}>手動で検索</Text></Pressable>
   </View>
  </View>;
 }

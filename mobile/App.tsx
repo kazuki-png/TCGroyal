@@ -1,4 +1,5 @@
 import {colors} from './src/theme';
+import {RoyalIcon} from './src/RoyalIcon';
 import siteLogo from './assets/site-logo.png';
 import {RoyalSwitch as Switch} from './src/ui';
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
@@ -244,8 +245,8 @@ function LendingApp() {
     </ScrollView>}
       {state && <View key={getInboxStorageKey()+':'+applyRequest} style={tab==='assessment'?{flex:1}:{display:'none'}} accessibilityElementsHidden={tab!=='assessment'} importantForAccessibility={tab==='assessment'?'auto':'no-hide-descendants'}><AssessmentScreen onApplied={reload} active={tab==='assessment'&&!toolsOpen} items={draft.items} onChange={draft.change} ready={draft.ready} error={draft.error} onCameraModeChange={setCameraMode} onCloseCamera={()=>switchTab('home')}/></View>}
     {!cameraFullscreen&&<View accessibilityRole="tablist" style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-      {([['home','ホーム','⌂'],['loans','取引状況','≡'],['assessment','申し込み','＋'],['inbox','お知らせ','✉'],['account','マイページ','○']] as const).map(([key,label,icon]) => <Pressable key={key} accessibilityRole="tab" accessibilityLabel={key==='assessment'?`申し込み、申込リスト${collateralQuantity(draft.items)}枚`:key === 'inbox' && unreadCount ? `お知らせ、未読${unreadCount}件` : label} accessibilityState={{selected: tab === key}} onPress={() => switchTab(key)} style={[styles.tab, tab === key && key!=='assessment'&&styles.activeTab]}>
-        {key==='assessment'?<View style={[styles.applyCircle,tab===key&&styles.applySelected]}><Text accessible={false} style={styles.applyIcon}>＋</Text></View>:<Text accessible={false} style={[styles.tabIcon, tab === key && styles.activeText]}>{icon}</Text>}
+      {([['home','ホーム','home'],['loans','取引状況','transactions'],['assessment','申し込み','plus'],['inbox','お知らせ','mail'],['account','マイページ','person']] as const).map(([key,label,icon]) => <Pressable key={key} accessibilityRole="tab" accessibilityLabel={key==='assessment'?`申し込み、申込リスト${collateralQuantity(draft.items)}枚`:key === 'inbox' && unreadCount ? `お知らせ、未読${unreadCount}件` : label} accessibilityState={{selected: tab === key}} onPress={() => switchTab(key)} style={[styles.tab, tab === key && key!=='assessment'&&styles.activeTab]}>
+        {key==='assessment'?<View style={[styles.applyCircle,tab===key&&styles.applySelected]}><RoyalIcon name="plus" size={28} color={colors.background}/></View>:<RoyalIcon name={icon} size={24} color={tab===key?colors.gold:colors.muted}/>}
         <Text style={[styles.tabText, tab === key && styles.activeText]}>{label}</Text>
         {key==='assessment'&&draft.items.length>0&&<View style={styles.unreadBadge}><Text style={styles.unreadText}>{collateralQuantity(draft.items)}</Text></View>}
         {key === 'inbox' && unreadCount > 0 && <View style={styles.unreadBadge}><Text style={styles.unreadText}>{unreadCount > 99 ? '99+' : unreadCount}</Text></View>}

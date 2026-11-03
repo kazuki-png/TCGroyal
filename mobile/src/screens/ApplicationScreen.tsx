@@ -14,6 +14,7 @@ import {ReferenceEstimate} from './ReferenceEstimate';
 import {CollateralBasket} from './CollateralBasket';
 import {CardCapture} from './CardCapture';
 import {CardGradeSelect} from './CardGradeSelect';
+import {selectCardImage} from '../select-card-image';
 
 type Route='camera'|'manual'|'results'|'added'|'basket';
 const noop=()=>{};
@@ -25,11 +26,12 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[manual,setManual]=useState('');
  const [photo,setPhoto]=useState<string|null>(null),[hints,setHints]=useState<ImageDiscoverySearch['hints']|null>(null);
  const [origin,setOrigin]=useState<'manual'|'results'>('results');
+ const [picking,setPicking]=useState(false),pickerLock=useRef(false),visible=useRef(active);
  const generation=useRef(0),mounted=useRef(true),controller=useRef<AbortController|null>(null),imageRequest=useRef<{uri:string;key:string}|null>(null);
  const cancel=useCallback(()=>{generation.current++;controller.current?.abort();setBusy(false)},[]);
  const cameraRoute=useCallback(()=>{cancel();setSelected(null);setRoute('camera');setError('');setNotice('');setPhoto(null);setHints(null);setResults(null)},[cancel]);
  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;controller.current?.abort()}},[]);
- useEffect(()=>{if(!active)controller.current?.abort()},[active]);
+ useEffect(()=>{visible.current=active;if(!active)controller.current?.abort()},[active]);
  useEffect(()=>{if(active)onNavigate()},[route,selected,active,onNavigate]);
  useAppBack(active&&(!!selected||route!=='camera'),25,()=>{cancel();if(selected)setSelected(null);else if(route==='basket')setRoute('added');else cameraRoute();return true});
 
@@ -44,14 +46,20 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
   finally{clearTimeout(timer);if(mounted.current&&attempt===generation.current)setBusy(false)}
  },[cancel]);
  useEffect(()=>{
-  if(!active||route!=='manual'||selected)return;
+  if(!active||route!=='manual'||selected||picking)return;
   if(!query.trim())return;
   const timer=setTimeout(()=>void search(query.trim()),750);
   return()=>{clearTimeout(timer);cancel()};
- },[query,active,route,selected,search,cancel]);
+ },[query,active,route,selected,picking,search,cancel]);
  function editQuery(value:string){cancel();setQuery(value);setResults(null);setError('');setNotice('')}
 
  function manualRoute(){cancel();setSelected(null);setRoute('manual');setResults(null);setError('');setNotice('');setPhoto(null);setHints(null)}
+ async function uploadImage(){
+  if(pickerLock.current)return;pickerLock.current=true;setPicking(true);cancel();setError('');
+  try{const uri=await selectCardImage();if(uri&&mounted.current&&visible.current)void imageSearch(uri)}
+  catch{if(mounted.current)setError('画像を開けませんでした。もう一度選択してください。')}
+  finally{pickerLock.current=false;if(mounted.current)setPicking(false)}
+ }
  function choose(card:DiscoveryCard){Keyboard.dismiss();cancel();setOrigin(route==='manual'?'manual':'results');setSelected({card,id:randomUUID()});setGrade('PSA10');setQuantity('1');setCondition('');setError('');setNotice('')}
  async function imageSearch(uri:string,retry=false){
   cancel();Keyboard.dismiss();const attempt=++generation.current,abort=new AbortController();controller.current=abort;
@@ -91,7 +99,7 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
    {line&&<ReferenceEstimate {...reference} onRefresh={reference.refresh}/>}
    <Button title="申込に追加" disabled={!line||line.quantity>100} onPress={()=>{if(line)addItem(line)}}/>
   </>:route==='camera'?active&&<CardCapture onCapture={uri=>void imageSearch(uri)} onManual={manualRoute}/>:<>
-   {route==='manual'?<View style={ui.card}><Field label="カード名・型番で検索" placeholder="ピカチュウ、132/106 など" value={query} onChangeText={editQuery} maxLength={100} returnKeyType="search" onSubmitEditing={()=>Keyboard.dismiss()}/><Text style={ui.muted}>キーワードを入力すると候補を検索します。</Text><Button title="撮影して探す" secondary onPress={cameraRoute}/></View>:<><Button title="撮り直す" secondary disabled={busy} onPress={cameraRoute}/>{photo&&<Image alt="検索したカード画像" source={{uri:photo}} accessibilityLabel="検索したカード画像" style={{height:170,width:'100%'}} resizeMode="contain"/>}{hints&&<Text style={ui.muted}>読み取り：{hints.name||'名前不明'} / {hints.cardNumber||'型番不明'}</Text>}<Button title="手動で検索" secondary onPress={manualRoute}/>{!!error&&photo&&<Button title="同じ写真の結果を再確認" secondary disabled={busy} onPress={()=>void imageSearch(photo,true)}/>}</>}
+   {route==='manual'?<View style={ui.card}><Field label="カード名・型番で検索" placeholder="ピカチュウ、132/106 など" value={query} onChangeText={editQuery} maxLength={100} returnKeyType="search" onSubmitEditing={()=>Keyboard.dismiss()}/><Text style={ui.muted}>キーワードを入力すると候補を検索します。</Text><Button title="撮影して探す" secondary disabled={picking} onPress={cameraRoute}/><Text style={ui.muted}>画像を選ぶとOpenAIへ送信してカード候補を検索します。本人確認書類は選択しないでください。</Text><Button title={picking?"画像を選択中…":"画像をアップロード"} secondary disabled={picking} onPress={()=>void uploadImage()}/></View>:<><Button title="撮り直す" secondary disabled={busy} onPress={cameraRoute}/>{photo&&<Image alt="検索したカード画像" source={{uri:photo}} accessibilityLabel="検索したカード画像" style={{height:170,width:'100%'}} resizeMode="contain"/>}{hints&&<Text style={ui.muted}>読み取り：{hints.name||'名前不明'} / {hints.cardNumber||'型番不明'}</Text>}<Button title="手動で検索" secondary onPress={manualRoute}/>{!!error&&photo&&<Button title="同じ写真の結果を再確認" secondary disabled={busy} onPress={()=>void imageSearch(photo,true)}/>}</>}
    {busy&&<><ActivityIndicator accessibilityLabel="カード候補を検索中" color={colors.gold}/><Text accessibilityLiveRegion="polite" style={ui.muted}>カード候補を検索しています…</Text></>}
    {showCandidates&&results&&<>{results.partial&&<Text style={ui.error}>{results.message||'一部の候補を取得できませんでした。'}</Text>}<Text style={ui.title}>{route==='results'?'撮影したカードの候補':'検索結果'}</Text>{route==='results'&&<Text style={ui.muted}>型番・セット・名前などの一致情報が多い順です。画像を見比べて選択してください。</Text>}{!results.cards.length&&<Text style={ui.body}>候補がありません。検索語を変えるか、下から個別査定のカードを追加してください。</Text>}<View style={{flexDirection:'row',flexWrap:'wrap',gap:12}}>{results.cards.map(card=><Pressable key={card.id} accessibilityRole="button" accessibilityLabel={card.name+' '+card.cardNumber+' を確認'} style={[ui.card,{width:columns?'48%':'100%',padding:14}]} onPress={()=>choose(card)}>{card.imageUrl&&<Image alt={card.name} source={{uri:card.imageUrl}} accessibilityLabel={card.name} style={{height:150,width:'100%'}} resizeMode="contain"/>}<Text style={ui.title}>{card.name}</Text><Text style={ui.body}>{card.cardNumber||'型番未登録'}</Text><Text style={ui.muted}>このカードを確認 ›</Text></Pressable>)}</View>{route==='manual'&&<View style={ui.row}><Button title="前のページ" secondary disabled={busy||results.page<=1} onPress={()=>void search(query.trim(),results.page-1)}/><Button title="次のページ" secondary disabled={busy||!results.hasMore} onPress={()=>void search(query.trim(),results.page+1)}/></View>}</>}
    <View style={ui.card}><Text style={ui.title}>見つからないカードは個別査定へ</Text><Field label="個別査定を依頼するカード名" value={manual} onChangeText={setManual} maxLength={100}/><Button title="個別査定のカードを申込に追加" secondary disabled={busy||!manual.trim()} onPress={()=>{addItem({id:randomUUID(),name:manual.trim(),cardNumber:'',quantity:1,grade:'未鑑定',condition:'',source:'manual',cardUid:null,productId:null});setManual('')}}/></View>

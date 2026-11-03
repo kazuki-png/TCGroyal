@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {ActivityIndicator,AppState,Linking,Text,View,useWindowDimensions} from 'react-native';
 import {CameraView,useCameraPermissions} from 'expo-camera';
-import * as ImagePicker from 'expo-image-picker';
+import {selectCardImage} from '../select-card-image';
 import {Button,ui} from '../ui';
 import {colors} from '../theme';
 
@@ -23,8 +23,8 @@ export function CardCapture({onCapture,onManual}:{onCapture:(uri:string)=>void;o
  async function capture(library=false){
   if(lock.current)return;lock.current=true;setBusy(true);setError('');
   try{
-   let uri:string|undefined;
-   if(library){const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],quality:.7,exif:false});if(!result.canceled)uri=result.assets[0]?.uri}
+   let uri:string|null|undefined;
+   if(library)uri=await selectCardImage();
    else {if(!ready||!camera.current)return;uri=(await camera.current.takePictureAsync({quality:.6,exif:false,skipProcessing:false}))?.uri}
    if(uri&&alive.current)onCapture(uri);
   }catch{if(alive.current)setError('写真を取得できませんでした。撮り直すか、手動で検索してください。')}
@@ -38,6 +38,6 @@ export function CardCapture({onCapture,onManual}:{onCapture:(uri:string)=>void;o
   </View>
   <Text style={ui.muted}>撮影・写真選択でカード画像をOpenAIへ送信して検索します。本人確認書類は撮影・選択しないでください。</Text>
   <Button title={busy?'写真を準備中…':'撮影して検索'} disabled={busy||!ready||!permission?.granted||!foreground} onPress={()=>void capture()}/>
-  <View style={ui.row}><View style={{flex:1}}><Button title="手動で検索" secondary disabled={busy} onPress={onManual}/></View><View style={{flex:1}}><Button title="写真を選んで検索" secondary disabled={busy} onPress={()=>void capture(true)}/></View></View>
+  <View style={ui.row}><View style={{flex:1}}><Button title="手動で検索" secondary disabled={busy} onPress={onManual}/></View><View style={{flex:1}}><Button title="画像をアップロード" secondary disabled={busy} onPress={()=>void capture(true)}/></View></View>
  </View>;
 }

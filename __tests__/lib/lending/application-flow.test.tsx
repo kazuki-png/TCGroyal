@@ -16,6 +16,8 @@ vi.mock('../../../mobile/src/use-app-back.ts',()=>({useAppBack:()=>{}}))
 vi.mock('../../../mobile/src/screens/CollateralBasket.tsx',()=>({CollateralBasket:()=> <span>申請内容を確認</span>}))
 vi.mock('../../../mobile/src/screens/ReferenceEstimate.tsx',()=>({ReferenceEstimate:({estimate}:{estimate:{amountJpy:number}|null})=><span>{estimate?'参考額 '+estimate.amountJpy:'参考額を計算中'}</span>}))
 const api=vi.hoisted(()=>vi.fn())
+const pickImage=vi.hoisted(()=>vi.fn())
+vi.mock('../../../mobile/node_modules/expo-image-picker/src/ImagePicker.ts',()=>({launchImageLibraryAsync:pickImage}))
 vi.mock('../../../mobile/src/api.ts',()=>({lendingApi:api}))
 import {ApplicationScreen} from '../../../mobile/src/screens/ApplicationScreen'
 const card={id:'external:123',kind:'external',productId:'123',cardUid:null,name:'ピカチュウ',cardNumber:'132/106',category:'pokemon',imageUrl:null}
@@ -23,6 +25,11 @@ function Harness(){const [items,setItems]=useState<CollateralItem[]>([]);return 
 afterEach(()=>{cleanup();vi.resetAllMocks()})
 function responses(){api.mockImplementation(async(path,options)=>path==='/card-image'?{cards:[card],hints:{name:card.name,cardNumber:card.cardNumber},page:1,hasMore:false,partial:false}:options.body.action==='quote_bundle'?{estimate:{amountJpy:options.body.items[0].grade==='PSA10'?100000:0}}:{cards:[card],page:1,hasMore:false,partial:false})}
 describe('camera-first lending application',()=>{
+ it('uploads an existing image from manual search and does nothing when selection is cancelled',async()=>{
+  responses();pickImage.mockResolvedValueOnce({canceled:true,assets:null}).mockResolvedValueOnce({canceled:false,assets:[{uri:'file:///existing-card.jpg'}]});render(<Harness/>);fireEvent.click(screen.getByText('手動で検索'))
+  fireEvent.click(screen.getByText('画像をアップロード'));await waitFor(()=>expect(pickImage).toHaveBeenCalledTimes(1));await screen.findByText('画像をアップロード');expect(api).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByText('画像をアップロード'));expect(await screen.findByRole('button',{name:'ピカチュウ 132/106 を確認'})).toBeTruthy();expect(api.mock.calls.filter(([path])=>path==='/card-image')).toHaveLength(1)
+ })
  it('moves from one photo request to default PSA10 quote, grade change, added list and checkout',async()=>{
   responses();render(<Harness/>);fireEvent.click(screen.getByText('撮影して検索'))
   fireEvent.click(await screen.findByRole('button',{name:'ピカチュウ 132/106 を確認'}));expect(screen.getByRole('button',{name:'グレード PSA10'})).toBeTruthy()

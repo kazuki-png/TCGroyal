@@ -1,6 +1,5 @@
-import {useEffect,useMemo,useRef,useState} from 'react';
-import {ActivityIndicator,Image,Pressable,Text,View,useWindowDimensions} from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
+import {ActivityIndicator,Image,Keyboard,Pressable,Text,View,useWindowDimensions} from 'react-native';
 import {randomUUID} from 'expo-crypto';
 import type {DiscoveryCard,DiscoverySearch,ImageDiscoverySearch} from '../../../lib/lending/discovery-types';
 import type {CollateralItem} from '../../../lib/lending/collateral-types';
@@ -13,79 +12,89 @@ import {colors} from '../theme';
 import {Button,Field,ui} from '../ui';
 import {ReferenceEstimate} from './ReferenceEstimate';
 import {CollateralBasket} from './CollateralBasket';
+import {CardCapture} from './CardCapture';
+import {CardGradeSelect} from './CardGradeSelect';
 
-type Selection={card:DiscoveryCard;id:string};
-export function ApplicationScreen({active,items,onChange,onApplied,ready,error:draftError,basketOpen=false,onBasketClose=()=>{}}:{active:boolean;items:CollateralItem[];onChange:(items:CollateralItem[])=>void;onApplied:()=>Promise<void>;ready:boolean;error:string;basketOpen?:boolean;onBasketClose?:()=>void}){
- const {width,fontScale}=useWindowDimensions();const columns=width>=360&&fontScale<1.3;
- const [localRoute,setRoute]=useState<'search'|'image'|'basket'>('search'),[selected,setSelected]=useState<Selection|null>(null);
- const route=basketOpen?'basket':localRoute;
- const closeBasket=()=>{onBasketClose();setRoute('search');setSelected(null)};
- const [query,setQuery]=useState(''),[category,setCategory]=useState<'all'|'pokemon'|'onepiece'>('all');
- const [results,setResults]=useState<DiscoverySearch|null>(null),[grade,setGrade]=useState(''),[quantity,setQuantity]=useState('1'),[condition,setCondition]=useState('');
+type Route='camera'|'manual'|'results'|'added'|'basket';
+const noop=()=>{};
+export function ApplicationScreen({active,items,onChange,onApplied,ready,error:draftError,onNavigate=noop}:{active:boolean;items:CollateralItem[];onChange:(items:CollateralItem[])=>void;onApplied:()=>Promise<void>;ready:boolean;error:string;onNavigate?:()=>void}){
+ const {width,fontScale}=useWindowDimensions(),columns=width>=360&&fontScale<1.3;
+ const [route,setRoute]=useState<Route>('camera'),[selected,setSelected]=useState<{card:DiscoveryCard;id:string}|null>(null);
+ const [query,setQuery]=useState(''),[results,setResults]=useState<DiscoverySearch|null>(null);
+ const [grade,setGrade]=useState('PSA10'),[quantity,setQuantity]=useState('1'),[condition,setCondition]=useState('');
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[manual,setManual]=useState('');
- const [asset,setAsset]=useState<ImagePicker.ImagePickerAsset|null>(null),[consent,setConsent]=useState(false);
- const [imageHints,setImageHints]=useState<ImageDiscoverySearch['hints']|null>(null);
- const current=useRef(0),mounted=useRef(true),controller=useRef<AbortController|null>(null),lastSearch=useRef({query:'',category:'all' as typeof category}),imageKey=useRef('');
+ const [photo,setPhoto]=useState<string|null>(null),[hints,setHints]=useState<ImageDiscoverySearch['hints']|null>(null);
+ const [origin,setOrigin]=useState<'manual'|'results'>('results');
+ const generation=useRef(0),mounted=useRef(true),controller=useRef<AbortController|null>(null),imageRequest=useRef<{uri:string;key:string}|null>(null);
+ const cancel=useCallback(()=>{generation.current++;controller.current?.abort();setBusy(false)},[]);
+ const cameraRoute=useCallback(()=>{cancel();setSelected(null);setRoute('camera');setError('');setNotice('');setPhoto(null);setHints(null);setResults(null)},[cancel]);
  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;controller.current?.abort()}},[]);
  useEffect(()=>{if(!active)controller.current?.abort()},[active]);
- useAppBack(active&&(selected!==null||route!=='search'),25,()=>{if(busy){controller.current?.abort();current.current++;setBusy(false)}if(route==='basket')closeBasket();else if(selected)setSelected(null);else{setRoute('search');setAsset(null);setConsent(false)}return true});
- const line=useMemo<CollateralItem|null>(()=>selected&&grade&&/^\d+$/.test(quantity)&&Number(quantity)>0?{id:selected.id,name:selected.card.name.slice(0,100),cardNumber:selected.card.cardNumber,quantity:Number(quantity),grade,condition,source:selected.card.kind==='external'?'snkrdunk':'catalog',productId:selected.card.productId,cardUid:selected.card.cardUid}:null,[selected,grade,quantity,condition]);
- const reference=useReferenceEstimate(line?[line]:[],active&&route!=='basket');
- function choose(card:DiscoveryCard){setSelected({card,id:randomUUID()});setGrade('');setQuantity('1');setCondition('');setError('');setNotice('')}
- async function search(page=1){
-  controller.current?.abort();const abort=new AbortController();controller.current=abort;const generation=++current.current;
-  const input=page===1?{query:query.trim(),category}:lastSearch.current;
-  setBusy(true);setError('');setSelected(null);setImageHints(null);const timer=setTimeout(()=>abort.abort(),35000);
-  try{const value=await lendingApi<DiscoverySearch>('/catalog',{body:{action:'discover',...input,page},signal:abort.signal});if(!mounted.current||generation!==current.current)return;setResults(value);lastSearch.current=input;setNotice(value.message??'')}
-  catch(cause){if(mounted.current&&generation===current.current)setError(cause instanceof Error?cause.message:'検索できません。時間をおいてお試しください。')}
-  finally{clearTimeout(timer);if(mounted.current&&generation===current.current)setBusy(false)}
- }
- async function chooseImage(camera:boolean){
-  try{if(camera&&!(await ImagePicker.requestCameraPermissionsAsync()).granted){setError('カメラを許可するか、写真から選択してください。');return}
-   const options:ImagePicker.ImagePickerOptions={mediaTypes:['images'],quality:.8,exif:false};const value=camera?await ImagePicker.launchCameraAsync(options):await ImagePicker.launchImageLibraryAsync(options);
-   if(value.canceled||!mounted.current)return;const file=value.assets[0];if(file.fileSize&&file.fileSize>3*1024*1024){setError('3MB以下の画像を選択してください。');return}controller.current?.abort();current.current++;setAsset(file);setConsent(false);setResults(null);setImageHints(null);setSelected(null);setNotice('');imageKey.current=randomUUID();setError('');
-  }catch{setError('写真を開けませんでした。名前・型番での検索も利用できます。')}
- }
- async function imageSearch(){
-  if(!asset||!consent||busy)return;controller.current?.abort();const generation=++current.current;setBusy(true);setError('');setResults(null);setImageHints(null);setNotice('');
-  const abort=new AbortController();controller.current=abort;const timer=setTimeout(()=>abort.abort(),55000);
-  try{const form=new FormData();appendImageFile(form,asset.uri);form.append('key',imageKey.current);form.append('consent','true');form.append('format','discovery');
+ useEffect(()=>{if(active)onNavigate()},[route,selected,active,onNavigate]);
+ useAppBack(active&&(!!selected||route!=='camera'),25,()=>{cancel();if(selected)setSelected(null);else if(route==='basket')setRoute('added');else cameraRoute();return true});
+
+ const line=useMemo<CollateralItem|null>(()=>selected&&/^\d+$/.test(quantity)&&Number(quantity)>0?{id:selected.id,name:selected.card.name.slice(0,100),cardNumber:selected.card.cardNumber,quantity:Number(quantity),grade,condition,source:selected.card.kind==='external'?'snkrdunk':'catalog',productId:selected.card.productId,cardUid:selected.card.cardUid}:null,[selected,grade,quantity,condition]);
+ const reference=useReferenceEstimate(line?[line]:[],active&&!!selected);
+
+ const search=useCallback(async(text:string,page=1)=>{
+  cancel();const attempt=++generation.current,abort=new AbortController();controller.current=abort;
+  setBusy(true);setError('');setResults(null);const timer=setTimeout(()=>abort.abort(),35000);
+  try{const value=await lendingApi<DiscoverySearch>('/catalog',{body:{action:'discover',query:text,category:'all',page},signal:abort.signal});if(mounted.current&&attempt===generation.current){setResults(value);setNotice(value.message??'')}}
+  catch(cause){if(mounted.current&&attempt===generation.current)setError(cause instanceof Error?cause.message:'検索できませんでした。')}
+  finally{clearTimeout(timer);if(mounted.current&&attempt===generation.current)setBusy(false)}
+ },[cancel]);
+ useEffect(()=>{
+  if(!active||route!=='manual'||selected)return;
+  if(!query.trim())return;
+  const timer=setTimeout(()=>void search(query.trim()),750);
+  return()=>{clearTimeout(timer);cancel()};
+ },[query,active,route,selected,search,cancel]);
+ function editQuery(value:string){cancel();setQuery(value);setResults(null);setError('');setNotice('')}
+
+ function manualRoute(){cancel();setSelected(null);setRoute('manual');setResults(null);setError('');setNotice('');setPhoto(null);setHints(null)}
+ function choose(card:DiscoveryCard){Keyboard.dismiss();cancel();setOrigin(route==='manual'?'manual':'results');setSelected({card,id:randomUUID()});setGrade('PSA10');setQuantity('1');setCondition('');setError('');setNotice('')}
+ async function imageSearch(uri:string,retry=false){
+  cancel();Keyboard.dismiss();const attempt=++generation.current,abort=new AbortController();controller.current=abort;
+  if(!retry||imageRequest.current?.uri!==uri)imageRequest.current={uri,key:randomUUID()};
+  setPhoto(uri);setRoute('results');setSelected(null);setResults(null);setHints(null);setBusy(true);setError('');setNotice('');
+  const timer=setTimeout(()=>abort.abort(),55000);
+  try{
+   const form=new FormData();appendImageFile(form,uri);form.append('key',imageRequest.current!.key);form.append('consent','true');form.append('format','discovery');
    const value=await lendingApi<ImageDiscoverySearch>('/card-image',{body:form,signal:abort.signal});
-   if(!mounted.current||generation!==current.current)return;setResults(value);setImageHints(value.hints??null);setQuery(value.searchQuery??value.hints?.cardNumber??value.hints?.name??'');if(value.hints?.category)setCategory(value.hints.category);setNotice(value.message??'撮影画像と候補の型番・版・言語を見比べて選択してください。');
-  }catch(cause){if(mounted.current&&generation===current.current)setError(cause instanceof Error?cause.message:'画像を読み取れませんでした。')}
-  finally{clearTimeout(timer);if(mounted.current&&generation===current.current)setBusy(false)}
+   if(!mounted.current||attempt!==generation.current)return;
+   setResults(value);setHints(value.hints);setQuery(value.searchQuery??value.hints?.cardNumber??value.hints?.name??'');setNotice(value.message??'');
+  }catch(cause){if(mounted.current&&attempt===generation.current)setError(cause instanceof Error?cause.message:'画像を読み取れませんでした。')}
+  finally{clearTimeout(timer);if(mounted.current&&attempt===generation.current)setBusy(false)}
  }
- function add(){
-  if(!line)return;const same=items.find(item=>item.source===line.source&&item.productId===line.productId&&item.cardUid===line.cardUid&&item.name===line.name&&item.grade===line.grade&&item.condition===line.condition);
-  if((!same&&items.length>=20)||collateralQuantity(items)+line.quantity>100){setError('20種類・合計100枚まで追加できます。枚数を確認してください。');return}
-  onChange(same?items.map(item=>item.id===same.id?{...item,quantity:item.quantity+line.quantity}:item):[...items,line]);setSelected(null);setNotice('申込リストに追加しました。続けてカードを追加できます。');
+ function addItem(item:CollateralItem){
+  const same=items.find(row=>row.source===item.source&&row.productId===item.productId&&row.cardUid===item.cardUid&&row.name===item.name&&row.grade===item.grade&&row.condition===item.condition);
+  if((!same&&items.length>=20)||collateralQuantity(items)+item.quantity>100){setError('20種類・合計100枚まで追加できます。枚数を確認してください。');return}
+  onChange(same?items.map(row=>row.id===same.id?{...row,quantity:row.quantity+item.quantity}:row):[...items,item]);
+  cancel();setSelected(null);setRoute('added');setNotice(item.name+'を申請に追加しました。');setError('');
  }
  if(!ready)return <ActivityIndicator accessibilityLabel="申込下書きを復元中" color={colors.gold}/>;
- return <View style={{gap:20}}>
+ const showCandidates=!selected&&(route==='results'||route==='manual');
+ return <View style={{gap:18}}>
   {!!draftError&&<Text accessibilityRole="alert" style={ui.error}>{draftError}</Text>}
-  {route!=='basket'&&<Button title={`申込リストを確認 · ${items.length}種類 / ${collateralQuantity(items)}枚`} onPress={()=>{setSelected(null);setRoute('basket')}}/>}
-  {route==='basket'?<CollateralBasket active={active} items={items} onChange={onChange} onApplied={onApplied} onBack={closeBasket} onReset={()=>{onChange([]);closeBasket()}} onSubmitted={()=>onChange([])}/>:<>
-   {!!error&&<Text accessibilityRole="alert" style={ui.error}>{error}</Text>}{!!notice&&<Text accessibilityLiveRegion="polite" style={ui.success}>{notice}</Text>}
-   {selected?<>
-    <Button title="候補一覧に戻る" secondary onPress={()=>setSelected(null)}/>
-    {asset&&route==='image'&&<><Text style={ui.label}>撮影したカード</Text><Image alt="撮影したカード" source={{uri:asset.uri}} accessibilityLabel="撮影したカード" style={{height:190,width:'100%'}} resizeMode="contain"/></>}
-    <View style={ui.card}>{selected.card.imageUrl&&<Image alt={selected.card.name} source={{uri:selected.card.imageUrl}} accessibilityLabel={selected.card.name} style={{height:230,width:'100%'}} resizeMode="contain"/>}<Text style={ui.title}>{selected.card.name}</Text><Text style={ui.body}>型番 {selected.card.cardNumber||'未登録'} / {selected.card.category==='pokemon'?'ポケモン':'ワンピース'}</Text><Text style={ui.muted}>版・言語・型番が、お手元のカードと一致することを確認してください。</Text>
-     <Text style={ui.label}>鑑定状態を選択</Text>{['未鑑定','PSA10','PSA9以下','その他鑑定'].map(value=><Button key={value} title={`${grade===value?'✓ ':''}${value}`} secondary onPress={()=>setGrade(value)}/>)}<Text style={ui.muted}>鑑定状態は自己申告です。現物確認後に正式な条件をご案内します。</Text>
-     <Field label="枚数" value={quantity} onChangeText={setQuantity} keyboardType="number-pad" maxLength={3}/><Field label="傷・白かけ・ケース破損など（任意）" value={condition} onChangeText={setCondition} maxLength={300} multiline/>
-    </View>
-    {line&&<ReferenceEstimate {...reference} onRefresh={reference.refresh}/>}
-    <Button title="申込リストに追加" disabled={!line||line.quantity>100} onPress={add}/>
-   </>:<>
-    <View style={ui.card}><Text style={ui.title}>カードを追加</Text><Field label="カード名・型番で検索" value={query} onChangeText={setQuery} maxLength={100} onSubmitEditing={()=>void search()} returnKeyType="search"/>
-     <View style={ui.row}>{(['all','pokemon','onepiece'] as const).map(value=><View key={value} style={{flex:1}}><Button title={`${category===value?'✓ ':''}${value==='all'?'すべて':value==='pokemon'?'ポケモン':'ワンピース'}`} secondary onPress={()=>setCategory(value)}/></View>)}</View>
-     <Button title={busy?'検索中…':'検索する'} disabled={busy} onPress={()=>void search()}/><Button title={route==='image'?'名前・型番で探す':'写真で探す'} secondary onPress={()=>{setRoute(route==='image'?'search':'image');setError('')}}/>
-    </View>
-    {route==='image'&&<View style={ui.card}><Text style={ui.title}>カードを1枚撮影</Text><Text style={ui.body}>カード全体と型番を枠内に入れ、反射やピンぼけを避けてください。</Text><Button title="撮影する" secondary disabled={busy} onPress={()=>void chooseImage(true)}/><Button title="写真を選ぶ" secondary disabled={busy} onPress={()=>void chooseImage(false)}/>{asset&&<><Image alt="検索するカード写真" source={{uri:asset.uri}} accessibilityLabel="検索するカード写真" style={{height:220,width:'100%'}} resizeMode="contain"/><Text style={ui.muted}>カード情報を読み取るためOpenAIに画像を送信します。本人確認書類は送信しないでください。画像は真贋・鑑定状態の証明には使用しません。</Text><Button title={`${consent?'✓ ':''}画像送信に同意する`} secondary disabled={busy} onPress={()=>setConsent(!consent)}/><Button title="この写真で候補を探す" disabled={busy||!consent} onPress={()=>void imageSearch()}/></>}</View>}
-    {route==='image'&&imageHints&&<View style={ui.card}><Text style={ui.label}>写真から読み取った情報</Text><Text style={ui.body}>カード名：{imageHints.name||'読み取れませんでした'}{'\n'}型番：{imageHints.cardNumber||'読み取れませんでした'}{'\n'}セット：{imageHints.setName||'不明'} / レアリティ：{imageHints.rarity||'不明'}{'\n'}言語：{imageHints.language||'不明'}</Text><Text style={ui.muted}>読み取り結果には誤りが含まれる場合があります。候補を選んで確認してください。</Text><Button title="読み取った文字を修正して検索" secondary disabled={busy} onPress={()=>{setRoute('search');setNotice('カード名・型番を修正して検索してください。')}}/></View>}
-    {busy&&<><ActivityIndicator accessibilityLabel="カードを検索中" color={colors.gold}/>{route==='image'&&<Text accessibilityLiveRegion="polite" style={ui.muted}>画像を読み取り、カード候補を探しています…</Text>}</>}
-    {results&&<><Text style={ui.label}>候補 {results.cards.length}件</Text>{!results.cards.length&&<Text style={ui.body}>候補がありません。検索語の変更・写真・個別査定をお試しください。</Text>}<View style={{flexDirection:'row',flexWrap:'wrap',gap:12}}>{results.cards.map(card=><Pressable key={card.id} accessibilityRole="button" accessibilityLabel={`${card.name} ${card.cardNumber} を確認`} style={[ui.card,{width:columns?'48%':'100%',padding:16}]} onPress={()=>choose(card)}>{card.imageUrl&&<Image alt={card.name} source={{uri:card.imageUrl}} accessibilityLabel={card.name} style={{height:140,width:'100%'}} resizeMode="contain"/>}<Text style={ui.title}>{card.name}</Text><Text style={ui.body}>{card.cardNumber||'型番未登録'}</Text><Text style={ui.muted}>鑑定状態・枚数を選ぶ ›</Text></Pressable>)}</View>{route!=='image'&&<View style={ui.row}><Button title="前のページ" secondary disabled={busy||results.page<=1} onPress={()=>void search(results.page-1)}/><Button title="次のページ" secondary disabled={busy||!results.hasMore} onPress={()=>void search(results.page+1)}/></View>}</>}
-    <View style={ui.card}><Text style={ui.title}>見つからないカード・未鑑定カード</Text><Text style={ui.body}>名前を入力してリストに追加すると、ほかのカードとまとめて個別査定を依頼できます。</Text><Field label="個別査定を依頼するカード名" value={manual} onChangeText={setManual} maxLength={100}/><Button title="個別査定のカードを追加" secondary disabled={!manual.trim()||items.length>=20||collateralQuantity(items)>=100} onPress={()=>{onChange([...items,{id:randomUUID(),name:manual.trim(),cardNumber:'',quantity:1,grade:'未鑑定',condition:'',source:'manual',cardUid:null,productId:null}]);setManual('');setNotice('個別査定のカードを申込リストに追加しました。')}}/></View>
-   </>}
+  {!!error&&<Text accessibilityRole="alert" style={ui.error}>{error}</Text>}
+  {route!=='added'&&route!=='basket'&&items.length>0&&<Button title={'申込リスト '+collateralQuantity(items)+'枚を確認'} secondary onPress={()=>{cancel();setSelected(null);setRoute('added');setNotice('')}}/>}
+  {route==='basket'?<CollateralBasket active={active} items={items} onChange={onChange} onApplied={onApplied} onBack={()=>setRoute('added')} onReset={()=>{onChange([]);cameraRoute()}} onSubmitted={()=>onChange([])}/>:route==='added'?<>
+   {!!notice&&<Text accessibilityLiveRegion="polite" style={ui.success}>{notice}</Text>}
+   <Text style={ui.title}>現在の融資申込カード</Text><Text style={ui.body}>{items.length}種類・{collateralQuantity(items)}枚</Text>
+   {items.map(item=><View key={item.id} style={ui.card}><Text style={ui.title}>{item.name}</Text><Text style={ui.body}>{item.cardNumber||'型番未登録'} / {item.grade} / {item.quantity}枚</Text><Button title={item.name+'を申込から削除'} secondary onPress={()=>onChange(items.filter(row=>row.id!==item.id))}/></View>)}
+   {!items.length&&<Text style={ui.muted}>カードがまだ追加されていません。</Text>}
+   <Button title="続けてカードを登録する" secondary onPress={cameraRoute}/>
+   <Button title="登録を終了して申請に進む" disabled={!items.length} onPress={()=>setRoute('basket')}/>
+  </>:selected?<>
+   <Button title="候補一覧に戻る" secondary onPress={()=>{setSelected(null);setRoute(origin);setError('')}}/>
+   <View style={ui.card}>{selected.card.imageUrl?<Image alt={selected.card.name} source={{uri:selected.card.imageUrl}} accessibilityLabel={selected.card.name} style={{height:330,width:'100%'}} resizeMode="contain"/>:<Text style={ui.muted}>画像は準備中です</Text>}<Text style={ui.title}>{selected.card.name}</Text><Text style={ui.body}>型番 {selected.card.cardNumber||'未登録'}</Text><Text style={ui.muted}>版・言語・型番が、お手元のカードと一致することを確認してください。</Text><CardGradeSelect value={grade} onChange={setGrade} active={active}/><Field label="枚数" value={quantity} onChangeText={setQuantity} keyboardType="number-pad" maxLength={3}/><Field label="傷・白かけ・ケース破損など（任意）" value={condition} onChangeText={setCondition} maxLength={300} multiline/></View>
+   {line&&<ReferenceEstimate {...reference} onRefresh={reference.refresh}/>}
+   <Button title="申込に追加" disabled={!line||line.quantity>100} onPress={()=>{if(line)addItem(line)}}/>
+  </>:route==='camera'?active&&<CardCapture onCapture={uri=>void imageSearch(uri)} onManual={manualRoute}/>:<>
+   {route==='manual'?<View style={ui.card}><Field label="カード名・型番で検索" placeholder="ピカチュウ、132/106 など" value={query} onChangeText={editQuery} maxLength={100} returnKeyType="search" onSubmitEditing={()=>Keyboard.dismiss()}/><Text style={ui.muted}>キーワードを入力すると候補を検索します。</Text><Button title="撮影して探す" secondary onPress={cameraRoute}/></View>:<><Button title="撮り直す" secondary disabled={busy} onPress={cameraRoute}/>{photo&&<Image alt="検索したカード画像" source={{uri:photo}} accessibilityLabel="検索したカード画像" style={{height:170,width:'100%'}} resizeMode="contain"/>}{hints&&<Text style={ui.muted}>読み取り：{hints.name||'名前不明'} / {hints.cardNumber||'型番不明'}</Text>}<Button title="手動で検索" secondary onPress={manualRoute}/>{!!error&&photo&&<Button title="同じ写真の結果を再確認" secondary disabled={busy} onPress={()=>void imageSearch(photo,true)}/>}</>}
+   {busy&&<><ActivityIndicator accessibilityLabel="カード候補を検索中" color={colors.gold}/><Text accessibilityLiveRegion="polite" style={ui.muted}>カード候補を検索しています…</Text></>}
+   {showCandidates&&results&&<>{results.partial&&<Text style={ui.error}>{results.message||'一部の候補を取得できませんでした。'}</Text>}<Text style={ui.title}>{route==='results'?'撮影したカードの候補':'検索結果'}</Text>{route==='results'&&<Text style={ui.muted}>型番・セット・名前などの一致情報が多い順です。画像を見比べて選択してください。</Text>}{!results.cards.length&&<Text style={ui.body}>候補がありません。検索語を変えるか、下から個別査定のカードを追加してください。</Text>}<View style={{flexDirection:'row',flexWrap:'wrap',gap:12}}>{results.cards.map(card=><Pressable key={card.id} accessibilityRole="button" accessibilityLabel={card.name+' '+card.cardNumber+' を確認'} style={[ui.card,{width:columns?'48%':'100%',padding:14}]} onPress={()=>choose(card)}>{card.imageUrl&&<Image alt={card.name} source={{uri:card.imageUrl}} accessibilityLabel={card.name} style={{height:150,width:'100%'}} resizeMode="contain"/>}<Text style={ui.title}>{card.name}</Text><Text style={ui.body}>{card.cardNumber||'型番未登録'}</Text><Text style={ui.muted}>このカードを確認 ›</Text></Pressable>)}</View>{route==='manual'&&<View style={ui.row}><Button title="前のページ" secondary disabled={busy||results.page<=1} onPress={()=>void search(query.trim(),results.page-1)}/><Button title="次のページ" secondary disabled={busy||!results.hasMore} onPress={()=>void search(query.trim(),results.page+1)}/></View>}</>}
+   <View style={ui.card}><Text style={ui.title}>見つからないカードは個別査定へ</Text><Field label="個別査定を依頼するカード名" value={manual} onChangeText={setManual} maxLength={100}/><Button title="個別査定のカードを申込に追加" secondary disabled={busy||!manual.trim()} onPress={()=>{addItem({id:randomUUID(),name:manual.trim(),cardNumber:'',quantity:1,grade:'未鑑定',condition:'',source:'manual',cardUid:null,productId:null});setManual('')}}/></View>
   </>}
  </View>;
 }

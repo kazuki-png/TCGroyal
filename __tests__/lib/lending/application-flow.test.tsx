@@ -10,7 +10,7 @@ vi.mock('../../../mobile/node_modules/react-native/index.js',()=>({
 }))
 vi.mock('../../../mobile/node_modules/expo-crypto/build/Crypto.js',()=>({randomUUID:()=>crypto.randomUUID()}))
 vi.mock('../../../mobile/src/ui.tsx',()=>({ui:{},Button:({title,onPress,disabled}:{title:string;onPress:()=>void;disabled?:boolean})=><button onClick={onPress} disabled={disabled}>{title}</button>,Field:({label,value,onChangeText}:{label:string;value:string;onChangeText:(value:string)=>void})=><input aria-label={label} value={value} onChange={event=>onChangeText(event.target.value)}/>}))
-vi.mock('../../../mobile/src/screens/CardCapture.tsx',()=>({CardCapture:({onCapture,onManual}:{onCapture:(uri:string)=>void;onManual:()=>void})=><><button onClick={()=>onCapture('file:///fixture.jpg')}>撮影して検索</button><button onClick={onManual}>手動で検索</button></>}))
+vi.mock('../../../mobile/src/screens/CardCapture.tsx',()=>({CardCapture:({onCapture,onManual,onBasket}:{onCapture:(uri:string)=>void;onManual:()=>void;onBasket:()=>void})=><><button onClick={()=>onCapture('file:///fixture.jpg')}>撮影して検索</button><button onClick={onManual}>手動で検索</button><button onClick={onBasket}>申込リストを確認</button></>}))
 vi.mock('../../../mobile/src/image-upload.ts',()=>({appendImageFile:(form:FormData)=>form.append('file',new Blob(['fixture'],{type:'image/jpeg'}),'fixture.jpg')}))
 vi.mock('../../../mobile/src/use-app-back.ts',()=>({useAppBack:()=>{}}))
 vi.mock('../../../mobile/src/screens/CollateralBasket.tsx',()=>({CollateralBasket:()=> <span>申請内容を確認</span>}))
@@ -21,10 +21,11 @@ vi.mock('../../../mobile/node_modules/expo-image-picker/src/ImagePicker.ts',()=>
 vi.mock('../../../mobile/src/api.ts',()=>({lendingApi:api}))
 import {ApplicationScreen} from '../../../mobile/src/screens/ApplicationScreen'
 const card={id:'external:123',kind:'external',productId:'123',cardUid:null,name:'ピカチュウ',cardNumber:'132/106',category:'pokemon',imageUrl:'https://cdn.snkrdunk.com/card.webp'}
-function Harness(){const [items,setItems]=useState<CollateralItem[]>([]);return <ApplicationScreen active ready error="" items={items} onChange={setItems} onApplied={async()=>{}}/>}
+function Harness({onCameraModeChange}:{onCameraModeChange?:(value:boolean)=>void}={}){const [items,setItems]=useState<CollateralItem[]>([]);return <ApplicationScreen active ready error="" items={items} onChange={setItems} onApplied={async()=>{}} onCameraModeChange={onCameraModeChange}/>}
 afterEach(()=>{cleanup();vi.resetAllMocks()})
 function responses(){api.mockImplementation(async(path,options)=>path==='/card-image'?{cards:[card],hints:{name:card.name,cardNumber:card.cardNumber},page:1,hasMore:false,partial:false}:options.body.action==='quote_bundle'?{estimate:{amountJpy:options.body.items[0].grade==='PSA10'?100000:0}}:{cards:[card],page:1,hasMore:false,partial:false})}
 describe('camera-first lending application',()=>{
+ it('leaves full-screen mode when opening search or the empty basket',()=>{const mode=vi.fn();render(<Harness onCameraModeChange={mode}/>);expect(mode).toHaveBeenLastCalledWith(true);fireEvent.click(screen.getByText('申込リストを確認'));expect(mode).toHaveBeenLastCalledWith(false);expect(screen.getByText('カードがまだ追加されていません。')).toBeTruthy();fireEvent.click(screen.getByText('続けて登録'));expect(mode).toHaveBeenLastCalledWith(true);fireEvent.click(screen.getByText('手動で検索'));expect(mode).toHaveBeenLastCalledWith(false)})
  it('uploads an existing image from manual search and does nothing when selection is cancelled',async()=>{
   responses();pickImage.mockResolvedValueOnce({canceled:true,assets:null}).mockResolvedValueOnce({canceled:false,assets:[{uri:'file:///existing-card.jpg'}]});render(<Harness/>);fireEvent.click(screen.getByText('手動で検索'))
   fireEvent.click(screen.getByText('画像をアップロード'));await waitFor(()=>expect(pickImage).toHaveBeenCalledTimes(1));await screen.findByText('画像をアップロード');expect(api).not.toHaveBeenCalled()

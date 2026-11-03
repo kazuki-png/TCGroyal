@@ -1,12 +1,14 @@
 import {useEffect,useRef,useState} from 'react';
-import {ActivityIndicator,AppState,Linking,Text,View,useWindowDimensions} from 'react-native';
+import {ActivityIndicator,AppState,Linking,Pressable,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
 import {CameraView,useCameraPermissions} from 'expo-camera';
 import {selectCardImage} from '../select-card-image';
 import {Button,ui} from '../ui';
 import {colors} from '../theme';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {ApplicationCartButton} from './ApplicationCartButton';
 
-export function CardCapture({onCapture,onManual}:{onCapture:(uri:string)=>void;onManual:()=>void}){
- const {height}=useWindowDimensions();
+export function CardCapture({onCapture,onManual,onBasket,onClose,error:outerError}:{onCapture:(uri:string)=>void;onManual:()=>void;onBasket:()=>void;onClose:()=>void;error?:string}){
+ const {width,height}=useWindowDimensions(),insets=useSafeAreaInsets();
  const camera=useRef<CameraView|null>(null),requested=useRef(false),lock=useRef(false),alive=useRef(true);
  const [permission,requestPermission]=useCameraPermissions();
  const [ready,setReady]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[size,setSize]=useState<string>();
@@ -30,14 +32,21 @@ export function CardCapture({onCapture,onManual}:{onCapture:(uri:string)=>void;o
   }catch{if(alive.current)setError('写真を取得できませんでした。撮り直すか、手動で検索してください。')}
   finally{lock.current=false;if(alive.current)setBusy(false)}
  }
- return <View style={{gap:12}}>
-  <Text style={ui.title}>カードを撮影</Text><Text style={ui.muted}>カードを1枚、型番まで見えるように撮影してください。</Text>
-  {!!error&&<Text accessibilityRole="alert" style={ui.error}>{error}</Text>}
-  <View accessibilityLabel="カード撮影プレビュー" style={{height:Math.max(180,Math.min(300,height*.27)),backgroundColor:'#000',borderRadius:20,overflow:'hidden',borderWidth:1,borderColor:colors.inputBorder}}>
-   {permission?.granted&&foreground?<><CameraView ref={camera} style={{flex:1}} facing="back" mode="picture" pictureSize={size} onCameraReady={()=>void cameraReady()} onMountError={()=>{setReady(false);setError('カメラを起動できません。写真を選ぶか、手動検索をご利用ください。')}}/><View pointerEvents="none" style={{position:'absolute',top:24,bottom:24,left:'20%',right:'20%',borderWidth:2,borderColor:colors.gold,borderRadius:14}}/></>:<View style={{flex:1,justifyContent:'center',padding:20,gap:16}}><Text style={ui.body}>撮影にはカメラの許可が必要です。手動検索も利用できます。</Text>{!permission?<ActivityIndicator color={colors.gold}/>:<Button title={permission.canAskAgain?'カメラを許可する':'端末の設定を開く'} onPress={()=>void (permission.canAskAgain?requestPermission():Linking.openSettings())}/>}</View>}
+ const disabled=busy||!ready||!permission?.granted||!foreground;
+ return <View accessibilityLabel="カード撮影画面" style={{flex:1,backgroundColor:'#000'}}>
+  {permission?.granted&&foreground?<CameraView ref={camera} style={StyleSheet.absoluteFill} facing="back" mode="picture" pictureSize={size} onCameraReady={()=>void cameraReady()} onMountError={()=>{setReady(false);setError('カメラを起動できません。写真を選ぶか、手動検索をご利用ください。')}}/>:<View style={{flex:1,justifyContent:'center',alignItems:'center',padding:24}}>{!permission?<ActivityIndicator color={colors.gold}/>:<Button title={permission.canAskAgain?'カメラを許可する':'端末の設定を開く'} onPress={()=>void (permission.canAskAgain?requestPermission():Linking.openSettings())}/>}</View>}
+  <View pointerEvents="none" style={[StyleSheet.absoluteFill,{justifyContent:'center',alignItems:'center',paddingBottom:110}]}>
+   <View style={{width:Math.min(width*.72,height*.50*63/88),aspectRatio:63/88,borderWidth:2,borderColor:colors.gold,borderRadius:14}}/>
   </View>
-  <Text style={ui.muted}>撮影・写真選択でカード画像をOpenAIへ送信して検索します。本人確認書類は撮影・選択しないでください。</Text>
-  <Button title={busy?'写真を準備中…':'撮影して検索'} disabled={busy||!ready||!permission?.granted||!foreground} onPress={()=>void capture()}/>
-  <View style={ui.row}><View style={{flex:1}}><Button title="手動で検索" secondary disabled={busy} onPress={onManual}/></View><View style={{flex:1}}><Button title="画像をアップロード" secondary disabled={busy} onPress={()=>void capture(true)}/></View></View>
+  <View style={{position:'absolute',top:insets.top+12,left:16,right:16,flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+   <Pressable accessibilityRole="button" accessibilityLabel="撮影画面を閉じる" disabled={busy} onPress={onClose} style={{width:52,height:52,borderRadius:26,backgroundColor:'#00000099',alignItems:'center',justifyContent:'center'}}><Text accessible={false} style={{color:'#fff',fontSize:32}}>×</Text></Pressable>
+   <ApplicationCartButton onPress={onBasket} disabled={busy}/>
+  </View>
+  {!!(error||outerError)&&<Text accessibilityRole="alert" style={[ui.error,{position:'absolute',top:insets.top+76,left:16,right:16}]}>{error||outerError}</Text>}
+  <View style={{position:'absolute',bottom:Math.max(insets.bottom,12)+18,left:16,right:16,paddingVertical:16,paddingHorizontal:8,borderRadius:26,backgroundColor:'#00000088',flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8}}>
+   <Pressable accessibilityRole="button" accessibilityLabel="画像をアップロード" disabled={busy} onPress={()=>void capture(true)} style={{width:84,minHeight:76,alignItems:'center',justifyContent:'center',gap:8,opacity:busy?.4:1}}><View style={{width:30,height:26,borderWidth:2,borderColor:'#fff',borderRadius:4,alignItems:'center',justifyContent:'center'}}><Text accessible={false} style={{fontSize:23,lineHeight:25,color:'#fff'}}>↑</Text></View><Text style={{fontSize:12,fontWeight:'700',color:'#fff'}}>アップロード</Text></Pressable>
+   <Pressable accessibilityRole="button" accessibilityLabel="撮影して検索" accessibilityState={{busy,disabled}} disabled={disabled} onPress={()=>void capture()} style={({pressed})=>({width:82,height:82,borderRadius:41,borderWidth:4,borderColor:'#fff',padding:5,opacity:disabled?.45:pressed?.7:1})}>{busy?<ActivityIndicator color="#fff" style={{flex:1}}/>:<View style={{flex:1,borderRadius:36,backgroundColor:'#fff'}}/>}</Pressable>
+   <Pressable accessibilityRole="button" accessibilityLabel="手動で検索" disabled={busy} onPress={onManual} style={{width:84,minHeight:76,alignItems:'center',justifyContent:'center',gap:8,opacity:busy?.4:1}}><View style={{width:30,height:26}}><View style={{width:22,height:22,borderWidth:2,borderColor:'#fff',borderRadius:11}}/><View style={{position:'absolute',width:12,height:2,backgroundColor:'#fff',left:18,top:22,transform:[{rotate:'45deg'}]}}/></View><Text style={{fontSize:12,fontWeight:'700',color:'#fff'}}>手動で検索</Text></Pressable>
+  </View>
  </View>;
 }

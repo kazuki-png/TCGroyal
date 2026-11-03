@@ -2,6 +2,7 @@ import 'server-only'
 import {z} from 'zod'
 import {fetchPublicRemoteUrl} from '@/lib/security/safeRemoteFetch'
 import type {SnkrdunkCard,SnkrdunkCardSearch} from './snkrdunk-card-types'
+import {saveCardReferences} from './card-references'
 
 const pageSize=6,ttl=5*60*1000
 const cache=new Map<string,{until:number;result:SnkrdunkCardSearch}>()
@@ -47,12 +48,15 @@ export async function searchSnkrdunkCards(query:string,category:'all'|'pokemon'|
   const keyword=query.trim().normalize('NFKC').replace(/\b(\d{1,4})\s*\/\s*([a-z]{1,6})\s*-\s*p\b/gi,'$1 $2-P')
   url.searchParams.set('keyword',keyword);url.searchParams.set('perPage',String(pageSize));url.searchParams.set('page',String(page))
   const data=searchSchema.parse(await json(url,deadline)),candidates=[...new Set(data.streetwears.filter(p=>p.isTradingCard===true).map(p=>String(p.id)))].slice(0,pageSize)
-  const cards:SnkrdunkCard[]=[]
+  const cards:SnkrdunkCard[]=[],references:SnkrdunkCard[]=[]
   // Two simultaneous detail reads at most; obtain Japanese names and validate single-card categories.
   for(let offset=0;offset<candidates.length;offset+=2){
    const group=await Promise.all(candidates.slice(offset,offset+2).map(async productId=>parseSnkrdunkCard(await json(new URL(`https://snkrdunk.com/v1/apparels/${productId}`),deadline),productId)))
-   cards.push(...group.filter((card):card is SnkrdunkCard=>!!card&&(category==='all'||card.category===category)))
+   const valid=group.filter((card):card is SnkrdunkCard=>!!card)
+   references.push(...valid)
+   cards.push(...valid.filter(card=>category==='all'||card.category===category))
   }
+  await saveCardReferences(references)
   const result={cards,page,hasMore:page<100&&data.streetwears.length>=pageSize}
   if(cache.size>=60)cache.delete(cache.keys().next().value!)
   cache.set(key,{until:Date.now()+ttl,result});return result

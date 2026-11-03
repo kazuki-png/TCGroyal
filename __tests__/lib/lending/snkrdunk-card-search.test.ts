@@ -2,7 +2,9 @@
 import {beforeEach,afterEach,describe,expect,it,vi} from 'vitest';
 vi.mock('server-only',()=>({}));
 vi.mock('@/lib/security/safeRemoteFetch',()=>({fetchPublicRemoteUrl:vi.fn()}));
+vi.mock('@/lib/lending/card-references',()=>({saveCardReferences:vi.fn().mockResolvedValue(undefined)}));
 import {fetchPublicRemoteUrl} from '@/lib/security/safeRemoteFetch';
+import {saveCardReferences} from '@/lib/lending/card-references';
 const product=(id=123)=>({id,localizedName:'検証カード [SV 001/100]',brands:[{id:'pokemon'}],apparelInfo:{isTradingCard:true},categories:[{name:'trading-card-single'}],primaryMedia:{imageUrl:'https://cdn.snkrdunk.com/fixture.webp'},minPrice:999999});
 beforeEach(()=>{vi.resetModules();vi.clearAllMocks()});
 afterEach(()=>vi.useRealTimers());
@@ -29,6 +31,7 @@ describe('Snkrdunk JSON card discovery',()=>{
   expect(result.cards).toEqual([{productId:'123',name:'検証カード [SV 001/100]',cardNumber:'SV 001/100',category:'pokemon',imageUrl:'https://cdn.snkrdunk.com/fixture.webp',sourceUrl:'https://snkrdunk.com/apparels/123'}]);
   expect(JSON.stringify(result)).not.toContain('999999');expect(fetchPublicRemoteUrl).toHaveBeenCalledTimes(2);
   expect(await searchSnkrdunkCards('ピカチュウ','all',1)).toEqual(result);expect(fetchPublicRemoteUrl).toHaveBeenCalledTimes(2);
+  expect(saveCardReferences).toHaveBeenCalledExactlyOnceWith(result.cards);
  });
  it('does not treat HTTP failure or changed schemas as an empty successful search or retry them',async()=>{
   const {searchSnkrdunkCards}=await import('@/lib/lending/snkrdunk-card-search');

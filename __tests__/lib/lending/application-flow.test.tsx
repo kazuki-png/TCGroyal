@@ -4,7 +4,7 @@ import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react'
 import type {CollateralItem} from '@/lib/lending/collateral-types'
 vi.mock('../../../mobile/node_modules/react/index.js',()=>vi.importActual('react'))
 vi.mock('../../../mobile/node_modules/react-native/index.js',()=>({
- View:({children}:{children:React.ReactNode})=><div>{children}</div>,Text:({children}:{children:React.ReactNode})=><span>{children}</span>,
+ ScrollView:({children}:{children:React.ReactNode})=><div>{children}</div>,View:({children}:{children:React.ReactNode})=><div>{children}</div>,Text:({children}:{children:React.ReactNode})=><span>{children}</span>,
  Image:()=> <span role="img" aria-label="card"/>,ActivityIndicator:()=> <span>loading</span>,Keyboard:{dismiss:vi.fn()},useWindowDimensions:()=>({width:390,fontScale:1}),
  Pressable:({children,onPress,accessibilityLabel}:{children:React.ReactNode;onPress:()=>void;accessibilityLabel:string})=><button aria-label={accessibilityLabel} onClick={onPress}>{children}</button>,
 }))
@@ -20,7 +20,7 @@ const pickImage=vi.hoisted(()=>vi.fn())
 vi.mock('../../../mobile/node_modules/expo-image-picker/src/ImagePicker.ts',()=>({launchImageLibraryAsync:pickImage}))
 vi.mock('../../../mobile/src/api.ts',()=>({lendingApi:api}))
 import {ApplicationScreen} from '../../../mobile/src/screens/ApplicationScreen'
-const card={id:'external:123',kind:'external',productId:'123',cardUid:null,name:'ピカチュウ',cardNumber:'132/106',category:'pokemon',imageUrl:null}
+const card={id:'external:123',kind:'external',productId:'123',cardUid:null,name:'ピカチュウ',cardNumber:'132/106',category:'pokemon',imageUrl:'https://cdn.snkrdunk.com/card.webp'}
 function Harness(){const [items,setItems]=useState<CollateralItem[]>([]);return <ApplicationScreen active ready error="" items={items} onChange={setItems} onApplied={async()=>{}}/>}
 afterEach(()=>{cleanup();vi.resetAllMocks()})
 function responses(){api.mockImplementation(async(path,options)=>path==='/card-image'?{cards:[card],hints:{name:card.name,cardNumber:card.cardNumber},page:1,hasMore:false,partial:false}:options.body.action==='quote_bundle'?{estimate:{amountJpy:options.body.items[0].grade==='PSA10'?100000:0}}:{cards:[card],page:1,hasMore:false,partial:false})}
@@ -36,9 +36,9 @@ describe('camera-first lending application',()=>{
   await screen.findByText('参考額 100000',{}, {timeout:2500})
   fireEvent.click(screen.getByRole('button',{name:'グレード PSA10'}));fireEvent.click(screen.getByRole('button',{name:'未鑑定'}))
   await waitFor(()=>expect(api.mock.calls.some(([,options])=>options.body?.action==='quote_bundle'&&options.body.items[0].grade==='未鑑定')).toBe(true),{timeout:2500})
-  fireEvent.click(screen.getByText('申込に追加'));expect(screen.getByText('ピカチュウを申請に追加しました。')).toBeTruthy();expect(screen.getByText('現在の融資申込カード')).toBeTruthy()
-  fireEvent.click(screen.getByText('続けてカードを登録する'));expect(screen.getByText('撮影して検索')).toBeTruthy();expect(screen.getByText('申込リスト 1枚を確認')).toBeTruthy()
-  fireEvent.click(screen.getByText('申込リスト 1枚を確認'));fireEvent.click(screen.getByText('登録を終了して申請に進む'));expect(screen.getByText('申請内容を確認')).toBeTruthy()
+  fireEvent.click(screen.getByText('申込に追加'));expect(screen.getByText('ピカチュウを申請に追加しました。')).toBeTruthy();expect(screen.getByText('現在の融資申込カード')).toBeTruthy();expect(screen.queryByText('1種類・1枚')).toBeNull();expect(screen.getByRole('img')).toBeTruthy();expect(screen.getByRole('button',{name:'ピカチュウを申込から削除'}).textContent).toBe('×')
+  fireEvent.click(screen.getByText('続けて登録'));expect(screen.getByText('撮影して検索')).toBeTruthy();expect(screen.getByText('申込リストを確認')).toBeTruthy()
+  fireEvent.click(screen.getByText('申込リストを確認'));fireEvent.click(screen.getByText('申請に進む'));expect(screen.getByText('申請内容を確認')).toBeTruthy()
   expect(api.mock.calls.filter(([path])=>path==='/card-image')).toHaveLength(1)
  })
  it('debounces keyword edits and shares the same detail and add flow without an image request',async()=>{

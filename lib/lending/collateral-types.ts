@@ -1,6 +1,6 @@
 export interface CollateralItem {
  id:string;name:string;cardNumber:string;quantity:number;grade:string;condition:string;
- source:'snkrdunk'|'catalog'|'manual';productId:string|null;cardUid:string|null;
+ source:'snkrdunk'|'catalog'|'manual';productId:string|null;cardUid:string|null;imageUrl?:string|null;
 }
 export interface CollateralInspection {id:string;quantity:number;location:string;checked:boolean}
 export const collateralQuantity=(items:CollateralItem[])=>items.reduce((sum,item)=>sum+item.quantity,0);

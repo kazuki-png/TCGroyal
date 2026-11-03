@@ -1,5 +1,5 @@
-import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {ActivityIndicator,Image,Keyboard,Pressable,Text,View,useWindowDimensions} from 'react-native';
+import {useCallback,useEffect,useMemo,useRef,useState,type ComponentRef} from 'react';
+import {ActivityIndicator,Image,Keyboard,Pressable,ScrollView,Text,View,useWindowDimensions} from 'react-native';
 import {randomUUID} from 'expo-crypto';
 import type {DiscoveryCard,DiscoverySearch,ImageDiscoverySearch} from '../../../lib/lending/discovery-types';
 import type {CollateralItem} from '../../../lib/lending/collateral-types';
@@ -27,15 +27,16 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
  const [photo,setPhoto]=useState<string|null>(null),[hints,setHints]=useState<ImageDiscoverySearch['hints']|null>(null);
  const [origin,setOrigin]=useState<'manual'|'results'>('results');
  const [picking,setPicking]=useState(false),pickerLock=useRef(false),visible=useRef(active);
+ const scroll=useRef<ComponentRef<typeof ScrollView>>(null),[actionsHeight,setActionsHeight]=useState(146);
  const generation=useRef(0),mounted=useRef(true),controller=useRef<AbortController|null>(null),imageRequest=useRef<{uri:string;key:string}|null>(null);
  const cancel=useCallback(()=>{generation.current++;controller.current?.abort();setBusy(false)},[]);
  const cameraRoute=useCallback(()=>{cancel();setSelected(null);setRoute('camera');setError('');setNotice('');setPhoto(null);setHints(null);setResults(null)},[cancel]);
  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;controller.current?.abort()}},[]);
  useEffect(()=>{visible.current=active;if(!active)controller.current?.abort()},[active]);
- useEffect(()=>{if(active)onNavigate()},[route,selected,active,onNavigate]);
+ useEffect(()=>{if(active){scroll.current?.scrollTo({y:0,animated:false});onNavigate()}},[route,selected,active,onNavigate]);
  useAppBack(active&&(!!selected||route!=='camera'),25,()=>{cancel();if(selected)setSelected(null);else if(route==='basket')setRoute('added');else cameraRoute();return true});
 
- const line=useMemo<CollateralItem|null>(()=>selected&&/^\d+$/.test(quantity)&&Number(quantity)>0?{id:selected.id,name:selected.card.name.slice(0,100),cardNumber:selected.card.cardNumber,quantity:Number(quantity),grade,condition,source:selected.card.kind==='external'?'snkrdunk':'catalog',productId:selected.card.productId,cardUid:selected.card.cardUid}:null,[selected,grade,quantity,condition]);
+ const line=useMemo<CollateralItem|null>(()=>selected&&/^\d+$/.test(quantity)&&Number(quantity)>0?{id:selected.id,name:selected.card.name.slice(0,100),cardNumber:selected.card.cardNumber,quantity:Number(quantity),grade,condition,source:selected.card.kind==='external'?'snkrdunk':'catalog',productId:selected.card.productId,cardUid:selected.card.cardUid,imageUrl:selected.card.imageUrl}:null,[selected,grade,quantity,condition]);
  const reference=useReferenceEstimate(line?[line]:[],active&&!!selected);
 
  const search=useCallback(async(text:string,page=1)=>{
@@ -77,22 +78,25 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
  function addItem(item:CollateralItem){
   const same=items.find(row=>row.source===item.source&&row.productId===item.productId&&row.cardUid===item.cardUid&&row.name===item.name&&row.grade===item.grade&&row.condition===item.condition);
   if((!same&&items.length>=20)||collateralQuantity(items)+item.quantity>100){setError('20種類・合計100枚まで追加できます。枚数を確認してください。');return}
-  onChange(same?items.map(row=>row.id===same.id?{...row,quantity:row.quantity+item.quantity}:row):[...items,item]);
+  onChange(same?items.map(row=>row.id===same.id?{...row,quantity:row.quantity+item.quantity,imageUrl:item.imageUrl??row.imageUrl}:row):[...items,item]);
   cancel();setSelected(null);setRoute('added');setNotice(item.name+'を申請に追加しました。');setError('');
  }
  if(!ready)return <ActivityIndicator accessibilityLabel="申込下書きを復元中" color={colors.gold}/>;
  const showCandidates=!selected&&(route==='results'||route==='manual');
- return <View style={{gap:18}}>
+ const added=route==='added'&&!selected;
+ return <View style={{flex:1}}><ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:20,paddingTop:24,gap:18,paddingBottom:added?actionsHeight+24:32}}>
   {!!draftError&&<Text accessibilityRole="alert" style={ui.error}>{draftError}</Text>}
   {!!error&&<Text accessibilityRole="alert" style={ui.error}>{error}</Text>}
-  {route!=='added'&&route!=='basket'&&items.length>0&&<Button title={'申込リスト '+collateralQuantity(items)+'枚を確認'} secondary onPress={()=>{cancel();setSelected(null);setRoute('added');setNotice('')}}/>}
+  {route!=='added'&&route!=='basket'&&items.length>0&&<Button title="申込リストを確認" secondary onPress={()=>{cancel();setSelected(null);setRoute('added');setNotice('')}}/>}
   {route==='basket'?<CollateralBasket active={active} items={items} onChange={onChange} onApplied={onApplied} onBack={()=>setRoute('added')} onReset={()=>{onChange([]);cameraRoute()}} onSubmitted={()=>onChange([])}/>:route==='added'?<>
    {!!notice&&<Text accessibilityLiveRegion="polite" style={ui.success}>{notice}</Text>}
-   <Text style={ui.title}>現在の融資申込カード</Text><Text style={ui.body}>{items.length}種類・{collateralQuantity(items)}枚</Text>
-   {items.map(item=><View key={item.id} style={ui.card}><Text style={ui.title}>{item.name}</Text><Text style={ui.body}>{item.cardNumber||'型番未登録'} / {item.grade} / {item.quantity}枚</Text><Button title={item.name+'を申込から削除'} secondary onPress={()=>onChange(items.filter(row=>row.id!==item.id))}/></View>)}
+   <Text style={ui.title}>現在の融資申込カード</Text>
+   {items.map(item=><View key={item.id} style={[ui.card,{padding:16,paddingRight:48,flexDirection:'row',alignItems:'center'}]}>
+    {item.imageUrl?<Image alt={item.name} source={{uri:item.imageUrl}} accessibilityLabel={item.name+'の画像'} style={{width:82,height:114}} resizeMode="contain"/>:<View style={{width:82,height:114,justifyContent:'center'}}><Text style={ui.muted}>画像なし</Text></View>}
+    <View style={{flex:1,gap:8}}><Text style={[ui.title,{fontSize:16}]}>{item.name}</Text><Text style={ui.body}>{item.cardNumber||'型番未登録'} / {item.grade}</Text></View>
+    <Pressable accessibilityRole="button" accessibilityLabel={item.name+'を申込から削除'} onPress={()=>onChange(items.filter(row=>row.id!==item.id))} style={{position:'absolute',right:2,top:2,width:44,height:44,alignItems:'center',justifyContent:'center'}}><Text accessible={false} style={{color:colors.muted,fontSize:28}}>×</Text></Pressable>
+   </View>)}
    {!items.length&&<Text style={ui.muted}>カードがまだ追加されていません。</Text>}
-   <Button title="続けてカードを登録する" secondary onPress={cameraRoute}/>
-   <Button title="登録を終了して申請に進む" disabled={!items.length} onPress={()=>setRoute('basket')}/>
   </>:selected?<>
    <Button title="候補一覧に戻る" secondary onPress={()=>{setSelected(null);setRoute(origin);setError('')}}/>
    <View style={ui.card}>{selected.card.imageUrl?<Image alt={selected.card.name} source={{uri:selected.card.imageUrl}} accessibilityLabel={selected.card.name} style={{height:330,width:'100%'}} resizeMode="contain"/>:<Text style={ui.muted}>画像は準備中です</Text>}<Text style={ui.title}>{selected.card.name}</Text><Text style={ui.body}>型番 {selected.card.cardNumber||'未登録'}</Text><Text style={ui.muted}>版・言語・型番が、お手元のカードと一致することを確認してください。</Text><CardGradeSelect value={grade} onChange={setGrade} active={active}/><Field label="枚数" value={quantity} onChangeText={setQuantity} keyboardType="number-pad" maxLength={3}/><Field label="傷・白かけ・ケース破損など（任意）" value={condition} onChangeText={setCondition} maxLength={300} multiline/></View>
@@ -104,5 +108,10 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
    {showCandidates&&results&&<>{results.partial&&<Text style={ui.error}>{results.message||'一部の候補を取得できませんでした。'}</Text>}<Text style={ui.title}>{route==='results'?'撮影したカードの候補':'検索結果'}</Text>{route==='results'&&<Text style={ui.muted}>型番・セット・名前などの一致情報が多い順です。画像を見比べて選択してください。</Text>}{!results.cards.length&&<Text style={ui.body}>候補がありません。検索語を変えるか、下から個別査定のカードを追加してください。</Text>}<View style={{flexDirection:'row',flexWrap:'wrap',gap:12}}>{results.cards.map(card=><Pressable key={card.id} accessibilityRole="button" accessibilityLabel={card.name+' '+card.cardNumber+' を確認'} style={[ui.card,{width:columns?'48%':'100%',padding:14}]} onPress={()=>choose(card)}>{card.imageUrl&&<Image alt={card.name} source={{uri:card.imageUrl}} accessibilityLabel={card.name} style={{height:150,width:'100%'}} resizeMode="contain"/>}<Text style={ui.title}>{card.name}</Text><Text style={ui.body}>{card.cardNumber||'型番未登録'}</Text><Text style={ui.muted}>このカードを確認 ›</Text></Pressable>)}</View>{route==='manual'&&<View style={ui.row}><Button title="前のページ" secondary disabled={busy||results.page<=1} onPress={()=>void search(query.trim(),results.page-1)}/><Button title="次のページ" secondary disabled={busy||!results.hasMore} onPress={()=>void search(query.trim(),results.page+1)}/></View>}</>}
    <View style={ui.card}><Text style={ui.title}>見つからないカードは個別査定へ</Text><Field label="個別査定を依頼するカード名" value={manual} onChangeText={setManual} maxLength={100}/><Button title="個別査定のカードを申込に追加" secondary disabled={busy||!manual.trim()} onPress={()=>{addItem({id:randomUUID(),name:manual.trim(),cardNumber:'',quantity:1,grade:'未鑑定',condition:'',source:'manual',cardUid:null,productId:null});setManual('')}}/></View>
   </>}
+ </ScrollView>
+ {added&&<View accessibilityLabel="申込リストの操作" onLayout={event=>setActionsHeight(event.nativeEvent.layout.height)} style={{position:'absolute',bottom:0,left:0,right:0,zIndex:10,elevation:12,padding:16,gap:10,backgroundColor:colors.background+'F2',borderTopWidth:1,borderColor:colors.border}}>
+  <Button title="続けて登録" secondary onPress={cameraRoute}/>
+  <Button title="申請に進む" disabled={!items.length} onPress={()=>setRoute('basket')}/>
+ </View>}
  </View>;
 }

@@ -5,6 +5,7 @@ import {observeMarket,valueObservedMarket,type ObservedMarket} from './observed-
 import type {CollateralItem} from './collateral-types'
 import type {BundleEstimate} from './bundle-estimate-types'
 import {conditionNeedsReview} from './collateral-types'
+import {saveCardReferences} from './card-references'
 
 type Snapshot={name:string;cardNumber:string;market:ObservedMarket}
 const psa10=(grade:string)=>grade.normalize('NFKC').replace(/\s/g,'').toUpperCase()==='PSA10'
@@ -26,6 +27,7 @@ async function snapshot(productId:string):Promise<Snapshot>{
   // response per product, no crawling, pagination loops or automatic retries.
   const card=parseSnkrdunkCard(await json(`/v1/apparels/${productId}`),productId)
   if(!card)throw Error('unsupported_product')
+  await saveCardReferences([card])
   const market=observeMarket(await json(`/v1/apparels/${productId}/sales-history?page=1&per_page=300&condition_id=22`))
   const result={name:card.name,cardNumber:card.cardNumber,market}
   if(cache.size>=60)cache.delete(cache.keys().next().value!)

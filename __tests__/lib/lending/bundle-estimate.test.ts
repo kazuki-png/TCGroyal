@@ -1,6 +1,7 @@
 // @vitest-environment node
 import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest'
 vi.mock('server-only',()=>({}))
+vi.mock('@/lib/lending/card-references',()=>({saveCardReferences:vi.fn().mockResolvedValue(undefined)}))
 vi.mock('@/lib/security/safeRemoteFetch',()=>({fetchPublicRemoteUrl:vi.fn()}))
 import {fetchPublicRemoteUrl} from '@/lib/security/safeRemoteFetch'
 import type {CollateralItem} from '@/lib/lending/collateral-types'

@@ -219,7 +219,7 @@ function LendingApp() {
         <View style={styles.environmentDot}/><Text maxFontSizeMultiplier={1.3} style={styles.badge}>テスト環境</Text>
       </Pressable>}
     </View>
-    <ScrollView ref={scroll} onScroll={event=>{scrollPositions.current[tab]=event.nativeEvent.contentOffset.y}} scrollEventThrottle={100} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.gold} />:undefined}>
+    <ScrollView style={state&&tab==='assessment'?{display:'none'}:undefined} ref={scroll} onScroll={event=>{scrollPositions.current[tab]=event.nativeEvent.contentOffset.y}} scrollEventThrottle={100} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.gold} />:undefined}>
       {!(state&&tab==='assessment')&&<Text accessibilityRole="header" style={styles.heading}>{heading}</Text>}
       {state&&returnToInbox&&<Action label="お知らせ一覧に戻る" disabled={busy} onPress={()=>{setReturnToInbox(false);setFocusedLoan(null);setTab('inbox');scroll.current?.scrollTo({y:0,animated:false})}}/>}
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
@@ -234,7 +234,6 @@ function LendingApp() {
       </>}
       {state&&tab==='home'&&<HomeScreen state={state} items={transactions} draftCount={collateralQuantity(draft.items)} onApply={()=>switchTab('assessment')} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onOpen={id=>{switchTab('loans');setFocusedLoan(id);requestAnimationFrame(()=>scroll.current?.scrollTo({y:0,animated:false}))}} onIdentity={()=>{switchTab('account');setAccountPage('identity')}} onInbox={()=>switchTab('inbox')} notices={inbox}/>}
       {state?.transactionsUnavailable&&<Text style={styles.error}>査定依頼の一部を取得できません。一覧を更新してください。</Text>}
-      {state && <View key={getInboxStorageKey()+':'+applyRequest} style={tab==='assessment'?undefined:{display:'none'}} accessibilityElementsHidden={tab!=='assessment'} importantForAccessibility={tab==='assessment'?'auto':'no-hide-descendants'}><AssessmentScreen onApplied={reload} active={tab==='assessment'&&!toolsOpen} items={draft.items} onChange={draft.change} ready={draft.ready} error={draft.error} onNavigate={scrollApplicationTop}/></View>}
       {state && tab==='loans'&&<TransactionList items={transactions} selectedId={focusedLoan} onSelect={id=>{setFocusedLoan(id);scroll.current?.scrollTo({y:0,animated:false})}} onApply={()=>switchTab('assessment')} renderDetail={item=>{
        const loan=state.loans.find(loan=>loan.id===item.loanId);
        return <>{loan?<LoanTile key={`${loan.id}-${loan.version}`} loan={loan} send={send} busy={busy}/>:item.caseId?<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>:<Text style={styles.muted}>一覧を更新してください。</Text>}{loan&&item.caseId&&<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>}</>;
@@ -242,6 +241,7 @@ function LendingApp() {
       {state && tab === 'inbox' && <InboxScreen items={inbox} readIds={receipts.readIds} ready={receipts.ready} saving={receipts.saving} error={receipts.error} onRead={receipts.markRead} onOpen={openInboxItem} onRefresh={() => { if (receipts.error) receipts.retry(); void refresh(); }} refreshing={busy}/>}
       {state && tab === 'account' && <AccountScreen initialPage={accountPage} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onUpdated={reload} onSignOut={()=>void signOut()} signingOut={busy}/>}
     </ScrollView>
+      {state && <View key={getInboxStorageKey()+':'+applyRequest} style={tab==='assessment'?{flex:1}:{display:'none'}} accessibilityElementsHidden={tab!=='assessment'} importantForAccessibility={tab==='assessment'?'auto':'no-hide-descendants'}><AssessmentScreen onApplied={reload} active={tab==='assessment'&&!toolsOpen} items={draft.items} onChange={draft.change} ready={draft.ready} error={draft.error} onNavigate={scrollApplicationTop}/></View>}
     <View accessibilityRole="tablist" style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
       {([['home','ホーム','⌂'],['loans','取引状況','≡'],['assessment','申し込み','＋'],['inbox','お知らせ','✉'],['account','マイページ','○']] as const).map(([key,label,icon]) => <Pressable key={key} accessibilityRole="tab" accessibilityLabel={key==='assessment'?`申し込み、申込リスト${collateralQuantity(draft.items)}枚`:key === 'inbox' && unreadCount ? `お知らせ、未読${unreadCount}件` : label} accessibilityState={{selected: tab === key}} onPress={() => switchTab(key)} style={[styles.tab, tab === key && key!=='assessment'&&styles.activeTab]}>
         {key==='assessment'?<View style={[styles.applyCircle,tab===key&&styles.applySelected]}><Text accessible={false} style={styles.applyIcon}>＋</Text></View>:<Text accessible={false} style={[styles.tabIcon, tab === key && styles.activeText]}>{icon}</Text>}

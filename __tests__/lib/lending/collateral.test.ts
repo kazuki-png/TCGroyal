@@ -5,6 +5,10 @@ import {inspectionInputError} from '@/lib/lending/inspection-input';
 import {buildSupportEstimateMessage} from '../../../mobile/src/support-estimate';
 const item={id:'30000000-0000-4000-8000-000000000001',name:'架空カード',cardNumber:'001',quantity:2,grade:'未鑑定',condition:'白欠け',source:'manual' as const,productId:null,cardUid:null};
 describe('bundled collateral',()=>{
+ it('keeps display images out of contractual DB payloads and rejects unsafe image URLs',()=>{
+  expect(collateralItems.parse([{...item,imageUrl:'https://cdn.snkrdunk.com/card.webp'}])).toEqual([item]);
+  expect(collateralItems.safeParse([{...item,imageUrl:'file:///private.jpg'}]).success).toBe(false);
+ });
  it('rejects duplicate line IDs, invalid quantities, oversized totals, and client price claims',()=>{
   for(const input of [[{...item,quantity:0}],[{...item,quantity:1.5}],[{...item,quantity:101}],[item,item],[{...item,price:999999}],[{...item,source:'snkrdunk'}]])expect(collateralItems.safeParse(input).success).toBe(false);
   expect(collateralItems.safeParse([item,{...item,id:'30000000-0000-4000-8000-000000000002',quantity:99}]).success).toBe(false);

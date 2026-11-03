@@ -41,7 +41,11 @@ export async function searchSnkrdunkCards(query:string,category:'all'|'pokemon'|
   const deadline=Date.now()+8000
   // Verified read-only Web API. This is not a contracted, version-stable partner API.
   const url=new URL('https://snkrdunk.com/en/v1/search')
-  url.searchParams.set('keyword',query.trim());url.searchParams.set('perPage',String(pageSize));url.searchParams.set('page',String(page))
+  // This source tokenizes promo slashes poorly: 150/XY-P returned unrelated
+  // cards containing 150, while 150 XY-P retrieves the promo. Keep full-number
+  // validation in image-candidates; never use a loose numeric match as identity.
+  const keyword=query.trim().normalize('NFKC').replace(/\b(\d{1,4})\s*\/\s*([a-z]{1,6})\s*-\s*p\b/gi,'$1 $2-P')
+  url.searchParams.set('keyword',keyword);url.searchParams.set('perPage',String(pageSize));url.searchParams.set('page',String(page))
   const data=searchSchema.parse(await json(url,deadline)),candidates=[...new Set(data.streetwears.filter(p=>p.isTradingCard===true).map(p=>String(p.id)))].slice(0,pageSize)
   const cards:SnkrdunkCard[]=[]
   // Two simultaneous detail reads at most; obtain Japanese names and validate single-card categories.

@@ -1,10 +1,11 @@
 import type {DiscoveryCard,ImageDiscoverySearch} from './discovery-types'
+import {printedCardNumbers} from './card-identifiers'
 
 type Hints=ImageDiscoverySearch['hints']
 const folded=(value:string)=>value.normalize('NFKC').toLowerCase().replace(/[‐‑–—]/g,'-')
 const normalized=(value:string)=>folded(value).replace(/\s/g,'')
 // Keep the numerator AND denominator. Reprints can share a numerator.
-const numbers=(value:string):string[]=>folded(value).replace(/\s*\/\s*/g,'/').match(/[a-z]*\d+[a-z]*\/\d+[a-z]*|[a-z]+\d+-\d+[a-z]*/g)??[]
+const numbers=printedCardNumbers
 
 export function rankImageCandidates(cards:DiscoveryCard[],hints:Hints):DiscoveryCard[]{
  const expected=numbers(hints.cardNumber??'')
@@ -25,8 +26,11 @@ export function rankImageCandidates(cards:DiscoveryCard[],hints:Hints):Discovery
    if(codes.length&&!codes.includes(setCode))return []
    if(codes.includes(setCode))matchedOn.push('set')
   }else if(hints.setName&&text.includes(normalized(hints.setName)))matchedOn.push('set')
-  if(hints.name&&text.includes(normalized(hints.name)))matchedOn.push('name')
+  if(hints.name&&normalized(hints.name).length>=3&&text.includes(normalized(hints.name)))matchedOn.push('name')
   if(hints.rarity&&fullText.split(/[^a-z0-9]+/).includes(normalized(hints.rarity)))matchedOn.push('rarity')
+  // A broad upstream search can return popular but unrelated cards. A shared
+  // set/rarity alone is not enough evidence of a specific card's identity.
+  if(!matchedOn.includes('number')&&!matchedOn.includes('name'))return []
   const weights={number:100,set:30,name:10,rarity:3}
   return [{card:{...card,imageMatch:{matchedOn}},score:matchedOn.reduce((sum,field)=>sum+weights[field],0),index}]
  }).sort((a,b)=>b.score-a.score||a.index-b.index).slice(0,3).map(value=>value.card)

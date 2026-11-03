@@ -1,5 +1,6 @@
 import {z} from 'zod'
 import {collateralItems} from './collateral'
+import {printedCardNumbers} from './card-identifiers'
 export const declaredGrade=z.enum(['PSA10','other','ungraded'])
 export const catalogInput=z.discriminatedUnion('action',[
  z.object({action:z.literal('discover'),query:z.string().trim().max(100).default(''),category:z.enum(['pokemon','onepiece','all']).default('all'),page:z.number().int().min(1).max(100).default(1)}).strict(),
@@ -14,5 +15,6 @@ export const imageHints=z.object({name:z.string().trim().max(100).nullable(),car
 export function catalogTokens(query:string){return query.normalize('NFKC').replace(/[^\p{L}\p{N}\s\-/]/gu,' ').trim().split(/\s+/).filter(Boolean).slice(0,6).map(s=>s.slice(0,60))}
 export function imageSearchQuery(hints:z.infer<typeof imageHints>){
  // The printed number is generally more discriminating than an English name in a Japanese catalog.
- return catalogTokens(hints.cardNumber||hints.name||'').join(' ').slice(0,100)
+ const number=printedCardNumbers(hints.cardNumber??'')[0]
+ return number??catalogTokens(hints.name??'').join(' ').slice(0,100)
 }

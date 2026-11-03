@@ -4,6 +4,15 @@ import type {DiscoveryCard,ImageDiscoverySearch} from '@/lib/lending/discovery-t
 const hints:ImageDiscoverySearch['hints']={name:'ピカチュウ',cardNumber:'132/106',category:'pokemon',setName:'SV8',language:'日本語',rarity:'SAR'}
 const card=(id:string,name:string,cardNumber='SV8 132/106'):DiscoveryCard=>({id,name,cardNumber,category:'pokemon',imageUrl:null,kind:'external',productId:id,cardUid:null})
 describe('image candidate identity evidence',()=>{
+ it('does not confuse a promo identifier with a fraction sharing its numerator',()=>{
+  const promo={...hints,name:'PRTD.MGKRIPIKACHU',cardNumber:'150/XY-P',setName:null,rarity:null}
+  const result=rankImageCandidates([card('wrong','ゲンガー','150/103'),card('unrelated','ドーブル','073/068'),card('promo','コイキングごっこピカチュウ','150/XY-P')],promo)
+  expect(result.map(value=>value.id)).toEqual(['promo']);expect(result[0].imageMatch?.matchedOn).toEqual(['number'])
+ })
+ it('rejects candidates without any card-name or complete-number evidence',()=>{
+  expect(rankImageCandidates([card('wrong','ゲンガー','150/103'),card('unrelated','ドーブル','073/068')],{...hints,name:'PRTD.MGKRIPIKACHU',cardNumber:null,setName:null,rarity:null})).toEqual([])
+  expect(rankImageCandidates([card('same-set','ゲンガー SAR','SV8')],{...hints,name:null,cardNumber:null})).toEqual([])
+ })
  it('ranks full number + set above name-only candidates without inventing a confidence percentage',()=>{
   const result=rankImageCandidates([card('name','ピカチュウ',''),card('exact','ピカチュウ SAR [SV8 132/106]')],hints)
   expect(result.map(c=>c.id)).toEqual(['exact','name'])

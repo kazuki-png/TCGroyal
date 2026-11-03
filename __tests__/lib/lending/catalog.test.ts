@@ -17,6 +17,8 @@ describe('catalog discovery boundary',()=>{
  it('prefers printed card number and leaves unreadable images without a search',()=>{
   const hints=imageHints.parse({name:'PIKACHU',cardNumber:'025/165',category:'pokemon',setName:null,language:null,rarity:null})
   expect(imageSearchQuery(hints)).toBe('025/165')
+  expect(imageSearchQuery({...hints,cardNumber:'１５０ / ＸＹ－Ｐ SAR'})).toBe('150/XY-P')
+  expect(imageSearchQuery({...hints,cardNumber:'167034272',name:null})).toBe('')
   expect(imageSearchQuery({...hints,name:null,cardNumber:null})).toBe('')
   expect(imageHints.safeParse({...hints,grade:'PSA10'}).success).toBe(false)
  })

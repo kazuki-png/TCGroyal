@@ -7,6 +7,11 @@ const product=(id=123)=>({id,localizedName:'検証カード [SV 001/100]',brands
 beforeEach(()=>{vi.resetModules();vi.clearAllMocks()});
 afterEach(()=>vi.useRealTimers());
 describe('Snkrdunk JSON card discovery',()=>{
+ it('keeps promo identity while using the upstream space-delimited search syntax',async()=>{
+  vi.mocked(fetchPublicRemoteUrl).mockResolvedValueOnce(Response.json({streetwears:[]}));
+  const {searchSnkrdunkCards}=await import('@/lib/lending/snkrdunk-card-search');await searchSnkrdunkCards('150/XY-P','pokemon',1);
+  expect(vi.mocked(fetchPublicRemoteUrl).mock.calls[0][0].searchParams.get('keyword')).toBe('150 XY-P');
+ });
  it('shares an eight-second budget across the keyword request and detail reads',async()=>{
   vi.useFakeTimers();vi.setSystemTime(new Date('2026-11-03T00:00:00Z'));
   vi.mocked(fetchPublicRemoteUrl).mockImplementation(async url=>{

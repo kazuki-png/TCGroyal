@@ -27,7 +27,7 @@ export function imageSearchPlan(hints:z.infer<typeof imageHints>){
  const steps:{query:string;tier:1|2|3|4}[]=[]
  if(number)steps.push({query:number,tier:1})
  if(name&&term)steps.push({query:(name+' '+term).slice(0,100),tier:2})
- if(name&&hints.category==='pokemon'&&hints.oldBack===true)steps.push({query:(name+' 旧裏').slice(0,100),tier:3})
+ if(name&&hints.category==='pokemon'&&(hints.oldBack===true||hints.oldBack===null))steps.push({query:(name+' 旧裏').slice(0,100),tier:3})
  if(name)steps.push({query:name,tier:4})
  return steps.filter((step,index)=>steps.findIndex(other=>other.query===step.query)===index)
 }

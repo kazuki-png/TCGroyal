@@ -14,10 +14,10 @@ describe('catalog discovery boundary',()=>{
   expect(catalogInput.safeParse({action:'search',query:'a'.repeat(101)}).success).toBe(false)
   expect(catalogInput.safeParse({action:'submit',assessmentId:'20000000-0000-4000-8000-000000000001',key:'30000000-0000-4000-8000-000000000001',requestedAmount:'10000001',consent:true}).success).toBe(false)
  })
- it('uses a visible level before vintage/name queries and never assumes old-back when unknown',()=>{
+ it('uses a visible level before vintage/name queries and searches unknown-era Pokemon without asserting an old-back classification',()=>{
   const hints=imageHints.parse({name:'ライチュウ',cardNumber:'026',category:'pokemon',setName:null,language:'日本語',rarity:null,specificTerms:['LV.32','HP70'],oldBack:true})
   expect(imageSearchPlan(hints).map(step=>step.query)).toEqual(['ライチュウ LV32','ライチュウ 旧裏','ライチュウ'])
-  expect(imageSearchPlan({...hints,oldBack:null}).map(step=>step.query)).not.toContain('ライチュウ 旧裏')
+  expect(imageSearchPlan({...hints,oldBack:null}).map(step=>step.query)).toContain('ライチュウ 旧裏')
   expect(imageSearchPlan({...hints,category:'onepiece'}).map(step=>step.query)).not.toContain('ライチュウ 旧裏')
  })
  it('prefers printed card number and leaves unreadable images without a search',()=>{

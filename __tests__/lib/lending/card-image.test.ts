@@ -2,7 +2,7 @@
 import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest'
 vi.mock('server-only',()=>({}))
 import {extractCardHints} from '@/lib/lending/card-image'
-const hints={name:'ピカチュウ',cardNumber:'025/165',category:'pokemon',setName:null,language:null,rarity:null}
+const hints={name:'ピカチュウ',cardNumber:'025/165',category:'pokemon',setName:null,language:null,rarity:null,specificTerms:[],oldBack:null}
 const response=(text:unknown,status='completed')=>Response.json({status,output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(text)}]}],usage:{input_tokens:1400,output_tokens:100}})
 beforeEach(()=>{vi.stubEnv('OPENAI_API_KEY','fixture-token-not-real');vi.stubGlobal('fetch',vi.fn())})
 afterEach(()=>{vi.unstubAllGlobals();vi.unstubAllEnvs()})
@@ -12,7 +12,7 @@ describe('bounded card image provider',()=>{
   expect((await extractCardHints(Buffer.from('fixture-image'))).hints).toEqual(hints)
   expect(fetch).toHaveBeenCalledOnce()
   const [url,options]=vi.mocked(fetch).mock.calls[0];expect(url).toBe('https://api.openai.com/v1/responses')
-  const body=JSON.parse(options!.body as string);expect(body.store).toBe(false);expect(body.text.format.strict).toBe(true);expect(body.max_output_tokens).toBe(600)
+  const body=JSON.parse(options!.body as string);expect(body.store).toBe(false);expect(body.text.format.strict).toBe(true);expect(body.max_output_tokens).toBe(600);expect(body.text.format.schema.required).toEqual(expect.arrayContaining(['specificTerms','oldBack']));expect(body.input[0].content).toContain('Pokédex number')
  })
  it('does not contact OpenAI if not configured',async()=>{
   vi.stubEnv('OPENAI_API_KEY','');await expect(extractCardHints(Buffer.alloc(1))).rejects.toThrow('unconfigured');expect(fetch).not.toHaveBeenCalled()

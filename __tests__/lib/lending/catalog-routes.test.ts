@@ -2,12 +2,13 @@
 import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest'
 import sharp from 'sharp'
 vi.mock('server-only',()=>({}))
-const mocks=vi.hoisted(()=>({access:vi.fn(),client:vi.fn(),rate:vi.fn(),search:vi.fn(),extract:vi.fn(),market:vi.fn(),external:vi.fn(),estimate:vi.fn()}))
+const mocks=vi.hoisted(()=>({access:vi.fn(),client:vi.fn(),rate:vi.fn(),search:vi.fn(),extract:vi.fn(),market:vi.fn(),external:vi.fn(),estimate:vi.fn(),visual:vi.fn()}))
 vi.mock('@/lib/lending/bundle-estimate',()=>({estimateBundle:mocks.estimate}))
 vi.mock('@/lib/lending/snkrdunk-card-search',()=>({searchSnkrdunkCards:mocks.external}))
 vi.mock('@/lib/lending/api-guard',async()=>({...await vi.importActual<typeof import('@/lib/lending/api-guard')>('@/lib/lending/api-guard'),lendingAccess:mocks.access}))
 vi.mock('@/lib/lending/workflow-client',()=>({createWorkflowClient:mocks.client,checkWorkflowRateLimit:mocks.rate}))
 vi.mock('@/lib/lending/catalog-server',()=>({searchCatalog:mocks.search,catalogColumns:'public_uid,name,grade'}))
+vi.mock('@/lib/lending/card-image-ranking',()=>({rankCardImages:mocks.visual}))
 vi.mock('@/lib/lending/card-image',()=>({extractCardHints:mocks.extract}))
 vi.mock('@/lib/lending/snkrdunk',()=>({fetchSnkrdunkSnapshot:mocks.market}))
 import {POST as catalog} from '@/app/api/lending/catalog/route'
@@ -107,6 +108,18 @@ describe('catalog and image routes',()=>{
   expect(claim.insert).toHaveBeenCalledWith({id,user_id:user,image_hash:expect.stringMatching(/^[a-f0-9]{64}$/)})
   expect(usage.update).toHaveBeenCalledWith({model:'fixture',input_tokens:1000,output_tokens:100})
   expect(saved.update).toHaveBeenCalledWith(expect.objectContaining({status:'completed'}))
+ })
+ it('adds visual comparison usage to the saved result and replays without another model call',async()=>{
+  mocks.extract.mockResolvedValue({hints:{...hints,cardNumber:null,specificTerms:['LV32'],oldBack:true},usage:{inputTokens:1000,outputTokens:100},model:'fixture'})
+  mocks.external.mockResolvedValue({cards:[1,2,3].map(productId=>({productId:String(productId),name:'ピカチュウ '+productId,cardNumber:'',category:'pokemon',imageUrl:null})),page:1,hasMore:false})
+  mocks.visual.mockImplementation(async(_image,cards,onUsage)=>{onUsage({inputTokens:900,outputTokens:30});return [...cards].reverse()})
+  const saved=query(null);from.mockReturnValueOnce(query({id})).mockReturnValueOnce(query(null)).mockReturnValueOnce(saved)
+  const r=await image(await upload('true',undefined,'discovery'));expect(r.status).toBe(200);const body=await r.json()
+  expect(body.visualSort).toBe('applied');expect(mocks.visual).toHaveBeenCalledOnce()
+  expect(saved.update).toHaveBeenCalledWith(expect.objectContaining({input_tokens:1900,output_tokens:130,result:body}))
+  const insert=from.mock.results[0].value.insert.mock.calls[0][0]
+  from.mockReturnValueOnce(query(null,{code:'23505'})).mockReturnValueOnce(query({status:'completed',image_hash:insert.image_hash,result:body}))
+  expect(await (await image(await upload('true',undefined,'discovery'))).json()).toEqual(body);expect(mocks.visual).toHaveBeenCalledOnce()
  })
  it('does not charge another request while processing or after an uncertain failure',async()=>{
   from.mockReturnValueOnce(query(null,{code:'23505'})).mockReturnValueOnce(query({status:'processing'}))

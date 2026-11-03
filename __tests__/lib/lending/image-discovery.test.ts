@@ -12,7 +12,7 @@ describe('bounded image discovery',()=>{
   discover.mockResolvedValue(match);const allow=vi.fn(async()=>true)
   const result=await discoverImageCards(hints,allow)
   expect(discover).toHaveBeenNthCalledWith(1,'132/106','pokemon',1,true);expect(discover).toHaveBeenNthCalledWith(2,'ピカチュウ','pokemon',1,true)
-  expect(result).toMatchObject({hasMore:false,searchQuery:'132/106',cards:[{id:'1',imageMatch:{matchedOn:['number','set','name','rarity']}}]})
+  expect(result).toMatchObject({hasMore:false,searchQuery:'ピカチュウ',cards:[{id:'1',imageMatch:{matchedOn:['number','set','name','rarity']}}]})
  })
  it('keeps the exact number first and fills three distinct suggestions without another image call',async()=>{
   discover.mockResolvedValueOnce(match).mockResolvedValueOnce({...match,cards:[{...match.cards[0],id:'2',cardNumber:'001/100'},{...match.cards[0],id:'3',cardNumber:'002/100'}]})
@@ -27,6 +27,24 @@ describe('bounded image discovery',()=>{
   expect(discover).toHaveBeenCalledTimes(1)
   discover.mockReset();discover.mockResolvedValue({...match,cards:[match.cards[0],{...match.cards[0],id:'2',name:'ゲンガー',cardNumber:'001/100'},{...match.cards[0],id:'3',name:'ピカチュウ English',cardNumber:'002/100'}]})
   expect((await discoverImageCards(hints,async()=>true)).cards.map(card=>card.id)).toEqual(['1'])
+ })
+ it('tries number, specific term, old-back and name in order then visually reranks broad results',async()=>{
+  const vintage={...hints,name:'ライチュウ',cardNumber:'132/106',specificTerms:['LV32','HP70'],oldBack:true}
+  const cards=[1,2,3].map(id=>({...match.cards[0],id:String(id),name:'ライチュウ',cardNumber:''}))
+  discover.mockResolvedValueOnce({...match,cards:[]}).mockResolvedValueOnce({...match,cards:[]}).mockResolvedValueOnce({...match,cards:[]}).mockResolvedValueOnce({...match,cards})
+  const visual=vi.fn(async(values:typeof cards)=>[...values].reverse())
+  const result=await discoverImageCards(vintage,async()=>true,visual)
+  expect(discover.mock.calls.map(args=>args[0])).toEqual(['132/106','ライチュウ LV32','ライチュウ 旧裏','ライチュウ'])
+  expect(result.cards.map(card=>card.id)).toEqual(['3','2','1']);expect(result.visualSort).toBe('applied');expect(visual).toHaveBeenCalledOnce()
+ })
+ it('does not use visual sorting for strong specific-term matches; falls back safely if comparison fails',async()=>{
+  const vintage={...hints,name:'ライチュウ',cardNumber:null,specificTerms:['LV32'],oldBack:true}
+  discover.mockResolvedValue({...match,cards:[1,2,3].map(id=>({...match.cards[0],id:String(id),name:'ライチュウ LV32',cardNumber:''}))})
+  const visual=vi.fn().mockRejectedValue(Error('private failure'))
+  expect((await discoverImageCards(vintage,async()=>true,visual)).visualSort).toBe('not_needed');expect(visual).not.toHaveBeenCalled();expect(discover).toHaveBeenCalledOnce()
+  discover.mockResolvedValue({...match,cards:[1,2,3].map(id=>({...match.cards[0],id:String(id),name:'ライチュウ',cardNumber:''}))})
+  const result=await discoverImageCards(vintage,async()=>true,visual)
+  expect(result.cards).toHaveLength(3);expect(result.visualSort).toBe('unavailable');expect(JSON.stringify(result)).not.toContain('private failure')
  })
  it('falls back once to the printed name when the number query has no usable candidates',async()=>{
   discover.mockResolvedValueOnce({...match,cards:[{...match.cards[0],cardNumber:'001/100'}]}).mockResolvedValueOnce(match)

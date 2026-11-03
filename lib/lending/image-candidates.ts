@@ -7,7 +7,7 @@ const normalized=(value:string)=>folded(value).replace(/\s/g,'')
 // Keep the numerator AND denominator. Reprints can share a numerator.
 const numbers=printedCardNumbers
 
-export function rankImageCandidates(cards:DiscoveryCard[],hints:Hints,related=false):DiscoveryCard[]{
+export function rankImageCandidates(cards:DiscoveryCard[],hints:Hints,related=false,limit=3):DiscoveryCard[]{
  const expected=numbers(hints.cardNumber??'')
  const setCode=normalized(hints.setName??'').match(/^(?:sv|sm|s|xy|bw|dp|pt)\d+[a-z]*$/)?.[0]??folded(hints.cardNumber??'').match(/\b(?:sv|sm|s|xy|bw|dp|pt)\d+[a-z]*\b/)?.[0]
  const language=normalized(hints.language??'')
@@ -27,11 +27,14 @@ export function rankImageCandidates(cards:DiscoveryCard[],hints:Hints,related=fa
    if(codes.includes(setCode))matchedOn.push('set')
   }else if(hints.setName&&text.includes(normalized(hints.setName)))matchedOn.push('set')
   if(hints.name&&normalized(hints.name).length>=3&&text.includes(normalized(hints.name)))matchedOn.push('name')
+  const specific=(hints.specificTerms??[]).some(term=>normalized(term).length>=3&&text.replace(/lv\./g,'lv').includes(normalized(term).replace(/lv\./g,'lv')))
+  if(specific)matchedOn.push('specific')
+  if(hints.category==='pokemon'&&hints.oldBack===true&&/旧裏/.test(fullText))matchedOn.push('oldBack')
   if(hints.rarity&&fullText.split(/[^a-z0-9]+/).includes(normalized(hints.rarity)))matchedOn.push('rarity')
   // A broad upstream search can return popular but unrelated cards. A shared
   // set/rarity alone is not enough evidence of a specific card's identity.
   if(!matchedOn.includes('number')&&!matchedOn.includes('name'))return []
-  const weights={number:100,set:30,name:10,rarity:3}
+  const weights={number:1000,specific:80,oldBack:60,set:30,name:10,rarity:3}
   return [{card:{...card,imageMatch:{matchedOn}},score:matchedOn.reduce((sum,field)=>sum+weights[field],0),index}]
- }).sort((a,b)=>b.score-a.score||a.index-b.index).slice(0,3).map(value=>value.card)
+ }).sort((a,b)=>b.score-a.score||a.index-b.index).slice(0,limit).map(value=>value.card)
 }

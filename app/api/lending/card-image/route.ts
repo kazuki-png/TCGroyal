@@ -3,12 +3,13 @@ import {createHash} from 'node:crypto'
 import {z} from 'zod'
 import {lendingAccess,lendingJson,boundedBody} from '@/lib/lending/api-guard'
 import {createWorkflowClient,checkWorkflowRateLimit} from '@/lib/lending/workflow-client'
+import {rankCardImages} from '@/lib/lending/card-image-ranking'
 import {extractCardHints} from '@/lib/lending/card-image'
 import {imageSearchQuery} from '@/lib/lending/catalog'
 import {searchCatalog} from '@/lib/lending/catalog-server'
 import {discoverImageCards} from '@/lib/lending/image-discovery'
 export const runtime='nodejs'
-export const maxDuration=45
+export const maxDuration=75
 export async function POST(request:Request){
  const actor=await lendingAccess(request,'lending:card-image',6);if(actor instanceof Response)return actor
  if(!process.env.OPENAI_API_KEY?.trim())return lendingJson({error:'画像検索は準備中です。カード名・型番で検索するか、個別見積もりをご利用ください。'},503)
@@ -41,7 +42,7 @@ export async function POST(request:Request){
   const usageSaved=await db.from('lending_image_searches').update({model,input_tokens:usage.inputTokens,output_tokens:usage.outputTokens}).eq('id',key).eq('user_id',actor.id)
   if(usageSaved.error)throw Error('usage_save')
   const query=imageSearchQuery(hints)
-  const matches=discovery?await discoverImageCards(hints,async()=>(await checkWorkflowRateLimit('lending:snkrdunk-search',actor.id,{limit:6,windowMs:60000})).allowed):query?await searchCatalog(query,hints.category??'all'):{cards:[],total:0,page:1}
+  const matches=discovery?await discoverImageCards(hints,async()=>(await checkWorkflowRateLimit('lending:snkrdunk-search',actor.id,{limit:6,windowMs:60000})).allowed,cards=>rankCardImages(image,cards,extra=>{usage.inputTokens+=extra.inputTokens;usage.outputTokens+=extra.outputTokens})):query?await searchCatalog(query,hints.category??'all'):{cards:[],total:0,page:1}
   const result={...matches,hints,imageRequestId:key}
   const saved=await db.from('lending_image_searches').update({status:'completed',result,model,input_tokens:usage.inputTokens,output_tokens:usage.outputTokens}).eq('id',key).eq('user_id',actor.id)
   if(saved.error)throw Error('save')

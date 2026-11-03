@@ -19,7 +19,9 @@ export async function discoverImageCards(hints:ImageDiscoverySearch['hints'],all
    const ranked=rankImageCandidates(pool,hints,true,12)
    // A broad same-name match is not evidence that a level/number query succeeded.
    const strong=ranked.filter(card=>tier===1?card.imageMatch?.matchedOn.includes('number'):tier===2?card.imageMatch?.matchedOn.includes('specific'):true)
-   if(strong.length>=3)break
+   // A shared level/HP is not a unique identity. Vintage cards must still
+   // reach the vintage query and illustration comparison.
+   if(strong.length>=3&&!(tier===2&&hints.oldBack===true))break
   }catch{partial=true}
  }
  let ranked=rankImageCandidates(pool,hints,true,12)

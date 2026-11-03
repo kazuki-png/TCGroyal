@@ -17,6 +17,8 @@ export function rankImageCandidates(cards:DiscoveryCard[],hints:Hints,related=fa
   if(hints.category&&card.category!==hints.category)return []
   const fullText=folded(`${card.name} ${card.cardNumber}`),text=normalized(fullText),actual=numbers(card.cardNumber||card.name)
   if(!related&&expected.length&&actual.length&&!expected.some(number=>actual.includes(number)))return []
+  // An explicit modern set code contradicts an old-back interpretation.
+  if(hints.category==='pokemon'&&hints.oldBack===true&&/\b(?:DP(?:T)?|BW|XY|SM|SV)[A-Z0-9-]*\s+\d/i.test(card.cardNumber.normalize('NFKC')))return []
   // Only exclude explicit language labels; absence of a label is not evidence.
   if(japanese&&/英語版|english/.test(text)||english&&/日本語版|japanese/.test(text))return []
   const matchedOn:NonNullable<DiscoveryCard['imageMatch']>['matchedOn']=[]
@@ -34,7 +36,7 @@ export function rankImageCandidates(cards:DiscoveryCard[],hints:Hints,related=fa
   // A broad upstream search can return popular but unrelated cards. A shared
   // set/rarity alone is not enough evidence of a specific card's identity.
   if(!matchedOn.includes('number')&&!matchedOn.includes('name'))return []
-  const weights={number:1000,specific:80,oldBack:60,set:30,name:10,rarity:3}
+  const weights={number:1000,specific:80,oldBack:200,set:30,name:10,rarity:3}
   return [{card:{...card,imageMatch:{matchedOn}},score:matchedOn.reduce((sum,field)=>sum+weights[field],0),index}]
  }).sort((a,b)=>b.score-a.score||a.index-b.index).slice(0,limit).map(value=>value.card)
 }

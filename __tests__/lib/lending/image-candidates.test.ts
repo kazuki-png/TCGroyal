@@ -28,6 +28,11 @@ describe('image candidate identity evidence',()=>{
   expect(rankImageCandidates([{...card('correct','ルフィ','OP01-001'),category:'onepiece'},{...card('wrong','ルフィ','OP02-001'),category:'onepiece'}],onepiece).map(c=>c.id)).toEqual(['correct'])
   expect(rankImageCandidates([card('wide','ピカチュウ','ＳＶ８ １３２ / １０６')],hints)[0].imageMatch?.matchedOn).toContain('number')
  })
+ it('excludes explicit modern sets from old-back candidates even when the level matches',()=>{
+  const vintage={...hints,cardNumber:null,setName:null,specificTerms:['LV12'],oldBack:true}
+  const result=rankImageCandidates([card('modern','ピカチュウ LV.12','DP-P 095'),card('old','ピカチュウ :旧裏','PMCG1 No.025'),card('unknown','ピカチュウ','')],vintage,true)
+  expect(result.map(card=>card.id)).toEqual(['old','unknown'])
+ })
  it('shows at most three candidates and never automatically picks one',()=>{
   expect(rankImageCandidates(Array.from({length:6},(_,i)=>card(String(i),'ピカチュウ')),hints)).toHaveLength(3)
   expect(rankImageCandidates([card('one','ピカチュウ')],{...hints,cardNumber:null,setName:null,rarity:null})[0]).not.toHaveProperty('selected')

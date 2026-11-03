@@ -38,13 +38,23 @@ describe('bounded image discovery',()=>{
   expect(result.cards.map(card=>card.id)).toEqual(['3','2','1']);expect(result.visualSort).toBe('applied');expect(visual).toHaveBeenCalledOnce()
  })
  it('does not use visual sorting for strong specific-term matches; falls back safely if comparison fails',async()=>{
-  const vintage={...hints,name:'ライチュウ',cardNumber:null,specificTerms:['LV32'],oldBack:true}
+  const vintage={...hints,name:'ライチュウ',cardNumber:null,specificTerms:['LV32'],oldBack:false}
   discover.mockResolvedValue({...match,cards:[1,2,3].map(id=>({...match.cards[0],id:String(id),name:'ライチュウ LV32',cardNumber:''}))})
   const visual=vi.fn().mockRejectedValue(Error('private failure'))
   expect((await discoverImageCards(vintage,async()=>true,visual)).visualSort).toBe('not_needed');expect(visual).not.toHaveBeenCalled();expect(discover).toHaveBeenCalledOnce()
   discover.mockResolvedValue({...match,cards:[1,2,3].map(id=>({...match.cards[0],id:String(id),name:'ライチュウ',cardNumber:''}))})
   const result=await discoverImageCards(vintage,async()=>true,visual)
   expect(result.cards).toHaveLength(3);expect(result.visualSort).toBe('unavailable');expect(JSON.stringify(result)).not.toContain('private failure')
+ })
+ it('does not stop at three LV12 matches when an old-back Pikachu still needs vintage candidates',async()=>{
+  const vintage={...hints,name:'ピカチュウ',cardNumber:null,setName:null,specificTerms:['LV12','HP40'],oldBack:true}
+  const levelCards=[1,2,3].map(id=>({...match.cards[0],id:'lv'+id,name:'そらをとぶピカチュウ LV.12 : 旧裏 '+id,cardNumber:'PMCG-P'}))
+  const illustration={...match.cards[0],id:'original',name:'ピカチュウ : 旧裏',cardNumber:'PMCG1 No.025'}
+  discover.mockResolvedValueOnce({...match,cards:levelCards}).mockResolvedValueOnce({...match,cards:[illustration]})
+  const visual=vi.fn(async(values:typeof levelCards)=>[...values].sort((a,b)=>Number(b.id==='original')-Number(a.id==='original')))
+  const result=await discoverImageCards(vintage,async()=>true,visual)
+  expect(discover.mock.calls.map(args=>args[0])).toEqual(['ピカチュウ LV12','ピカチュウ 旧裏'])
+  expect(visual).toHaveBeenCalledOnce();expect(result.visualSort).toBe('applied');expect(result.cards[0].id).toBe('original')
  })
  it('falls back once to the printed name when the number query has no usable candidates',async()=>{
   discover.mockResolvedValueOnce({...match,cards:[{...match.cards[0],cardNumber:'001/100'}]}).mockResolvedValueOnce(match)

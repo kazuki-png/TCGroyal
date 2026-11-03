@@ -29,7 +29,7 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
  const [photo,setPhoto]=useState<string|null>(null),[hints,setHints]=useState<ImageDiscoverySearch['hints']|null>(null);
  const [origin,setOrigin]=useState<'manual'|'results'>('results');
  const [picking,setPicking]=useState(false),pickerLock=useRef(false),visible=useRef(active);
- const scroll=useRef<ComponentRef<typeof ScrollView>>(null),[actionsHeight,setActionsHeight]=useState(146);
+ const scroll=useRef<ComponentRef<typeof ScrollView>>(null),[actionsHeight,setActionsHeight]=useState(88);
  const generation=useRef(0),mounted=useRef(true),controller=useRef<AbortController|null>(null),imageRequest=useRef<{uri:string;key:string}|null>(null);
  const cancel=useCallback(()=>{generation.current++;controller.current?.abort();setBusy(false)},[]);
  const cameraRoute=useCallback(()=>{cancel();setSelected(null);setRoute('camera');setError('');setNotice('');setPhoto(null);setHints(null);setResults(null)},[cancel]);
@@ -114,9 +114,9 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
    <View style={ui.card}><Text style={ui.title}>見つからないカードは個別査定へ</Text><Field label="個別査定を依頼するカード名" value={manual} onChangeText={setManual} maxLength={100}/><Button title="個別査定のカードを申込に追加" secondary disabled={busy||!manual.trim()} onPress={()=>{addItem({id:randomUUID(),name:manual.trim(),cardNumber:'',quantity:1,grade:'未鑑定',condition:'',source:'manual',cardUid:null,productId:null});setManual('')}}/></View>
   </>}
  </ScrollView>
- {added&&<View accessibilityLabel="申込リストの操作" onLayout={event=>setActionsHeight(event.nativeEvent.layout.height)} style={{position:'absolute',bottom:0,left:0,right:0,zIndex:10,elevation:12,padding:16,gap:10,backgroundColor:colors.background+'F2',borderTopWidth:1,borderColor:colors.border}}>
-  <Button title="続けて登録" secondary onPress={cameraRoute}/>
-  <Button title="申請に進む" disabled={!items.length} onPress={()=>setRoute('basket')}/>
+ {added&&<View accessibilityLabel="申込リストの操作" onLayout={event=>setActionsHeight(event.nativeEvent.layout.height)} style={{position:'absolute',bottom:0,left:0,right:0,zIndex:10,elevation:12,padding:12,gap:10,flexDirection:'row',backgroundColor:colors.background+'F2',borderTopWidth:1,borderColor:colors.border}}>
+  <View style={{flex:1}}><Button title="続けて登録" secondary onPress={cameraRoute}/></View>
+  <View style={{flex:1}}><Button title="申請に進む" disabled={!items.length} onPress={()=>setRoute('basket')}/></View>
  </View>}
  </View>;
 }

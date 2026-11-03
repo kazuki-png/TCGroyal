@@ -1,7 +1,7 @@
 import {colors} from './src/theme';
 import {RoyalIcon} from './src/RoyalIcon';
 import siteLogo from './assets/site-logo.png';
-import {RoyalSwitch as Switch} from './src/ui';
+import {RoyalSwitch as Switch,Button} from './src/ui';
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, Alert, BackHandler, Image, Linking, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,7 +37,7 @@ import {useAppBack} from './src/use-app-back';
 const yen = (n: number) => `¥${n.toLocaleString('ja-JP')}`;
 const date = (value: string | null) => value ? new Date(value).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : '—';
 function Action({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={onPress} style={[styles.button, disabled && styles.disabled]}><Text style={styles.buttonText}>{label}</Text></Pressable>;
+  return <Button title={label} disabled={disabled} onPress={onPress}/>;
 }
 type Send = (body: Record<string, unknown>) => Promise<void>;
 function LoanTile({ loan, send, busy }: { loan: WorkflowLoan; send: Send; busy: boolean }) {
@@ -244,14 +244,14 @@ function LendingApp() {
       {state && tab === 'account' && <AccountScreen initialPage={accountPage} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onUpdated={reload} onSignOut={()=>void signOut()} signingOut={busy}/>}
     </ScrollView>}
       {state && <View key={getInboxStorageKey()+':'+applyRequest} style={tab==='assessment'?{flex:1}:{display:'none'}} accessibilityElementsHidden={tab!=='assessment'} importantForAccessibility={tab==='assessment'?'auto':'no-hide-descendants'}><AssessmentScreen onApplied={reload} active={tab==='assessment'&&!toolsOpen} items={draft.items} onChange={draft.change} ready={draft.ready} error={draft.error} onCameraModeChange={setCameraMode} onCloseCamera={()=>switchTab('home')}/></View>}
-    {!cameraFullscreen&&<View accessibilityRole="tablist" style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+    <View accessibilityRole="tablist" style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
       {([['home','ホーム','home'],['loans','取引状況','transactions'],['assessment','申し込み','plus'],['inbox','お知らせ','mail'],['account','マイページ','person']] as const).map(([key,label,icon]) => <Pressable key={key} accessibilityRole="tab" accessibilityLabel={key==='assessment'?`申し込み、申込リスト${collateralQuantity(draft.items)}枚`:key === 'inbox' && unreadCount ? `お知らせ、未読${unreadCount}件` : label} accessibilityState={{selected: tab === key}} onPress={() => switchTab(key)} style={[styles.tab, tab === key && key!=='assessment'&&styles.activeTab]}>
-        {key==='assessment'?<View style={[styles.applyCircle,tab===key&&styles.applySelected]}><RoyalIcon name="plus" size={28} color={colors.background}/></View>:<RoyalIcon name={icon} size={24} color={tab===key?colors.gold:colors.muted}/>}
+        {key==='assessment'?<View style={[styles.applyCircle,tab===key&&styles.applySelected]}><RoyalIcon name="plus" size={22} color={colors.gold}/></View>:<RoyalIcon name={icon} size={20} color={tab===key?colors.gold:colors.muted}/>}
         <Text style={[styles.tabText, tab === key && styles.activeText]}>{label}</Text>
         {key==='assessment'&&draft.items.length>0&&<View style={styles.unreadBadge}><Text style={styles.unreadText}>{collateralQuantity(draft.items)}</Text></View>}
         {key === 'inbox' && unreadCount > 0 && <View style={styles.unreadBadge}><Text style={styles.unreadText}>{unreadCount > 99 ? '99+' : unreadCount}</Text></View>}
       </Pressable>)}
-    </View>}
+    </View>
     <Modal visible={toolsOpen} animationType="slide" onRequestClose={()=>{appBackActions.dispatch()}}>
       <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.toolsHeader}><Text accessibilityRole="header" style={styles.title}>テスト環境</Text><Pressable accessibilityRole="button" accessibilityLabel="テスト環境を閉じる" disabled={busy} onPress={() => { setToolsOpen(false); }} style={styles.close}><Text style={styles.body}>閉じる</Text></Pressable></View>
@@ -279,10 +279,10 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingVertical: 12, gap:12,flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderColor: colors.border },
   environment: { minHeight: 40, paddingHorizontal: 10, flexDirection: 'row', gap: 6, alignItems: 'center', borderWidth: 1, borderColor: colors.goldMuted, borderRadius: 8, backgroundColor: colors.active },
   environmentDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.gold },
-  footer: { flexDirection: 'row', paddingTop: 10, paddingHorizontal: 12, backgroundColor: colors.background, borderTopWidth: 1, borderColor: colors.border },
-  tab: { flex: 1, minHeight: 60, paddingVertical: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 12, gap: 3 },
+  footer: { flexDirection: 'row', paddingTop: 6, paddingHorizontal: 10, backgroundColor: colors.background, borderTopWidth: 1, borderColor: colors.border },
+  tab: { flex: 1, minHeight: 52, paddingVertical: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 8, gap: 3 },
   unreadBadge: { position: 'absolute', top: 2, right: 10, borderRadius: 10, backgroundColor: colors.gold, paddingHorizontal: 5, minWidth: 19, alignItems: 'center' }, unreadText: { color: colors.background, fontSize: 11, fontWeight: '800' },
-  applyCircle:{width:56,height:56,borderRadius:28,backgroundColor:colors.gold,alignItems:'center',justifyContent:'center',borderWidth:2,borderColor:colors.goldMuted},applySelected:{borderColor:colors.text},applyIcon:{fontSize:34,color:colors.background,fontWeight:'600'},
+  applyCircle:{width:44,height:44,borderRadius:22,backgroundColor:colors.background,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:colors.goldMuted},applySelected:{borderColor:colors.gold},applyIcon:{fontSize:34,color:colors.background,fontWeight:'600'},
   activeTab: { backgroundColor: colors.active }, tabIcon: { fontSize: 24, color: colors.muted, fontWeight: '600' }, tabText: { fontSize: 10, fontWeight: '700', color: colors.muted }, activeText: { color: colors.gold },
   toolsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, borderColor: colors.border },
   close: { minHeight: 52, minWidth: 64, justifyContent: 'center', alignItems: 'center' },

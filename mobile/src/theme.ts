@@ -1,5 +1,5 @@
-// Shared with the website's SiteHeader and landing-page palette.
+// Compact mobile black-and-gold palette, based on the TCG ROYAL brand.
 export const colors={
- background:'#0f0e0b',surface:'#1c1b18',raised:'#252420',border:'#2d2a20',inputBorder:'#514831',
- gold:'#d4af37',goldMuted:'#9a7b2a',active:'#2b2515',text:'#ede8d5',muted:'#b1aa96',
+ background:'#080808',surface:'#111111',raised:'#161616',border:'#302a19',inputBorder:'#4c4124',
+ gold:'#d4af37',goldMuted:'#9a7b2a',active:'#18150d',text:'#ede8d5',muted:'#b1aa96',
 } as const;

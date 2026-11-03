@@ -36,18 +36,18 @@ export function CardCapture({onCapture,onManual,onBasket,onClose,error:outerErro
  const disabled=busy||!ready||!permission?.granted||!foreground;
  return <View accessibilityLabel="カード撮影画面" style={{flex:1,backgroundColor:'#000'}}>
   {permission?.granted&&foreground?<CameraView ref={camera} style={StyleSheet.absoluteFill} facing="back" mode="picture" pictureSize={size} onCameraReady={()=>void cameraReady()} onMountError={()=>{setReady(false);setError('カメラを起動できません。写真を選ぶか、手動検索をご利用ください。')}}/>:<View style={{flex:1,justifyContent:'center',alignItems:'center',padding:24}}>{!permission?<ActivityIndicator color={colors.gold}/>:<Button title={permission.canAskAgain?'カメラを許可する':'端末の設定を開く'} onPress={()=>void (permission.canAskAgain?requestPermission():Linking.openSettings())}/>}</View>}
-  <View pointerEvents="none" style={[StyleSheet.absoluteFill,{justifyContent:'center',alignItems:'center',paddingBottom:110}]}>
-   <View style={{width:Math.min(width*.72,height*.50*63/88),aspectRatio:63/88,borderWidth:2,borderColor:colors.gold,borderRadius:14}}/>
+  <View pointerEvents="none" style={[StyleSheet.absoluteFill,{justifyContent:'center',alignItems:'center',paddingBottom:84}]}>
+   <View style={{width:Math.min(width*.64,height*.44*63/88),aspectRatio:63/88,borderWidth:2,borderColor:colors.gold,borderRadius:14}}/>
   </View>
-  <View style={{position:'absolute',top:insets.top+12,left:16,right:16,flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
-   <Pressable accessibilityRole="button" accessibilityLabel="撮影画面を閉じる" disabled={busy} onPress={onClose} style={{width:52,height:52,borderRadius:26,backgroundColor:'#00000099',alignItems:'center',justifyContent:'center'}}><RoyalIcon name="close" size={26} color="#fff"/></Pressable>
+  <View style={{position:'absolute',top:insets.top+8,left:12,right:12,flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+   <Pressable accessibilityRole="button" accessibilityLabel="撮影画面を閉じる" disabled={busy} onPress={onClose} style={{width:44,height:44,borderRadius:22,backgroundColor:colors.background+'D9',alignItems:'center',justifyContent:'center'}}><RoyalIcon name="close" size={20} color={colors.gold}/></Pressable>
    <ApplicationCartButton onPress={onBasket} disabled={busy}/>
   </View>
-  {!!(error||outerError)&&<Text accessibilityRole="alert" style={[ui.error,{position:'absolute',top:insets.top+76,left:16,right:16}]}>{error||outerError}</Text>}
-  <View style={{position:'absolute',bottom:Math.max(insets.bottom,12)+18,left:16,right:16,paddingVertical:16,paddingHorizontal:8,borderRadius:26,backgroundColor:'#00000088',flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8}}>
-   <Pressable accessibilityRole="button" accessibilityLabel="画像をアップロード" disabled={busy} onPress={()=>void capture(true)} style={{width:84,minHeight:76,alignItems:'center',justifyContent:'center',gap:8,opacity:busy?.4:1}}><RoyalIcon name="upload" size={30} color="#fff"/><Text style={{fontSize:12,fontWeight:'700',color:'#fff'}}>アップロード</Text></Pressable>
-   <Pressable accessibilityRole="button" accessibilityLabel="撮影して検索" accessibilityState={{busy,disabled}} disabled={disabled} onPress={()=>void capture()} style={({pressed})=>({width:82,height:82,borderRadius:41,borderWidth:4,borderColor:'#fff',padding:5,opacity:disabled?.45:pressed?.7:1})}>{busy?<ActivityIndicator color="#fff" style={{flex:1}}/>:<View style={{flex:1,borderRadius:36,backgroundColor:'#fff'}}/>}</Pressable>
-   <Pressable accessibilityRole="button" accessibilityLabel="手動で検索" disabled={busy} onPress={onManual} style={{width:84,minHeight:76,alignItems:'center',justifyContent:'center',gap:8,opacity:busy?.4:1}}><RoyalIcon name="search" size={30} color="#fff"/><Text style={{fontSize:12,fontWeight:'700',color:'#fff'}}>手動で検索</Text></Pressable>
+  {!!(error||outerError)&&<Text accessibilityRole="alert" style={[ui.error,{position:'absolute',top:insets.top+60,left:16,right:16}]}>{error||outerError}</Text>}
+  <View style={{position:'absolute',bottom:12,left:12,right:12,paddingVertical:10,paddingHorizontal:12,borderRadius:14,backgroundColor:colors.background+'E6',flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8}}>
+   <Pressable accessibilityRole="button" accessibilityLabel="画像をアップロード" disabled={busy} onPress={()=>void capture(true)} style={{width:72,minHeight:44,alignItems:'center',justifyContent:'center',gap:5,opacity:busy?.4:1}}><RoyalIcon name="upload" size={21} color={colors.gold}/><Text style={{fontSize:10,fontWeight:'600',color:colors.gold}}>アップロード</Text></Pressable>
+   <Pressable accessibilityRole="button" accessibilityLabel="撮影して検索" accessibilityState={{busy,disabled}} disabled={disabled} onPress={()=>void capture()} style={({pressed})=>({width:60,height:60,borderRadius:30,borderWidth:2,borderColor:colors.gold,padding:5,opacity:disabled?.45:pressed?.7:1})}>{busy?<ActivityIndicator color={colors.gold} style={{flex:1}}/>:<View style={{flex:1,borderRadius:24,backgroundColor:colors.gold}}/>}</Pressable>
+   <Pressable accessibilityRole="button" accessibilityLabel="手動で検索" disabled={busy} onPress={onManual} style={{width:72,minHeight:44,alignItems:'center',justifyContent:'center',gap:5,opacity:busy?.4:1}}><RoyalIcon name="search" size={21} color={colors.gold}/><Text style={{fontSize:10,fontWeight:'600',color:colors.gold}}>手動で検索</Text></Pressable>
   </View>
  </View>;
 }

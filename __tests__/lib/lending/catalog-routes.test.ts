@@ -19,9 +19,10 @@ function query(data:unknown,error:unknown=null){
  const result={data,error};const q:Record<string,ReturnType<typeof vi.fn>>={};for(const key of ['insert','select','eq','gte','update'])q[key]=vi.fn(()=>q)
  q.single=vi.fn(async()=>result);q.maybeSingle=vi.fn(async()=>result);q.then=vi.fn(resolve=>Promise.resolve(result).then(resolve));return q
 }
-async function upload(consent='true',file?:Blob){
+async function upload(consent='true',file?:Blob,format?:string){
  const bytes=await sharp({create:{width:20,height:20,channels:3,background:'#ff0000'}}).jpeg().toBuffer()
  const form=new FormData();form.set('key',id);form.set('consent',consent);form.set('file',file??new Blob([new Uint8Array(bytes)],{type:'image/jpeg'}),'card.jpg')
+ if(format)form.set('format',format)
  return new Request('https://preview.example/api/lending/card-image',{method:'POST',body:form})
 }
 const request=(body:unknown)=>new Request('https://preview.example/api/lending/catalog',{method:'POST',body:JSON.stringify(body)})
@@ -110,6 +111,16 @@ describe('catalog and image routes',()=>{
  it('does not charge another request while processing or after an uncertain failure',async()=>{
   from.mockReturnValueOnce(query(null,{code:'23505'})).mockReturnValueOnce(query({status:'processing'}))
   expect((await image(await upload())).status).toBe(409);expect(mocks.extract).not.toHaveBeenCalled()
+ })
+ it('uses one image analysis, returns filtered candidates and replays the saved result without another charge',async()=>{
+  mocks.external.mockResolvedValue({cards:[{productId:'123',name:'ピカチュウ',cardNumber:'025/165',category:'pokemon',imageUrl:null}],page:1,hasMore:false})
+  const saved=query(null);from.mockReturnValueOnce(query({id})).mockReturnValueOnce(query(null)).mockReturnValueOnce(saved)
+  const r=await image(await upload('true',undefined,'discovery'));expect(r.status).toBe(200);const body=await r.json()
+  expect(body.cards).toHaveLength(1);expect(body.cards[0].imageMatch.matchedOn).toContain('number');expect(mocks.extract).toHaveBeenCalledOnce()
+  expect(saved.update).toHaveBeenCalledWith(expect.objectContaining({status:'completed',result:body}))
+  const insert=from.mock.results[0].value.insert.mock.calls[0][0]
+  from.mockReturnValueOnce(query(null,{code:'23505'})).mockReturnValueOnce(query({status:'completed',image_hash:insert.image_hash,result:body}))
+  expect(await (await image(await upload('true',undefined,'discovery'))).json()).toEqual(body);expect(mocks.extract).toHaveBeenCalledOnce()
  })
  it('does not call the provider at a daily limit or retry on a provider error',async()=>{
   mocks.rate.mockResolvedValue({allowed:false});expect((await image(await upload())).status).toBe(429);expect(mocks.extract).not.toHaveBeenCalled()

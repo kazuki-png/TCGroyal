@@ -7,6 +7,15 @@ const product=(id=123)=>({id,localizedName:'検証カード [SV 001/100]',brands
 beforeEach(()=>{vi.resetModules();vi.clearAllMocks()});
 afterEach(()=>vi.useRealTimers());
 describe('Snkrdunk JSON card discovery',()=>{
+ it('shares an eight-second budget across the keyword request and detail reads',async()=>{
+  vi.useFakeTimers();vi.setSystemTime(new Date('2026-11-03T00:00:00Z'));
+  vi.mocked(fetchPublicRemoteUrl).mockImplementation(async url=>{
+   if(url.pathname.endsWith('/search')){vi.setSystemTime(Date.now()+3000);return Response.json({streetwears:[{id:123,isTradingCard:true}]})}
+   return Response.json(product());
+  });
+  const {searchSnkrdunkCards}=await import('@/lib/lending/snkrdunk-card-search');await searchSnkrdunkCards('時間制限','all',1);
+  expect(vi.mocked(fetchPublicRemoteUrl).mock.calls.map(call=>call[1]?.timeoutMs)).toEqual([8000,5000]);
+ });
  it('uses the verified keyword API, obtains Japanese details, and strips all market prices',async()=>{
   vi.mocked(fetchPublicRemoteUrl).mockResolvedValueOnce(Response.json({streetwears:[{id:123,isTradingCard:true},{id:456,isTradingCard:false}],sneakers:[{id:'ignore'}]})).mockResolvedValueOnce(Response.json(product()));
   const {searchSnkrdunkCards}=await import('@/lib/lending/snkrdunk-card-search');

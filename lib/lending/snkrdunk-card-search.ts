@@ -14,8 +14,9 @@ const productSchema=z.object({id,localizedName:z.string().trim().min(1).max(500)
  categories:z.array(z.object({name:z.string().max(100)})).max(20),
  primaryMedia:z.object({imageUrl:z.string().max(2000)}).optional(),
 })
-async function json(url:URL){
- const response=await fetchPublicRemoteUrl(url,{timeoutMs:8000,maxBytes:256000,maxRedirects:0,headers:{Accept:'application/json','User-Agent':'TCG-Royal-Preview/1.13'}})
+async function json(url:URL,deadline:number){
+ const remaining=deadline-Date.now();if(remaining<=0)throw Error('card_search_timeout')
+ const response=await fetchPublicRemoteUrl(url,{timeoutMs:remaining,maxBytes:256000,maxRedirects:0,headers:{Accept:'application/json','User-Agent':'TCG-Royal-Preview/1.13'}})
  if(!response.ok||!response.headers.get('content-type')?.includes('application/json'))throw Error('スニダンのカード検索を利用できません。時間をおくか、登録カード検索・個別見積もりをご利用ください。')
  return response.json()
 }
@@ -36,14 +37,16 @@ export async function searchSnkrdunkCards(query:string,category:'all'|'pokemon'|
  const active=pending.get(key);if(active)return active
  if(pending.size>=10)throw Error('カード検索が混み合っています。少し待ってからお試しください。')
  const work=(async()=>{
+  // One shared time budget includes the search and every product-detail read.
+  const deadline=Date.now()+8000
   // Verified read-only Web API. This is not a contracted, version-stable partner API.
   const url=new URL('https://snkrdunk.com/en/v1/search')
   url.searchParams.set('keyword',query.trim());url.searchParams.set('perPage',String(pageSize));url.searchParams.set('page',String(page))
-  const data=searchSchema.parse(await json(url)),candidates=[...new Set(data.streetwears.filter(p=>p.isTradingCard===true).map(p=>String(p.id)))].slice(0,pageSize)
+  const data=searchSchema.parse(await json(url,deadline)),candidates=[...new Set(data.streetwears.filter(p=>p.isTradingCard===true).map(p=>String(p.id)))].slice(0,pageSize)
   const cards:SnkrdunkCard[]=[]
   // Two simultaneous detail reads at most; obtain Japanese names and validate single-card categories.
   for(let offset=0;offset<candidates.length;offset+=2){
-   const group=await Promise.all(candidates.slice(offset,offset+2).map(async productId=>parseSnkrdunkCard(await json(new URL(`https://snkrdunk.com/v1/apparels/${productId}`)),productId)))
+   const group=await Promise.all(candidates.slice(offset,offset+2).map(async productId=>parseSnkrdunkCard(await json(new URL(`https://snkrdunk.com/v1/apparels/${productId}`),deadline),productId)))
    cards.push(...group.filter((card):card is SnkrdunkCard=>!!card&&(category==='all'||card.category===category)))
   }
   const result={cards,page,hasMore:page<100&&data.streetwears.length>=pageSize}

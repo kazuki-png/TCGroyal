@@ -6,6 +6,7 @@ import {randomUUID} from 'expo-crypto';
 import type {CatalogCard,CatalogSearch,CatalogAssessment,DeclaredGrade} from '../../../lib/lending/catalog-types';
 import type {SupportCase} from '../../../lib/lending/support-case-types';
 import {lendingApi} from '../api';
+import {appendImageFile} from '../image-upload';
 import {SupportEstimate} from './SupportEstimate';
 import {RoyalSwitch as Switch,Button,Field,ui,yen,date} from '../ui';
 import {SnkrdunkSearchScreen} from './SnkrdunkSearchScreen';
@@ -52,7 +53,7 @@ export function CatalogAssessmentScreen({onApplied,active=true}:{onApplied:()=>P
  }
  async function imageSearch(){
   if(!asset||!imageConsent)return;
-  const form=new FormData();form.append('file',{uri:asset.uri,name:'card.jpg',type:asset.mimeType??'image/jpeg'} as unknown as Blob);
+  const form=new FormData();appendImageFile(form,asset.uri);
   form.append('key',imageKey.current??(imageKey.current=randomUUID()));form.append('consent','true');
   const data=await lendingApi<CatalogSearch>('/card-image',{body:form});
   setResults(data);setSelected(null);invalidate();setAsset(null);setImageConsent(false);setImageMode(false);

@@ -6,6 +6,7 @@ import type {DiscoveryCard,DiscoverySearch,ImageDiscoverySearch} from '../../../
 import type {CollateralItem} from '../../../lib/lending/collateral-types';
 import {collateralQuantity} from '../../../lib/lending/collateral-types';
 import {lendingApi} from '../api';
+import {appendImageFile} from '../image-upload';
 import {useAppBack} from '../use-app-back';
 import {useReferenceEstimate} from '../use-reference-estimate';
 import {colors} from '../theme';
@@ -48,7 +49,7 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
  async function imageSearch(){
   if(!asset||!consent||busy)return;controller.current?.abort();const generation=++current.current;setBusy(true);setError('');setResults(null);setImageHints(null);setNotice('');
   const abort=new AbortController();controller.current=abort;const timer=setTimeout(()=>abort.abort(),55000);
-  try{const form=new FormData();form.append('file',{uri:asset.uri,name:'card.jpg',type:asset.mimeType??'image/jpeg'} as unknown as Blob);form.append('key',imageKey.current);form.append('consent','true');form.append('format','discovery');
+  try{const form=new FormData();appendImageFile(form,asset.uri);form.append('key',imageKey.current);form.append('consent','true');form.append('format','discovery');
    const value=await lendingApi<ImageDiscoverySearch>('/card-image',{body:form,signal:abort.signal});
    if(!mounted.current||generation!==current.current)return;setResults(value);setImageHints(value.hints??null);setQuery(value.searchQuery??value.hints?.cardNumber??value.hints?.name??'');if(value.hints?.category)setCategory(value.hints.category);setNotice(value.message??'撮影画像と候補の型番・版・言語を見比べて選択してください。');
   }catch(cause){if(mounted.current&&generation===current.current)setError(cause instanceof Error?cause.message:'画像を読み取れませんでした。')}

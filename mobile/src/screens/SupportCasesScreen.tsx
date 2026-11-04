@@ -10,16 +10,16 @@ import {RoyalSwitch as Switch,Button,Field,ui,yen,date} from '../ui';
 import {CollateralLines} from './CollateralLines';
 import {useAppBack} from '../use-app-back';
 
-function CaseCard({item,busy,command,now}:{item:SupportCase;busy:boolean;now:number;command:(item:SupportCase,action:string,payload:Record<string,unknown>)=>Promise<void>}){
+function CaseCard({item,busy,command,now,showCards}:{item:SupportCase;showCards:boolean;busy:boolean;now:number;command:(item:SupportCase,action:string,payload:Record<string,unknown>)=>Promise<void>}){
  const [consent,setConsent]=useState(false),[amount,setAmount]=useState(String(item.offer_jpy??item.requested_jpy??100000)),[deposit,setDeposit]=useState<'mail'|'store'>('mail');
  const [contactError,setContactError]=useState('');
  const expired=!item.offer_expires_at||Date.parse(item.offer_expires_at)<=now;
  async function contact(){setContactError('');try{await Clipboard.setStringAsync(buildSupportEstimateMessage({reason:item.reason,cardName:item.card_name,cardNumber:item.card_number,condition:item.condition,notes:item.notes,requestedAmount:String(item.requested_jpy??''),...(item.collateral_items?.length?{items:item.collateral_items}:{})},item.reference));await Linking.openURL(SUPPORT_LINE_URL);}catch{setContactError('受付番号を公式LINEへ送ってお問い合わせください。');}}
- return <View style={ui.card}>
-  <Text selectable style={ui.label}>{item.reference}</Text><Text style={ui.title}>{item.card_name}</Text>
-  <CollateralLines items={item.collateral_items}/>
+ return <View style={[ui.card,{padding:14,gap:10,borderRadius:12}]}>
+  <Text selectable style={ui.label}>{item.reference}</Text>{!item.collateral_items?.length&&<Text style={ui.title}>{item.card_name}</Text>}
+  {showCards&&<CollateralLines items={item.collateral_items}/>}
   <Text style={ui.body}>{item.loan_status?LOAN_STATUS_LABELS[item.loan_status]:SUPPORT_CASE_STATUS[item.status]}</Text>
-  <Text style={ui.muted}>{item.card_number||'カード番号未登録'} / 相談登録 {date(item.created_at)}</Text>
+  <Text style={ui.muted}>{!item.collateral_items?.length?(item.card_number||'カード番号未登録')+' / ':''}相談登録 {date(item.created_at)}</Text>
   {item.card_uid&&<><Text style={ui.muted}>{item.search_method==='image'?'画像から候補検索':'カード一覧から選択'} / 申告 {item.declared_grade} / 鑑定・現物確認待ち</Text><Text style={ui.body}>{item.condition}</Text>{item.indicative_jpy!=null&&<Text style={ui.muted}>受付時の参考額 {yen(item.indicative_jpy)}（運営の見積もりとは別です）</Text>}</>}
   <Button title="受付番号を付けてLINEで連絡" secondary disabled={busy} onPress={()=>void contact()}/>
   {contactError?<Text accessibilityRole="alert" style={ui.error}>{contactError}</Text>:null}
@@ -36,7 +36,7 @@ function CaseCard({item,busy,command,now}:{item:SupportCase;busy:boolean;now:num
   {item.events?.map(event=><Text key={event.id} style={ui.muted}>{date(event.created_at)} / {SUPPORT_CASE_STATUS[event.to_status]}{event.message?` / ${event.message}`:''}</Text>)}
  </View>;
 }
-export function SupportCasesScreen({onChanged,caseId}:{onChanged:()=>Promise<void>;caseId?:string}){
+export function SupportCasesScreen({onChanged,caseId,showCards=true}:{onChanged:()=>Promise<void>;caseId?:string;showCards?:boolean}){
  const [now,setNow]=useState(Date.now);
  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),60000);return()=>clearInterval(timer);},[]);
  const [data,setData]=useState<SupportCaseList|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
@@ -48,5 +48,5 @@ export function SupportCasesScreen({onChanged,caseId}:{onChanged:()=>Promise<voi
   if(busy)return;setBusy(true);setError('');const body={action,caseId:item.id,version:item.version,payload};const signature=JSON.stringify(body);const key=retries.current.get(signature)??randomUUID();retries.current.set(signature,key);
   try{await lendingApi('/support-cases',{body:{...body,key}});retries.current.delete(signature);setData(await lendingApi<SupportCaseList>('/support-cases'));await onChanged();}catch(cause){setError(cause instanceof Error?cause.message:'更新できません。');}finally{setBusy(false);}
  }
- return <View style={{gap:16}}><Text style={ui.title}>査定依頼・個別見積もり</Text><Button title="査定の状況を更新" secondary disabled={busy} onPress={()=>void refresh()}/>{error?<Text accessibilityRole="alert" style={ui.error}>{error}</Text>:null}{data?.cases.filter(item=>!caseId||item.id===caseId).map(item=><CaseCard key={`${item.id}-${item.version}`} item={item} now={now} busy={busy} command={command}/>)}{data&&(caseId?!data.cases.some(item=>item.id===caseId):data.total===0)?<Text style={ui.muted}>対象の査定依頼がありません。一覧を更新してください。</Text>:null}{!caseId&&data&&data.total>data.cases.length?<Text style={ui.muted}>新しい順に100件を表示しています。</Text>:null}</View>;
+ return <View style={{gap:16}}><Text style={ui.title}>査定依頼・個別見積もり</Text><Button title="査定の状況を更新" secondary disabled={busy} onPress={()=>void refresh()}/>{error?<Text accessibilityRole="alert" style={ui.error}>{error}</Text>:null}{data?.cases.filter(item=>!caseId||item.id===caseId).map(item=><CaseCard key={`${item.id}-${item.version}`} item={item} showCards={showCards} now={now} busy={busy} command={command}/>)}{data&&(caseId?!data.cases.some(item=>item.id===caseId):data.total===0)?<Text style={ui.muted}>対象の査定依頼がありません。一覧を更新してください。</Text>:null}{!caseId&&data&&data.total>data.cases.length?<Text style={ui.muted}>新しい順に100件を表示しています。</Text>:null}</View>;
 }

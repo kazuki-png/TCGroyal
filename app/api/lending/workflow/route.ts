@@ -1,3 +1,4 @@
+import {withCollateralImages} from '@/lib/lending/collateral-images'
 import { workflowInputSchema as inputSchema } from '@/lib/lending/workflow-input'
 import { createWorkflowClient as createAdminClient, checkWorkflowRateLimit as checkSharedRateLimit } from '@/lib/lending/workflow-client'
 import { rateLimitResponse } from '@/lib/security/sharedRateLimit'
@@ -37,8 +38,11 @@ export async function GET(request: Request) {
   const db=createAdminClient()
   const [{ data, error },support] = await Promise.all([db.rpc('lending_list', { p_actor: actor.id }),db.rpc('lending_support_list',{p_actor:actor.id,p_search:''})])
   if (error) return json({ error: '融資データを取得できません。テストDBの稼働状態と設定を確認してください。' }, 503)
-  const cases=support.error?[]:(support.data as SupportCaseList)?.cases??[]
-  return json({ ...data,supportCases:cases,transactionsUnavailable:!!support.error,transactions:buildTransactions((data as WorkflowState).loans??[],cases),role: actor.role, demo: actor.demo, marketFixture: actor.demo && process.env.LENDING_MARKET_FIXTURE === 'true' })
+  const rawCases=support.error?[]:(support.data as SupportCaseList)?.cases??[]
+  const all=await withCollateralImages([...((data as WorkflowState).loans??[]),...rawCases])
+  const loans=all.slice(0,((data as WorkflowState).loans??[]).length) as WorkflowState['loans']
+  const cases=all.slice(loans.length) as SupportCaseList['cases']
+  return json({ ...data,loans,supportCases:cases,transactionsUnavailable:!!support.error,transactions:buildTransactions(loans,cases),role: actor.role, demo: actor.demo, marketFixture: actor.demo && process.env.LENDING_MARKET_FIXTURE === 'true' })
 }
 
 export async function POST(request: Request) {

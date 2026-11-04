@@ -1,3 +1,5 @@
+import {withCollateralImages} from '@/lib/lending/collateral-images'
+import type {SupportCaseList} from '@/lib/lending/support-case-types'
 import {lendingAccess,lendingJson,boundedBody} from '@/lib/lending/api-guard'
 import {createWorkflowClient} from '@/lib/lending/workflow-client'
 import {supportCaseRequest,supportCaseError} from '@/lib/lending/support-cases'
@@ -9,7 +11,7 @@ export async function GET(request:Request){
  const search=new URL(request.url).searchParams.get('search')??''
  if(search.length>100)return lendingJson({error:'検索は100文字以内で指定してください。'},400)
  const {data,error}=await createWorkflowClient().rpc('lending_support_list',{p_actor:actor.id,p_search:search})
- return error?lendingJson({error:'相談案件を取得できません。'},503):lendingJson(data)
+ return error?lendingJson({error:'相談案件を取得できません。'},503):lendingJson({...data,cases:await withCollateralImages((data as SupportCaseList).cases??[])})
 }
 export async function POST(request:Request){
  const actor=await lendingAccess(request,'lending:support-write',15);if(actor instanceof Response)return actor

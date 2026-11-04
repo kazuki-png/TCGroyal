@@ -54,7 +54,7 @@ function LoanTile({ loan, send, busy,initialPanel='summary' }: { loan: WorkflowL
   useAppBack(panel!=='summary',20,()=>{if(!busy)setPanel('summary');return true});
   return <View style={[styles.card,paymentPanel&&{padding:12,gap:10,borderRadius:12}]}>
     <Text style={styles.badge}>{LOAN_STATUS_LABELS[loan.status]}</Text>
-    <Text style={styles.title} numberOfLines={paymentPanel?2:undefined}>{loan.card_name}</Text>
+    {(paymentPanel||!loan.collateral_items?.length)&&<Text style={styles.title} numberOfLines={2}>{loan.card_name}</Text>}
     {!paymentPanel&&<><CollateralLines items={loan.collateral_items}/>
     <Text style={styles.muted}>{loan.cert_number?`PSA / 鑑定番号 ${loan.cert_number}`:'個別見積もり'}</Text>
     <Text style={styles.muted}>{['active','repayment_pending'].includes(loan.status) ? '借入元本' : '申込希望額'}</Text>
@@ -243,7 +243,7 @@ function LendingApp() {
       {state?.transactionsUnavailable&&<Text style={styles.error}>査定依頼の一部を取得できません。一覧を更新してください。</Text>}
       {state && tab==='loans'&&<TransactionList items={transactions} selectedId={focusedLoan} onSelect={id=>{setLoanEntry(null);setFocusedLoan(id);scroll.current?.scrollTo({y:0,animated:false})}} onApply={()=>switchTab('assessment')} renderDetail={item=>{
        const loan=state.loans.find(loan=>loan.id===item.loanId);
-       return <>{loan?<LoanTile key={`${loan.id}-${loan.version}-${loanEntry?.id===item.id?loanEntry.panel:'summary'}`} initialPanel={loanEntry?.id===item.id?loanEntry.panel:'summary'} loan={loan} send={send} busy={busy}/>:item.caseId?<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>:<Text style={styles.muted}>一覧を更新してください。</Text>}{loan&&item.caseId&&<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>}</>;
+       return <>{loan?<LoanTile key={`${loan.id}-${loan.version}-${loanEntry?.id===item.id?loanEntry.panel:'summary'}`} initialPanel={loanEntry?.id===item.id?loanEntry.panel:'summary'} loan={loan} send={send} busy={busy}/>:item.caseId?<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>:<Text style={styles.muted}>一覧を更新してください。</Text>}{loan&&item.caseId&&<SupportCasesScreen showCards={false} caseId={item.caseId} onChanged={reload}/>}</>;
       }}/>}
       {state && tab === 'inbox' && <InboxScreen items={inbox} readIds={receipts.readIds} ready={receipts.ready} saving={receipts.saving} error={receipts.error} onRead={receipts.markRead} onOpen={openInboxItem} onRefresh={() => { if (receipts.error) receipts.retry(); void refresh(); }} refreshing={busy}/>}
       {state && tab === 'account' && <AccountScreen initialPage={accountPage} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onUpdated={reload} onSignOut={()=>void signOut()} signingOut={busy}/>}

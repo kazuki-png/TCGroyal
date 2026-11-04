@@ -6,12 +6,12 @@ import {Button,ui,yen} from '../ui';
 import {colors} from '../theme';
 import {HomeRepayment,repaymentLoans} from './HomeRepayment';
 
-export function HomeScreen({state,items,draftCount,onApply,onTransactions,onOpen,onIdentity,onInbox,notices=[],banner,now}:{state:WorkflowState;items:LendingTransaction[];draftCount:number;onApply:()=>void;onTransactions:()=>void;onOpen:(id:string)=>void;onIdentity:()=>void;onInbox?:()=>void;notices?:{id:string;title:string}[];banner?:ReactNode;now:number}){
+export function HomeScreen({state,items,draftCount,onApply,onTransactions,onOpen,onIdentity,onInbox,notices=[],banner,now}:{state:WorkflowState;items:LendingTransaction[];draftCount:number;onApply:()=>void;onTransactions:()=>void;onOpen:(id:string,panel?:'repayment'|'extension')=>void;onIdentity:()=>void;onInbox?:()=>void;notices?:{id:string;title:string}[];banner?:ReactNode;now:number}){
  const loans=repaymentLoans(state.loans),nearest=loans[0];
  const attention=items.filter(item=>item.group==='attention'&&item.loanId!==nearest?.id).slice(0,3);
  const progress=items.filter(item=>item.group==='progress'&&!['active','repayment_pending'].includes(item.status)).slice(0,3);
  return <View style={homeStyles.stack}>
-  {nearest&&<HomeRepayment loan={nearest} now={now} onOpen={()=>onOpen(`loan:${nearest.id}`)}/>}
+  {nearest&&<HomeRepayment loan={nearest} now={now} onOpen={()=>onOpen(`loan:${nearest.id}`,'repayment')} onExtend={()=>onOpen(`loan:${nearest.id}`,'extension')}/>}
   {nearest&&<Pressable accessibilityRole="button" accessibilityLabel="すべての契約を見る" onPress={onTransactions} style={homeStyles.link}><Text style={ui.muted}>契約中 {loans.length}件 · 借入元本 {yen(state.outstandingJpy)}</Text><Text style={homeStyles.gold}>一覧 ›</Text></Pressable>}
   {banner}
   {!!attention.length&&<><Text style={homeStyles.heading}>対応が必要</Text>{attention.map(item=><HomeTransaction key={item.id} item={item} onOpen={()=>onOpen(item.id)}/>)}</>}

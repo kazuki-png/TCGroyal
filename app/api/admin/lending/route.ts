@@ -1,3 +1,5 @@
+import {bankPaymentPreview,bankPaymentInput} from '@/lib/lending/bank-payment'
+import {bankPaymentError} from '@/lib/lending/bank-payment-errors'
 import {z} from 'zod'
 import {adminLendingAccess} from '@/lib/lending/admin-access'
 import {createWorkflowClient} from '@/lib/lending/workflow-client'
@@ -12,6 +14,11 @@ export const maxDuration=60
 export async function GET(request:Request){
  const actor=await adminLendingAccess(request);if(actor instanceof Response)return actor
  const url=new URL(request.url),db=createWorkflowClient()
+ if(url.searchParams.get('view')==='payment'){
+  const input=bankPaymentInput.safeParse({loanId:url.searchParams.get('id'),date:url.searchParams.get('date')})
+  if(!input.success)return lendingJson({error:'契約と着金日を確認してください。'},400)
+  try{return lendingJson({preview:await bankPaymentPreview({...actor,role:'admin'},input.data)})}catch{return lendingJson({error:'着金日の必要額を取得できません。契約と日付を確認してください。'},409)}
+ }
  if(url.searchParams.has('id')){
   const id=url.searchParams.get('id'),kind=url.searchParams.get('kind')
   if(!z.uuid().safeParse(id).success||!['case','loan'].includes(kind??''))return lendingJson({error:'案件を確認してください。'},400)
@@ -66,5 +73,5 @@ export async function POST(request:Request){
  if(result.error?.message==='collateral_inspection_required')return lendingJson({error:'全カード明細の枚数・保管場所・検品確認を記録してください。'},409)
  if(result.error?.message==='all_items_return_required')return lendingJson({error:'明細の全カードを返却したことを確認してください。'},409)
  const messages:Record<string,string>={version_conflict:'他の操作で更新されました。再読み込みしてください。',identity_required:'利用者の融資用本人確認が完了していません。',manual_evidence_required:'現物評価額・融資上限・評価根拠を入力してください。',inspection_required:'現物の検品内容・鑑定番号・保管場所を確認してください。',amount_invalid:'金額と見積もり上限を確認してください。',repayment_amount_mismatch:'照合した入金額が返済必要額と一致しません。',duplicate_reference:'この照合番号は記録済みです。',invalid_transition:'現在の状態ではこの操作はできません。',idempotency_conflict:'前回と送信内容が異なります。一覧を更新してください。'}
- return result.error?lendingJson({error:messages[result.error.message]??'手続きを記録できません。状態と入力内容を確認してください。'},409):lendingJson({ok:true})
+ return result.error?lendingJson({error:bankPaymentError(result.error.message)??messages[result.error.message]??'手続きを記録できません。状態と入力内容を確認してください。'},409):lendingJson({ok:true})
 }

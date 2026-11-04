@@ -15,7 +15,7 @@ export const fixtureIds = {
  customer:'10000000-0000-4000-8000-000000000001', admin:'10000000-0000-4000-8000-000000000002',
  other:'10000000-0000-4000-8000-000000000003', card:'20000000-0000-4000-8000-000000000001',
 };
-export async function startLocalDatabase() {
+export async function startLocalDatabase({migrationFiles} = {}) {
  const name = `tcg-lending-local-${process.pid}`;
  const sql = text => run(['exec','-i',name,'psql','-U','postgres','-v','ON_ERROR_STOP=1','-qAt'],text);
  const stop = () => { try { run(['stop',name]); } catch {} };
@@ -28,7 +28,7 @@ export async function startLocalDatabase() {
   }
   if(!ready) throw Error('Local PostgreSQL did not become ready');
   sql(readFileSync('__tests__/database/bootstrap.sql','utf8'));
-  for(const file of readdirSync('supabase/migrations').filter(f=>f.endsWith('.sql')).sort()) sql(readFileSync(`supabase/migrations/${file}`,'utf8'));
+  for(const file of (migrationFiles ?? readdirSync('supabase/migrations').filter(f=>f.endsWith('.sql'))).sort()) sql(readFileSync(`supabase/migrations/${file}`,'utf8'));
   sql(`INSERT INTO auth.users(id,email,email_confirmed_at) VALUES
    ('${fixtureIds.customer}','customer@example.invalid',now()),('${fixtureIds.admin}','admin@example.invalid',now()),('${fixtureIds.other}','other@example.invalid',now());
    UPDATE public.profiles SET birthday='1990-01-01';

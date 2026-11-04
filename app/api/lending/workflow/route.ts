@@ -9,6 +9,8 @@ import { scheduleStatusNotifications } from '@/lib/lending/status-notifications'
 import {buildTransactions} from '@/lib/lending/transactions'
 import type {WorkflowState} from '@/lib/lending/workflow-types'
 import type {SupportCaseList} from '@/lib/lending/support-case-types'
+import {bankPaymentPreview,bankPaymentInput} from '@/lib/lending/bank-payment'
+import {bankPaymentError} from '@/lib/lending/bank-payment-errors'
 import {repaymentPreview,repaymentPreviewInput} from '@/lib/lending/repayment-preview'
 
 export const runtime = 'nodejs'
@@ -21,12 +23,13 @@ export async function GET(request: Request) {
   const actor = await getWorkflowActor(request)
   if (!actor) return json({ error: 'ログインが必要です。' }, 401)
   const params=new URL(request.url).searchParams
-  if(params.get('view')==='repayment'){
-   const input=repaymentPreviewInput.safeParse({loanId:params.get('loanId'),date:params.get('date')})
+  if(params.get('view')==='repayment'||params.get('view')==='payment'){
+   const payment=params.get('view')==='payment'
+   const input=(payment?bankPaymentInput:repaymentPreviewInput).safeParse({loanId:params.get('loanId'),date:params.get('date')})
    if(!input.success)return json({error:'契約と返済予定日を確認してください。'},400)
    const limit=await checkSharedRateLimit('lending:repayment-preview',actor.id,{limit:20,windowMs:60000})
    if(!limit.allowed)return rateLimitResponse(limit)
-   try{return json({preview:await repaymentPreview(actor,input.data)})}catch(cause){
+   try{return json({preview:await (payment?bankPaymentPreview:repaymentPreview)(actor,input.data)})}catch(cause){
     const code=cause instanceof Error?cause.message:''
     return json({error:code==='repayment_date_outside_term'?'返済予定日は本日から契約期限までで指定してください。':code==='repayment_not_found'?'返済額を確認できる契約がありません。':'返済必要額を取得できません。時間をおいてお試しください。'},code==='repayment_not_found'?404:code==='repayment_date_outside_term'?400:503)
    }
@@ -106,7 +109,7 @@ export async function POST(request: Request) {
       quote_expired_or_exceeded: '見積もりの期限または上限額を確認してください。',
       repayment_amount_mismatch: '入金額が現在の返済必要額と一致しません。',
     }
-    const message = messages[response.error.message] ?? '操作を完了できません。状態・入力・重複申込を確認してください。'
+    const message = bankPaymentError(response.error.message) ?? messages[response.error.message] ?? '操作を完了できません。状態・入力・重複申込を確認してください。'
     return json({ error: message }, 409)
   }
   // Business RPC results contain internal columns; callers refresh their scoped view.

@@ -18,9 +18,9 @@ afterEach(cleanup);
 describe('home repayment priority',()=>{
  it('uses the server payoff, separates principal and interest, and opens the same contract',()=>{
   const open=vi.fn();render(<HomeScreen state={state} items={buildTransactions([loan],[],now)} draftCount={0} onApply={()=>{}} onTransactions={()=>{}} onOpen={open} onIdentity={()=>{}} now={now} banner={<span>BANNER</span>}/>);
-  expect(screen.getByText('¥103,000')).toBeTruthy();expect(screen.getByText('元金 ¥100,000 · 利息 ¥3,000')).toBeTruthy();expect(screen.getByText('あと1日')).toBeTruthy();expect(screen.getByText(/11\/4.*23:00.*時点/)).toBeTruthy();
+  expect(screen.getByText('¥103,000')).toBeTruthy();expect(screen.getByText('元金 ¥100,000 · 期限前返済手数料 ¥3,000')).toBeTruthy();expect(screen.getByText('あと1日')).toBeTruthy();expect(screen.getByText(/11\/4.*23:00.*時点/)).toBeTruthy();
   expect(screen.getByText('¥103,000').compareDocumentPosition(screen.getByText('BANNER'))&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(screen.queryByText('進行中の取引')).toBeNull();fireEvent.click(screen.getByText('返済・契約を確認'));expect(open).toHaveBeenCalledWith('loan:one');
+  expect(screen.queryByText('進行中の取引')).toBeNull();fireEvent.click(screen.getByText('返済する'));expect(open).toHaveBeenCalledWith('loan:one','repayment');
  });
  it('prioritizes the nearest and overdue contracts without changing the source array',()=>{
   const loans=[{...loan,id:'missing',due_at:null},{...loan,id:'later',due_at:'2026-12-01T00:00:00Z'},{...loan,id:'ended',status:'returned' as const,due_at:'2026-10-01T00:00:00Z'},{...loan,id:'overdue',due_at:'2026-11-01T00:00:00Z'}];

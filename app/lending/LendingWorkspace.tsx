@@ -1,4 +1,6 @@
 'use client'
+import {BankSettlementFields} from './BankSettlementFields'
+import {DUMMY_LENDING_BANK} from '@/lib/lending/bank-payment-types'
 import {SupportCaseManager} from './SupportCaseManager'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { LOAN_STATUS_LABELS, type LoanCommand, type WorkflowLoan, type WorkflowState } from '@/lib/lending/workflow-types'
@@ -14,7 +16,7 @@ const date = (value: string | null) => value ? new Date(value).toLocaleString('j
 const actionLabels: Record<LoanCommand, string> = {
   receive: '検品・保管を記録', offer: '最終条件を提示', accept: '条件に同意', fund: '出金を記録', cancel: '申込をキャンセル',
   reject: '申込を見送る', report_repayment: '振込済みを申告', reject_repayment: '入金申告を差し戻す', confirm_repayment: '入金を照合・記録', return: '返却を記録',
-  request_extension: '3か月延長を申請', request_additional: '追加借入の相談を申請', extend: '延長利息の入金を確認',
+  request_extension: '1か月延長の振込を申告', request_additional: '追加借入の相談を申請', extend: '延長質料の入金を確認',
   reject_request: '追加申請を見送る', forfeit: '質流れを記録',
 }
 type Send = (body: Record<string, unknown>) => Promise<void>
@@ -59,6 +61,8 @@ function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: Workf
     const payload: Record<string, unknown> = {}
     if (needsAmount) payload.amountJpy = Number(values.get('amount'))
     if (needsReference) payload.reference = values.get('reference')
+    if(['confirm_repayment','extend'].includes(action))payload.paidAt=new Date(String(values.get('paidAt'))+'+09:00').toISOString()
+    if(['report_repayment','request_extension'].includes(action)){payload.transferDate=values.get('transferDate');payload.transferName=values.get('transferName')}
     if (action === 'offer') {payload.monthlyRateBps = Math.round(Number(values.get('rate')) * 100);if(!loan.cert_number){payload.manualValuationJpy=Number(values.get('valuation'));payload.manualCapJpy=Number(values.get('cap'));payload.reason=values.get('basis')}}
     if (action === 'receive') {
       payload.location = String(values.get('location') ?? '').trim()
@@ -92,7 +96,7 @@ function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: Workf
         {inputError&&<p role="alert" className="rounded-lg bg-red-950/40 p-3 text-sm text-red-200">{inputError}</p>}
       </>}
       {needsAmount && <label key={`${action}-${amount}`} className="block text-sm">{action === 'confirm_repayment' || action === 'extend' ? '照合した実入金額（円）' : '金額（円）'}
-        <input name="amount" type="number" min={0} max={10000000} step={1} defaultValue={amount} required className={field} />
+        <input name="amount" type="number" min={0} max={['confirm_repayment','extend'].includes(action)?1000000000:10000000} step={1} defaultValue={amount} required className={field} />
       </label>}
       {action === 'offer' && <label className="block text-sm">月利（%）<input name="rate" type="number" min={0} max={2} step={0.01} defaultValue={2} required className={field} /></label>}
       {action==='offer'&&!loan.cert_number&&<><label className="block text-sm">現物確認後のカード評価額（円）<input className={field} name="valuation" type="number" min={1} max={1000000000} required/></label><label className="block text-sm">再査定した融資上限（円）<input className={field} name="cap" type="number" min={100000} max={10000000} step={10000} required/></label><label className="block text-sm">現物の確認内容・評価根拠<textarea className={field} name="basis" maxLength={500} required/></label></>}
@@ -101,7 +105,9 @@ function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: Workf
       </label>}
       {action==='return'&&!!loan.collateral_items?.length&&<label className="flex gap-3 text-sm"><input type="checkbox" name="allItemsReturned" required/>明細の全カード・全枚数をまとめて返却したことを確認しました</label>}
       {['reject','reject_repayment'].includes(action) && <label className="block text-sm">理由<input name="reason" maxLength={500} required className={field} /></label>}
-      {action === 'request_extension' && <p className="text-sm leading-7 text-amber-100">現在の3か月分の利息 {yen(Math.ceil(loan.principal_jpy * (loan.monthly_rate_bps ?? 0) * 3 / 10000))} を精算し、現在の期限から3か月延長する申請です。入金確認までは期限は変わりません。</p>}
+      {['confirm_repayment','extend'].includes(action)&&<BankSettlementFields key={action} loan={loan} extension={action==='extend'}/>}
+      {['report_repayment','request_extension'].includes(action)&&<div className="space-y-2 text-sm"><p>振込先（ダミー）：{DUMMY_LENDING_BANK.bank} {DUMMY_LENDING_BANK.branch} {DUMMY_LENDING_BANK.accountType} {DUMMY_LENDING_BANK.accountNumber} {DUMMY_LENDING_BANK.accountName}</p><p>この口座へは振り込めません。</p><label className="block">振込日<input name="transferDate" type="date" required className={field}/></label><label className="block">振込名義<input name="transferName" maxLength={100} required className={field}/></label></div>}
+      {action === 'request_extension' && <p className="text-sm text-amber-100">未払いの経過期間分の質料を精算し、期限を1か月延長します。管理者の入金確認後に確定します。</p>}
       {action === 'request_additional' && <p className="text-sm leading-7 text-zinc-300">追加借入は再査定・変更契約が必要です。ここでは相談を受け付け、元本は増やしません。</p>}
       {needsConsent && <label className="flex items-start gap-3 text-sm leading-6"><input name="consent" type="checkbox" required className="mt-1" />
         {action === 'forfeit' ? '期限と入金状況・申請状況を確認しました' : '表示された条件と手続き内容を確認し、同意します'}
@@ -117,11 +123,11 @@ export function LoanCard({ loan, admin, send, busy,allowOffer=true }: { loan: Wo
     if (!terms) return
     const content = ['TCG ROYAL 契約条件（ローカル検証用の草案）', `申込ID: ${loan.id}`, `カード: ${loan.card_name}`, loan.cert_number?`PSA鑑定番号: ${loan.cert_number}`:'PSA番号なし・個別見積もり',
       `元本: ${yen(terms.principalJpy)}`, `月利: ${terms.monthlyRateBps / 100}%`, `期間: ${terms.termMonths}か月（出金日が起算日）`,
-      `手数料: ${yen(terms.feesJpy)}`, '期限前返済: 暦月単位の切り上げ、最低1か月・最大3か月分',
+      `手数料: ${yen(terms.feesJpy)}`, '期限前返済手数料: 月単位の切り上げ、最低1か月分',
       '返済・延長の手続きがなく期限を経過した場合は質流れの確認対象になります。',
       `同意日時: ${date(loan.terms_accepted_at)}`, `条件版: ${terms.documentVersion} / ${terms.version}`,
       ...(terms.collateralItems??[]).map(item=>`担保明細: ${item.name} / ${item.cardNumber} / ${item.quantity}枚 / ${item.grade} / ${item.condition}`),
-      ...loan.requests.filter(r => r.kind === 'extension' && r.status === 'completed').map(r => `延長記録: 利息 ${yen(r.amount_jpy)} / 延長後の期限 ${date(r.consent_terms.newDueAt ?? null)}`)].join('\n')
+      ...loan.requests.filter(r => r.kind === 'extension' && r.status === 'completed').map(r => `延長記録: 質料 ${yen(r.amount_jpy)} / 延長後の期限 ${date(r.consent_terms.newDueAt ?? null)}`)].join('\n')
     const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }))
     const a = document.createElement('a'); a.href = url; a.download = `loan-${loan.id}-terms.txt`; a.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
@@ -141,17 +147,17 @@ export function LoanCard({ loan, admin, send, busy,allowOffer=true }: { loan: Wo
       <summary className="cursor-pointer font-bold text-amber-200">契約条件を確認</summary>
       <p>元本 {yen(terms.principalJpy)} / 月利 {terms.monthlyRateBps / 100}% / {terms.termMonths}か月 / 手数料 {yen(terms.feesJpy)}</p>
       <p>満期返済額 {yen(terms.principalJpy + Math.ceil(terms.principalJpy * terms.monthlyRateBps * terms.termMonths / 10000))}</p>
-      <p>期限前返済は暦月単位の切り上げで、最低1か月・最大3か月分の利息です。期間は出金日から数えます。</p>
+      <p>期限前返済手数料は月単位の切り上げで、最低1か月分です。期間は出金日から数えます。</p>
       <p>返済・延長の手続きなく期限を経過した場合は質流れの確認対象になります。</p>
       <p>同意日時: {date(loan.terms_accepted_at)}</p>
-      {loan.requests.filter(r => r.kind === 'extension' && r.status === 'completed').map(r => <p key={r.id}>延長記録: 利息 {yen(r.amount_jpy)} / 延長後の期限 {date(r.consent_terms.newDueAt ?? null)}</p>)}
+      {loan.requests.filter(r => r.kind === 'extension' && r.status === 'completed').map(r => <p key={r.id}>延長記録: 質料 {yen(r.amount_jpy)} / 延長後の期限 {date(r.consent_terms.newDueAt ?? null)}</p>)}
       <button type="button" onClick={downloadTerms} className="mt-2 text-amber-200 underline">条件書の草案を保存</button>
     </details>}
     {loan.requests.filter(r => r.status === 'pending').map(r => <p key={r.id} className="mt-4 rounded-lg bg-amber-100/10 p-3 text-sm text-amber-100">{r.kind === 'extension' ? '延長申請' : '追加借入相談'}を確認中 / {yen(r.amount_jpy)}</p>)}
     <LoanActions key={loan.version} loan={loan} admin={admin} send={send} busy={busy} allowOffer={allowOffer}/>
     <details className="mt-5 text-xs leading-6 text-zinc-400"><summary className="cursor-pointer">手続き・入出金の履歴</summary>
       <ol className="mt-2 space-y-1">{loan.events.map(e => <li key={e.version}>{date(e.created_at)} / {actionLabels[e.action as LoanCommand] ?? e.action} / {LOAN_STATUS_LABELS[e.to_status]}{e.reason ? ` / ${e.reason}` : ''}</li>)}</ol>
-      <ul className="mt-3">{loan.ledger.map(e => <li key={e.id}>{date(e.created_at)} / {({ disbursement: '出金', repayment: '返済入金', extension_interest: '延長利息入金', forfeiture: '質流れによる元本処理' } as Record<string,string>)[e.kind]} / {yen(e.amount_jpy)}</li>)}</ul>
+      <ul className="mt-3">{loan.ledger.map(e => <li key={e.id}>{date(e.created_at)} / {({ disbursement: '出金', repayment: '返済入金', extension_interest: '延長質料入金', forfeiture: '質流れによる元本処理' } as Record<string,string>)[e.kind]} / {yen(e.amount_jpy)}</li>)}</ul>
     </details>
   </article>
 }

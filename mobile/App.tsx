@@ -17,7 +17,8 @@ import {TransactionList} from './src/screens/TransactionList';
 import {buildTransactions} from '../lib/lending/transactions';
 import {useApplicationDraft,clearApplicationDraft} from './src/use-application-draft';
 import {collateralQuantity} from '../lib/lending/collateral-types';
-import {RepaymentPreview} from './src/screens/RepaymentPreview';
+import {BankPayment} from './src/screens/BankPayment';
+import {repaymentChargeLabel} from '../lib/lending/bank-payment-types';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import {ConnectionDiagnostics} from './src/screens/ConnectionDiagnostics';
@@ -42,14 +43,14 @@ function Action({ label, onPress, disabled = false }: { label: string; onPress: 
   return <Button title={label} disabled={disabled} onPress={onPress}/>;
 }
 type Send = (body: Record<string, unknown>) => Promise<void>;
-function LoanTile({ loan, send, busy }: { loan: WorkflowLoan; send: Send; busy: boolean }) {
+function LoanTile({ loan, send, busy,initialPanel='summary' }: { loan: WorkflowLoan; send: Send; busy: boolean;initialPanel?:'summary'|'repayment'|'extension' }) {
   const [consent, setConsent] = useState(false);
   const [additionalConsent, setAdditionalConsent] = useState(false);
   const [additional, setAdditional] = useState('10000');
   const command = (action: LoanCommand, payload: Record<string, unknown> = {}) => void send({ type: 'command', loanId: loan.id, version: loan.version, action, payload });
   const pending = loan.requests.find(r => r.status === 'pending');
   const terms = loan.terms;
-  const [panel,setPanel]=useState<'summary'|'terms'|'repayment'|'extension'|'additional'|'history'>('summary');
+  const [panel,setPanel]=useState<'summary'|'terms'|'repayment'|'extension'|'additional'|'history'>(initialPanel);
   useAppBack(panel!=='summary',20,()=>{if(!busy)setPanel('summary');return true});
   return <View style={styles.card}>
     <Text style={styles.badge}>{LOAN_STATUS_LABELS[loan.status]}</Text>
@@ -58,6 +59,7 @@ function LoanTile({ loan, send, busy }: { loan: WorkflowLoan; send: Send; busy: 
     <Text style={styles.muted}>{loan.cert_number?`PSA / 鑑定番号 ${loan.cert_number}`:'個別見積もり'}</Text>
     <Text style={styles.muted}>{['active','repayment_pending'].includes(loan.status) ? '借入元本' : '申込希望額'}</Text>
     <Text style={styles.amount}>{yen(['active','repayment_pending'].includes(loan.status) ? loan.principal_jpy : loan.requested_jpy)}</Text>
+    <Text style={styles.muted}>{repaymentChargeLabel(loan.due_at,loan.evaluated_at)}は月単位で計算します。</Text>
     <Text style={styles.body}>返済必要額: {loan.payoff_jpy ? yen(loan.payoff_jpy) : '—'}</Text>
     <Text style={styles.body}>返済期限: {date(loan.due_at)}</Text>
     {panel!=='summary'&&<Action label="取引詳細に戻る" disabled={busy} onPress={()=>setPanel('summary')}/>}
@@ -66,21 +68,19 @@ function LoanTile({ loan, send, busy }: { loan: WorkflowLoan; send: Send; busy: 
       <Text style={styles.label}>契約条件</Text>
       <Text style={styles.body}>元本 {yen(terms.principalJpy)} / 月利 {terms.monthlyRateBps / 100}% / {terms.termMonths}か月 / 手数料 {yen(terms.feesJpy)}</Text>
       <Text style={styles.body}>満期返済額 {yen(terms.principalJpy + Math.ceil(terms.principalJpy * terms.monthlyRateBps * terms.termMonths / 10000))}</Text>
-      <Text style={styles.muted}>期間は出金日から数えます。期限前返済の利息は暦月単位で切り上げ、最低1か月・最大3か月分です。期限経過後は質流れの確認対象になります。</Text>
-      {loan.requests.filter(r => r.kind === 'extension' && r.status === 'completed').map(r => <Text key={r.id} style={styles.muted}>延長記録: 利息 {yen(r.amount_jpy)} / 期限 {date(r.consent_terms.newDueAt ?? null)}</Text>)}
+      <Text style={styles.muted}>期間は出金日から数えます。期限前返済手数料は月単位で切り上げ、最低1か月分です。期限経過後は質流れの確認対象になります。</Text>
+      {loan.requests.filter(r => r.kind === 'extension' && r.status === 'completed').map(r => <Text key={r.id} style={styles.muted}>延長記録: 質料 {yen(r.amount_jpy)} / 期限 {date(r.consent_terms.newDueAt ?? null)}</Text>)}
     </View>}
     {loan.status === 'offered' && panel==='terms'&& <>
       <View style={styles.row}><Switch accessibilityLabel="契約条件への同意" value={consent} onValueChange={setConsent} disabled={busy} /><Text style={styles.body}>条件を確認し、同意します</Text></View>
       <Action label="この条件に同意する" disabled={busy || !consent} onPress={() => command('accept', { termsAccepted: true })} />
     </>}
     {panel==='summary'&&['submitted','received','offered','accepted'].includes(loan.status) && <Action label="申込をキャンセル" disabled={busy} onPress={() => Alert.alert('申込のキャンセル', '預入済みのカードは返却待ちになります。', [{ text: '戻る', style: 'cancel' }, { text: 'キャンセルする', onPress: () => command('cancel') }])} />}
-    {['active','repayment_pending'].includes(loan.status)&&panel==='repayment'&&<RepaymentPreview loanId={loan.id}/>}
+    {['active','repayment_pending'].includes(loan.status)&&panel==='repayment'&&<BankPayment loan={loan} kind="repayment" busy={busy} onReport={command}/>}
     {loan.status === 'active' && <>
-      {panel==='repayment'&&<><Text style={styles.muted}>振込先は取引の案内をご確認ください。アプリから送金は行いません。振込先が不明な場合は、受付番号を添えてサポートへお問い合わせください。</Text><Action label="振込済みを申告" disabled={busy} onPress={()=>Alert.alert('振込済みの申告','この契約の振込が完了している場合に申告してください。運営の入金確認後に返却手続きを進めます。',[{text:'戻る',style:'cancel'},{text:'振込済みを申告',onPress:()=>command('report_repayment')}])}/></>}
       {!pending && loan.due_at && Date.parse(loan.evaluated_at) < Date.parse(loan.due_at) && <>
         {panel==='summary'&&<><Action label="期限の延長を確認" onPress={()=>setPanel('extension')}/><Action label="追加借入を相談" onPress={()=>setPanel('additional')}/></>}
-        {panel==='extension'&&<><Text style={styles.title}>期限延長の条件</Text><Text style={styles.body}>現在の期限 {date(loan.due_at)}</Text><View style={styles.row}><Switch accessibilityLabel="追加手続きへの同意" value={consent} onValueChange={setConsent} disabled={busy} /><Text style={[styles.body, styles.flex]}>延長時は現在の3か月分の利息 {yen(Math.ceil(loan.principal_jpy * (loan.monthly_rate_bps ?? 0) * 3 / 10000))} を精算し、期限を3か月延長することに同意します</Text></View>
-        <Action label="3か月延長を申請" disabled={busy || !consent} onPress={() => command('request_extension', { termsAccepted: true })} /></>}
+        {panel==='extension'&&<BankPayment loan={loan} kind="extension" busy={busy} onReport={command}/>}
         {panel==='additional'&&<><TextInput accessibilityLabel="追加借入の相談額" value={additional} onChangeText={setAdditional} keyboardType="number-pad" style={styles.input} editable={!busy} />
         <Text style={styles.muted}>追加借入は再査定・変更契約が必要です。ここでは相談のみ受け付けます。</Text>
         <View style={styles.row}><Switch accessibilityLabel="追加借入の相談申請への同意" value={additionalConsent} onValueChange={setAdditionalConsent} disabled={busy} /><Text style={styles.body}>相談申請の内容を確認しました</Text></View>
@@ -112,6 +112,7 @@ function LendingApp() {
   const [inboxAccount, setInboxAccount] = useState<AccountState | null>(null);
   const [inboxCases,setInboxCases]=useState<SupportCase[]>([]);
   const [focusedLoan, setFocusedLoan] = useState<string | null>(null);
+  const [loanEntry,setLoanEntry]=useState<{id:string;panel:'repayment'|'extension'}|null>(null);
   const [accountPage,setAccountPage]=useState<'identity'|undefined>();
   const [applyRequest,setApplyRequest]=useState(0);
   const [returnToInbox,setReturnToInbox]=useState(false);
@@ -239,11 +240,11 @@ function LendingApp() {
         <SupabaseLogin accessUrl={accessUrl} onConnected={reload} disabled={busy || restoring} onBusyChange={setBusy} recovering={recovering} onRecovered={() => setRecovering(false)}/>
         </>}
       </>}
-      {state&&tab==='home'&&<HomeScreen state={state} items={transactions} now={now} banner={<HomeBanners active={!toolsOpen}/>} draftCount={collateralQuantity(draft.items)} onApply={()=>switchTab('assessment')} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onOpen={id=>{switchTab('loans');setFocusedLoan(id);requestAnimationFrame(()=>scroll.current?.scrollTo({y:0,animated:false}))}} onIdentity={()=>{switchTab('account');setAccountPage('identity')}} onInbox={()=>switchTab('inbox')} notices={inbox}/>}
+      {state&&tab==='home'&&<HomeScreen state={state} items={transactions} now={now} banner={<HomeBanners active={!toolsOpen}/>} draftCount={collateralQuantity(draft.items)} onApply={()=>switchTab('assessment')} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onOpen={(id,panel)=>{setLoanEntry(panel?{id,panel}:null);switchTab('loans');setFocusedLoan(id);requestAnimationFrame(()=>scroll.current?.scrollTo({y:0,animated:false}))}} onIdentity={()=>{switchTab('account');setAccountPage('identity')}} onInbox={()=>switchTab('inbox')} notices={inbox}/>}
       {state?.transactionsUnavailable&&<Text style={styles.error}>査定依頼の一部を取得できません。一覧を更新してください。</Text>}
-      {state && tab==='loans'&&<TransactionList items={transactions} selectedId={focusedLoan} onSelect={id=>{setFocusedLoan(id);scroll.current?.scrollTo({y:0,animated:false})}} onApply={()=>switchTab('assessment')} renderDetail={item=>{
+      {state && tab==='loans'&&<TransactionList items={transactions} selectedId={focusedLoan} onSelect={id=>{setLoanEntry(null);setFocusedLoan(id);scroll.current?.scrollTo({y:0,animated:false})}} onApply={()=>switchTab('assessment')} renderDetail={item=>{
        const loan=state.loans.find(loan=>loan.id===item.loanId);
-       return <>{loan?<LoanTile key={`${loan.id}-${loan.version}`} loan={loan} send={send} busy={busy}/>:item.caseId?<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>:<Text style={styles.muted}>一覧を更新してください。</Text>}{loan&&item.caseId&&<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>}</>;
+       return <>{loan?<LoanTile key={`${loan.id}-${loan.version}-${loanEntry?.id===item.id?loanEntry.panel:'summary'}`} initialPanel={loanEntry?.id===item.id?loanEntry.panel:'summary'} loan={loan} send={send} busy={busy}/>:item.caseId?<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>:<Text style={styles.muted}>一覧を更新してください。</Text>}{loan&&item.caseId&&<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>}</>;
       }}/>}
       {state && tab === 'inbox' && <InboxScreen items={inbox} readIds={receipts.readIds} ready={receipts.ready} saving={receipts.saving} error={receipts.error} onRead={receipts.markRead} onOpen={openInboxItem} onRefresh={() => { if (receipts.error) receipts.retry(); void refresh(); }} refreshing={busy}/>}
       {state && tab === 'account' && <AccountScreen initialPage={accountPage} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onUpdated={reload} onSignOut={()=>void signOut()} signingOut={busy}/>}

@@ -10,6 +10,7 @@ export type LoanCommand = 'receive' | 'offer' | 'accept' | 'fund' | 'cancel' | '
 export interface WorkflowLoan {
   collateral_items?:import('./collateral-types').CollateralItem[];
   collateral_inspection?:import('./collateral-types').CollateralInspection[];
+  bank_payment_report?:{transferName:string;transferDate:string;reportedAt:string}|null;interest_paid_months?:number;term_months_total?:number;
   id: string; version: number; status: LoanStatus; cert_number: string | null; card_name: string
   card_number: string | null; requested_jpy: number; offered_jpy: number | null
   principal_jpy: number; monthly_rate_bps: number | null; due_at: string | null
@@ -18,7 +19,7 @@ export interface WorkflowLoan {
   terms_accepted_at: string | null
   events: { action: string; to_status: LoanStatus; version: number; created_at: string; reason?: string | null }[]
   ledger: { id: string; kind: string; amount_jpy: number; created_at: string }[]
-  requests: { id: string; kind: 'extension' | 'additional'; amount_jpy: number; status: string; consent_terms: { oldDueAt?: string; newDueAt?: string; requiresNewAssessment?: boolean; requiresNewAgreement?: boolean } }[]
+  requests: { id: string; kind: 'extension' | 'additional'; amount_jpy: number; status: string; consent_terms: { transferName?:string;transferDate?:string;reportedAt?:string;ruleVersion?:string;oldDueAt?: string; newDueAt?: string; requiresNewAssessment?: boolean; requiresNewAgreement?: boolean } }[]
 }
 export interface WorkflowState {
   transactions?:import('./transactions').LendingTransaction[]

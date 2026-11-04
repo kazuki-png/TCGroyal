@@ -11,6 +11,7 @@ import { LOAN_STATUS_LABELS, type LoanCommand, type WorkflowLoan, type WorkflowS
 import { connectPreview, disconnectPreview, loadWorkflow, workflowRequest, lendingApi, getInboxStorageKey, restorePreview, getRememberedPreviewUrl, clearRuntimeSession, isSupabasePreviewConnected } from './src/api';
 import {ApplicationCartButton} from './src/screens/ApplicationCartButton';
 import {ApplicationScreen as AssessmentScreen} from './src/screens/ApplicationScreen';
+import {HomeBanners} from './src/screens/HomeBanners';
 import {HomeScreen} from './src/screens/HomeScreen';
 import {TransactionList} from './src/screens/TransactionList';
 import {buildTransactions} from '../lib/lending/transactions';
@@ -225,6 +226,7 @@ function LendingApp() {
       </View>
     </View>
     {!(state&&tab==='assessment')&&<ScrollView ref={scroll} onScroll={event=>{scrollPositions.current[tab]=event.nativeEvent.contentOffset.y}} scrollEventThrottle={100} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.gold} />:undefined}>
+      {tab==='home'&&<HomeBanners active={!toolsOpen}/>}
       {!(state&&tab==='assessment')&&<Text accessibilityRole="header" style={styles.heading}>{heading}</Text>}
       {state&&returnToInbox&&<Action label="お知らせ一覧に戻る" disabled={busy} onPress={()=>{setReturnToInbox(false);setFocusedLoan(null);setTab('inbox');scroll.current?.scrollTo({y:0,animated:false})}}/>}
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}

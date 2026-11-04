@@ -12,6 +12,7 @@ import {colors} from '../theme';
 import {RoyalIcon} from '../RoyalIcon';
 import {Button,Field,ui} from '../ui';
 import {ReferenceEstimate} from './ReferenceEstimate';
+import {ApplicationSummary} from './ApplicationSummary';
 import {CollateralBasket} from './CollateralBasket';
 import {CardCapture} from './CardCapture';
 import {CardGradeSelect} from './CardGradeSelect';
@@ -27,7 +28,7 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
  const [photo,setPhoto]=useState<string|null>(null);
  const [origin,setOrigin]=useState<'manual'|'results'>('results');
  const [picking,setPicking]=useState(false),pickerLock=useRef(false),visible=useRef(active);
- const scroll=useRef<ComponentRef<typeof ScrollView>>(null),[actionsHeight,setActionsHeight]=useState(88);
+ const scroll=useRef<ComponentRef<typeof ScrollView>>(null);
  const generation=useRef(0),mounted=useRef(true),controller=useRef<AbortController|null>(null),imageRequest=useRef<{uri:string;key:string}|null>(null);
  const cancel=useCallback(()=>{generation.current++;controller.current?.abort();setBusy(false)},[]);
  const cameraRoute=useCallback(()=>{cancel();setSelected(null);setRoute('camera');setError('');setNotice('');setPhoto(null);setResults(null)},[cancel]);
@@ -87,21 +88,12 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
  }
  if(!ready)return <ActivityIndicator accessibilityLabel="申込下書きを復元中" color={colors.gold}/>;
  if(route==='camera'&&!selected)return active?<CardCapture onCapture={uri=>void imageSearch(uri)} onManual={manualRoute} onClose={onCloseCamera} error={draftError}/>:null;
+ if(route==='added'&&!selected)return <ApplicationSummary notice={notice} error={draftError} active={active} items={items} onRemove={id=>onChange(items.filter(item=>item.id!==id))} onContinue={cameraRoute} onProceed={()=>setRoute('basket')}/>;
  const showCandidates=!selected&&(route==='results'||route==='manual');
- const added=route==='added'&&!selected;
- return <View style={{flex:1}}><ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:20,paddingTop:24,gap:18,paddingBottom:added?actionsHeight+24:32}}>
+ return <View style={{flex:1}}><ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:20,paddingTop:24,gap:18,paddingBottom:32}}>
   {!!draftError&&<Text accessibilityRole="alert" style={ui.error}>{draftError}</Text>}
   {!!error&&<Text accessibilityRole="alert" style={ui.error}>{error}</Text>}
-  {route==='basket'?<CollateralBasket active={active} items={items} onChange={onChange} onApplied={onApplied} onBack={()=>setRoute('added')} onReset={()=>{onChange([]);cameraRoute()}} onSubmitted={()=>onChange([])}/>:route==='added'?<>
-   {!!notice&&<Text accessibilityLiveRegion="polite" style={ui.success}>{notice}</Text>}
-   <Text style={ui.title}>現在の融資申込カード</Text>
-   {items.map(item=><View key={item.id} style={[ui.card,{padding:16,paddingRight:48,flexDirection:'row',alignItems:'center'}]}>
-    {item.imageUrl?<Image alt={item.name} source={{uri:item.imageUrl}} accessibilityLabel={item.name+'の画像'} style={{width:82,height:114}} resizeMode="contain"/>:<View style={{width:82,height:114,justifyContent:'center'}}><Text style={ui.muted}>画像なし</Text></View>}
-    <View style={{flex:1,gap:8}}><Text style={[ui.title,{fontSize:16}]}>{item.name}</Text><Text style={ui.body}>{item.cardNumber||'型番未登録'} / {item.grade}</Text></View>
-    <Pressable accessibilityRole="button" accessibilityLabel={item.name+'を申込から削除'} onPress={()=>onChange(items.filter(row=>row.id!==item.id))} style={{position:'absolute',right:2,top:2,width:44,height:44,alignItems:'center',justifyContent:'center'}}><RoyalIcon name="close" size={20} color={colors.muted}/></Pressable>
-   </View>)}
-   {!items.length&&<Text style={ui.muted}>カードがまだ追加されていません。</Text>}
-  </>:selected?<>
+  {route==='basket'?<CollateralBasket active={active} items={items} onChange={onChange} onApplied={onApplied} onBack={()=>setRoute('added')} onReset={()=>{onChange([]);cameraRoute()}} onSubmitted={()=>onChange([])}/>:selected?<>
    <Button title="候補一覧に戻る" secondary onPress={()=>{setSelected(null);setRoute(origin);setError('')}}/>
    <View style={ui.card}>{selected.card.imageUrl?<Image alt={selected.card.name} source={{uri:selected.card.imageUrl}} accessibilityLabel={selected.card.name} style={{height:330,width:'100%'}} resizeMode="contain"/>:<Text style={ui.muted}>画像は準備中です</Text>}<Text style={ui.title}>{selected.card.name}</Text><Text style={ui.body}>型番 {selected.card.cardNumber||'未登録'}</Text><Text style={ui.muted}>版・言語・型番が、お手元のカードと一致することを確認してください。</Text><CardGradeSelect value={grade} onChange={setGrade} active={active}/><Field label="枚数" value={quantity} onChangeText={setQuantity} keyboardType="number-pad" maxLength={3}/><Field label="傷・白かけ・ケース破損など（任意）" value={condition} onChangeText={setCondition} maxLength={300} multiline/></View>
    {line&&<ReferenceEstimate {...reference} onRefresh={reference.refresh}/>}
@@ -113,9 +105,6 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
    <View style={ui.card}><Text style={ui.title}>見つからないカードは個別査定へ</Text><Field label="個別査定を依頼するカード名" value={manual} onChangeText={setManual} maxLength={100}/><Button title="個別査定のカードを申込に追加" secondary disabled={busy||!manual.trim()} onPress={()=>{addItem({id:randomUUID(),name:manual.trim(),cardNumber:'',quantity:1,grade:'未鑑定',condition:'',source:'manual',cardUid:null,productId:null});setManual('')}}/></View>
   </>}
  </ScrollView>
- {added&&<View accessibilityLabel="申込リストの操作" onLayout={event=>setActionsHeight(event.nativeEvent.layout.height)} style={{position:'absolute',bottom:0,left:0,right:0,zIndex:10,elevation:12,padding:12,gap:10,flexDirection:'row',backgroundColor:colors.background+'F2',borderTopWidth:1,borderColor:colors.border}}>
-  <View style={{flex:1}}><Button title="続けて登録" secondary onPress={cameraRoute}/></View>
-  <View style={{flex:1}}><Button title="申請に進む" disabled={!items.length} onPress={()=>setRoute('basket')}/></View>
- </View>}
+
  </View>;
 }

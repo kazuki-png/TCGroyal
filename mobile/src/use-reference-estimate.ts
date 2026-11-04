@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useCallback,useEffect,useState} from 'react';
 import type {CollateralItem} from '../../lib/lending/collateral-types';
 import type {BundleEstimate} from '../../lib/lending/bundle-estimate-types';
 import {lendingApi} from './api';
@@ -27,6 +27,7 @@ export function useReferenceEstimate(items:CollateralItem[],enabled=true){
   },600);
   return()=>{live=false;clearTimeout(timer);clearTimeout(timeout);controller.abort()};
  },[key,active,retry]);
+ const refresh=useCallback(()=>setRetry(value=>value+1),[]);
  const current=active&&state?.key===key&&state.retry===retry?state:null;
- return {estimate:current?.estimate??null,error:current?.error??'',loading:active&&(!current||current.loading),refresh:()=>setRetry(value=>value+1)};
+ return {estimate:current?.estimate??null,error:current?.error??'',loading:active&&(!current||current.loading),refresh};
 }

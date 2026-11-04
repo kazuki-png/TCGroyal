@@ -213,7 +213,6 @@ function LendingApp() {
     setTab('home');setApplyRequest(0);setReturnToInbox(false); setBusy(false);
   }
   function openInboxItem(item: InboxItem) { switchTab(item.target);setReturnToInbox(true); setFocusedLoan(item.loanId?`loan:${item.loanId}`:item.caseId?`case:${item.caseId}`:null); }
-  const heading = !state && supportOpen && !recovering ? '個別見積もり相談' : tab==='home'?'ホーム':tab === 'assessment' ? '申し込み' : tab === 'loans' ? '取引状況' : tab === 'inbox' ? 'お知らせ' : 'マイページ';
   return <KeyboardAvoidingView style={[styles.screen, { paddingTop: insets.top }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <StatusBar style="light" />
     <View style={styles.header}>
@@ -227,7 +226,6 @@ function LendingApp() {
     </View>
     {!(state&&tab==='assessment')&&<ScrollView ref={scroll} onScroll={event=>{scrollPositions.current[tab]=event.nativeEvent.contentOffset.y}} scrollEventThrottle={100} contentContainerStyle={[styles.content,tab==='home'&&styles.homeContent]} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.gold} />:undefined}>
       {tab==='home'&&!state&&<HomeBanners active={!toolsOpen}/>}
-      {!(state&&(tab==='assessment'||tab==='home'))&&<Text accessibilityRole="header" style={styles.heading}>{heading}</Text>}
       {state&&returnToInbox&&<Action label="お知らせ一覧に戻る" disabled={busy} onPress={()=>{setReturnToInbox(false);setFocusedLoan(null);setTab('inbox');scroll.current?.scrollTo({y:0,animated:false})}}/>}
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       {notice ? <Text accessibilityLiveRegion="polite" style={styles.success}>{notice}</Text> : null}
@@ -292,7 +290,7 @@ const styles = StyleSheet.create({
   toolsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, borderColor: colors.border },
   close: { minHeight: 52, minWidth: 64, justifyContent: 'center', alignItems: 'center' },
   screen: { flex: 1, backgroundColor: colors.background }, content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 32, gap: 20 },
-  homeContent:{paddingHorizontal:16,paddingTop:12,paddingBottom:20,gap:10},brandLogo:{width:150,height:43,flexShrink:1},heading: { color: colors.gold, fontSize: 28, fontWeight: '800', lineHeight: 40 },
+  homeContent:{paddingHorizontal:16,paddingTop:12,paddingBottom:20,gap:10},brandLogo:{width:150,height:43,flexShrink:1},
   title: { color: colors.text, fontSize: 19, fontWeight: '700' }, badge: { color: colors.gold, fontSize: 12, fontWeight: '700' },
   card: { backgroundColor: colors.surface, borderRadius: 20, borderColor: colors.border, borderWidth: 1, padding: 20, gap: 14 },
   body: { color: colors.text, fontSize: 14, lineHeight: 23 }, muted: { color: colors.muted, fontSize: 12, lineHeight: 21 },

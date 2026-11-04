@@ -24,6 +24,8 @@ const images={home,transactions,plus,mail,person,search,upload,close,history,loc
 export type RoyalIconName=keyof typeof images;
 // Local, source-tracked cman artwork. No remote image requests or icon fonts.
 export function RoyalIcon({name,size=24,color=colors.gold,style}:{name:RoyalIconName;size?:number;color?:string;style?:StyleProp<ImageStyle>}){
+ const navigation=name==='right'||name==='back'||name==='down';
+ const iconSize=navigation?Math.min(size,10):size;
  const rotation=name==='back'||name==='logout'?'180deg':name==='down'?'90deg':undefined;
- return <Image source={images[name]} alt="" accessible={false} importantForAccessibility="no" resizeMode="contain" style={[{width:size,height:size,tintColor:color},rotation&&{transform:[{rotate:rotation}]},style]}/>;
+ return <Image source={images[name]} alt="" accessible={false} importantForAccessibility="no" resizeMode="contain" style={[{width:iconSize,height:iconSize,tintColor:color,opacity:navigation?.65:1},rotation&&{transform:[{rotate:rotation}]},style]}/>;
 }

@@ -1,42 +1,44 @@
-import {useState} from 'react';
+import {useRef,useState} from 'react';
 import {Text,View} from 'react-native';
 import {randomUUID} from 'expo-crypto';
 import type {CollateralItem} from '../../../lib/lending/collateral-types';
-import {collateralQuantity,collateralTitle} from '../../../lib/lending/collateral-types';
-import {Button,Field,ui} from '../ui';
-import {SupportEstimate} from './SupportEstimate';
-import {useReferenceEstimate} from '../use-reference-estimate';
-import {ReferenceEstimate} from './ReferenceEstimate';
-import {useAppBack} from '../use-app-back';
+import {collateralTitle} from '../../../lib/lending/collateral-types';
 import type {SupportCase} from '../../../lib/lending/support-case-types';
-export function CollateralBasket({items,onChange,onApplied,onBack,onReset,onSubmitted,active=true}:{items:CollateralItem[];onChange:(items:CollateralItem[])=>void;onApplied:()=>Promise<void>;onBack:()=>void;onReset:()=>void;onSubmitted?:()=>void;active?:boolean}){
- const [receipt,setReceipt]=useState<SupportCase|null>(null);
- const [busy,setBusy]=useState(false),[submitted,setSubmitted]=useState(false),[manual,setManual]=useState('');
- const [review,setReview]=useState(false),[error,setError]=useState('');
- const [requested,setRequested]=useState('');
- const signature=JSON.stringify(items),reference=useReferenceEstimate(items,!submitted&&active);
- useAppBack(active&&(review||submitted||busy),35,()=>{if(!busy){if(submitted)onReset();else{setReview(false);setRequested('')}}return true});
- function invalidate(){setReview(false);setRequested('')}
- function update(id:string,patch:Partial<CollateralItem>){onChange(items.map(item=>item.id===id?{...item,...patch}:item));invalidate()}
- const valid=items.length>0&&items.length<=20&&collateralQuantity(items)<=100&&items.every(item=>Number.isInteger(item.quantity)&&item.quantity>=1&&item.quantity<=100);
- return <View style={{gap:16}}>
-  <Text style={ui.title}>まとめて申込 / {items.length}種類・{collateralQuantity(items)}枚</Text>
-  <Text style={ui.muted}>借入希望額・契約・返済期限は全カードでひとつです。カードごとの状態と枚数を確認してください。返却も契約全体で行います。</Text>
-  {!submitted&&<Button title="カード検索へ戻って追加" secondary disabled={busy} onPress={onBack}/>}
-  {items.map((item,index)=><View key={item.id} style={ui.card}><Text style={ui.title}>{index+1}. {item.name}</Text><Text style={ui.muted}>{item.cardNumber}</Text>
-   <Field label={`${index+1}番目のカード番号`} value={item.cardNumber} maxLength={100} editable={!busy&&!submitted} onChangeText={cardNumber=>update(item.id,{cardNumber})}/>
-   <Field label={`${index+1}番目の枚数`} value={String(item.quantity||'')} keyboardType="number-pad" maxLength={3} editable={!busy&&!submitted} onChangeText={value=>update(item.id,{quantity:/^\d{1,3}$/.test(value)?Number(value):0})}/>
-   <Field label={`${index+1}番目の鑑定・グレード`} value={item.grade} maxLength={60} editable={!busy&&!submitted} onChangeText={grade=>update(item.id,{grade})}/>
-   <Field label={`${index+1}番目の状態`} value={item.condition} maxLength={300} multiline editable={!busy&&!submitted} onChangeText={condition=>update(item.id,{condition})}/>
-   {!submitted&&<Button title={`${index+1}番目のカードを削除`} secondary disabled={busy} onPress={()=>{onChange(items.filter(row=>row.id!==item.id));invalidate()}}/>}
-  </View>)}
-  {!submitted&&<View style={ui.card}><Field label="手入力で追加するカード名" value={manual} onChangeText={setManual} maxLength={100} editable={!busy}/><Button title="手入力のカードを追加" secondary disabled={busy||!manual.trim()||items.length>=20||collateralQuantity(items)>=100} onPress={()=>{onChange([...items,{id:randomUUID(),name:manual.trim(),cardNumber:'',quantity:1,grade:'',condition:'',source:'manual',productId:null,cardUid:null}]);setManual('');invalidate()}}/></View>}
-  {!submitted&&!valid&&<Text accessibilityRole="alert" style={ui.error}>カードを追加し、20種類・合計100枚以内で、各カードの枚数を1枚以上にしてください。</Text>}
-  {!!error&&<Text style={ui.error}>{error}</Text>}
-  {!submitted&&<ReferenceEstimate {...reference} onRefresh={()=>{invalidate();reference.refresh()}} disabled={busy||!valid} onUse={amount=>{if(!reference.estimate||Date.parse(reference.estimate.expiresAt)<=Date.now()){setError('参考額の期限が切れています。再取得してください。');return}setRequested(String(amount));setReview(true)}}/>}
-  {!review&&!submitted&&<Button title="この内容でまとめて査定を依頼" disabled={busy||!valid} onPress={()=>{setError('');setReview(true)}}/>}
-  {review&&valid&&!submitted&&<SupportEstimate key={signature+requested} connected items={items} onBusyChange={setBusy} initialDraft={{reason:'other',cardName:collateralTitle(items),cardNumber:'',condition:'カード別の状態は明細を参照',requestedAmount:requested,notes:''}} onRegistered={async item=>{setReceipt(item);setSubmitted(true);onSubmitted?.();await onApplied()}}/>}
-  {submitted&&receipt&&<View style={ui.card}><Text style={ui.title}>査定依頼を受け付けました</Text><Text selectable style={ui.amount}>{receipt.reference}</Text><Text style={ui.body}>取引状況で進捗をご確認ください。正式な融資契約は、現物確認後の条件への同意が必要です。</Text></View>}
-  {submitted&&<Button title="別の申込を作る" secondary disabled={busy} onPress={onReset}/>}
- </View>;
+import type {ApplicationForm} from '../application-draft';
+import {buildSupportEstimateMessage} from '../support-estimate';
+import {lendingApi} from '../api';
+import {Button,Field,RoyalSwitch,ui} from '../ui';
+import {useAppBack} from '../use-app-back';
+import {ApplicationSummary} from './ApplicationSummary';
+
+export function CollateralBasket({items,onChange,onApplied,onBack,onReset,onSubmitted,active=true,form,onFormChange,notice='',error:draftError='',onBusyChange}:{items:CollateralItem[];onChange:(items:CollateralItem[])=>void;onApplied:()=>Promise<void>;onBack:()=>void;onReset:()=>void;onSubmitted?:()=>void;active?:boolean;form?:ApplicationForm;onFormChange?:(patch:Partial<ApplicationForm>)=>void;notice?:string;error?:string;onBusyChange?:(busy:boolean)=>void}){
+ const [localForm,setLocalForm]=useState<ApplicationForm>({requestedAmount:'',notes:''}),[receipt,setReceipt]=useState<SupportCase|null>(null);
+ const [busy,setBusy]=useState(false),[consentSignature,setConsentSignature]=useState<string|null>(null),[notesOpen,setNotesOpen]=useState(false),[error,setError]=useState('');
+ const lock=useRef(false),retry=useRef<{signature:string;key:string}|null>(null),value=form??localForm;
+ const draft={reason:'other' as const,cardName:collateralTitle(items),cardNumber:'',condition:'カード別の状態は明細を参照',requestedAmount:value.requestedAmount,notes:value.notes,items};
+ const signature=JSON.stringify(draft);
+ let validation='';try{buildSupportEstimateMessage(draft)}catch(cause){validation=cause instanceof Error?cause.message:'入力内容を確認してください。'}
+ const agreed=consentSignature===signature;
+ useAppBack(active&&busy,60,()=>true);
+ function change(patch:Partial<ApplicationForm>){if(busy)return;if(onFormChange)onFormChange(patch);else setLocalForm(current=>({...current,...patch}));setConsentSignature(null);setError('')}
+ async function submit(){
+  if(lock.current||!agreed||validation||receipt)return;
+  lock.current=true;setBusy(true);onBusyChange?.(true);setError('');
+  if(retry.current?.signature!==signature)retry.current={signature,key:randomUUID()};
+  try{
+   const data=await lendingApi<{case:SupportCase}>('/support-cases',{body:{action:'create',draft,consent:true,key:retry.current.key}});
+   setReceipt(data.case);onChange([]);onSubmitted?.();
+   try{await onApplied()}catch{setError('申請は受付済みです。取引状況を更新して確認してください。')}
+  }catch(cause){setError(cause instanceof Error?cause.message:'申請できませんでした。もう一度お試しください。')}
+  finally{lock.current=false;setBusy(false);onBusyChange?.(false)}
+ }
+ if(receipt)return <View style={{flex:1,padding:16,gap:12}}><Text style={ui.title}>査定依頼を受け付けました</Text><Text selectable style={ui.amount}>{receipt.reference}</Text><Text style={ui.muted}>取引状況で進捗を確認できます。</Text>{!!error&&<Text accessibilityRole="alert" style={ui.error}>{error}</Text>}<Button title="続けて登録" secondary disabled={busy} onPress={onReset}/></View>;
+ return <ApplicationSummary items={items} active={active} busy={busy} notice={notice} error={error||draftError} onRemove={id=>{onChange(items.filter(item=>item.id!==id));setConsentSignature(null)}} onUpdate={(id,patch)=>{onChange(items.map(item=>item.id===id?{...item,...patch}:item));setConsentSignature(null)}} onContinue={onBack} onProceed={()=>void submit()} proceedLabel={busy?'申請中…':'申請する'} canProceed={!validation&&agreed} form={<View style={{gap:10,marginTop:6}}>
+  <Field label="融資希望額（円・任意）" placeholder="金額を入力" value={value.requestedAmount} onChangeText={requestedAmount=>change({requestedAmount})} keyboardType="number-pad" maxLength={8} editable={!busy&&items.length>0}/>
+  {!!value.requestedAmount&&!!validation&&<Text accessibilityRole="alert" style={ui.error}>{validation}</Text>}
+  <Button title={notesOpen?'相談内容を閉じる':'相談内容を追加（任意）'} secondary disabled={busy} onPress={()=>setNotesOpen(!notesOpen)}/>
+  {(notesOpen||!!value.notes)&&<Field label="相談内容（任意）" value={value.notes} onChangeText={notes=>change({notes})} multiline maxLength={1000} editable={!busy}/>}
+  <View style={ui.row}><RoyalSwitch accessibilityLabel="査定依頼の登録に同意する" value={agreed} disabled={busy||!items.length} onValueChange={checked=>setConsentSignature(checked?signature:null)}/><Text style={[ui.body,{flex:1}]}>査定依頼の登録に同意する</Text></View>
+  <Text style={ui.muted}>正式な融資条件は現物確認後に確定します。</Text>
+ </View>}/>;
 }

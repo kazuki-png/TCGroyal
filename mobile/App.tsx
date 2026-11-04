@@ -219,10 +219,10 @@ function LendingApp() {
     <View style={styles.header}>
       <Image source={siteLogo} accessibilityRole="image" accessibilityLabel="TCG ROYAL" alt="TCG ROYAL" style={styles.brandLogo} resizeMode="contain"/>
       <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-      {process.env.EXPO_PUBLIC_LENDING_CHANNEL!=='production'&&<Pressable accessibilityRole="button" accessibilityLabel="テスト環境の設定と機能を開く" onPress={() => setToolsOpen(true)} style={styles.environment}>
+      {process.env.EXPO_PUBLIC_LENDING_CHANNEL!=='production'&&<Pressable accessibilityRole="button" accessibilityLabel="テスト環境の設定と機能を開く" disabled={busy} onPress={() => setToolsOpen(true)} style={styles.environment}>
         <View style={styles.environmentDot}/><Text maxFontSizeMultiplier={1.3} style={styles.badge}>テスト環境</Text>
       </Pressable>}
-      <ApplicationCartButton count={collateralQuantity(draft.items)} onPress={()=>{setTab('assessment');setBasketRequest(value=>value+1);setError('');setNotice('')}}/>
+      <ApplicationCartButton disabled={busy} count={collateralQuantity(draft.items)} onPress={()=>{setTab('assessment');setBasketRequest(value=>value+1);setError('');setNotice('')}}/>
       </View>
     </View>
     {!(state&&tab==='assessment')&&<ScrollView ref={scroll} onScroll={event=>{scrollPositions.current[tab]=event.nativeEvent.contentOffset.y}} scrollEventThrottle={100} contentContainerStyle={[styles.content,tab==='home'&&styles.homeContent]} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.gold} />:undefined}>
@@ -248,9 +248,9 @@ function LendingApp() {
       {state && tab === 'inbox' && <InboxScreen items={inbox} readIds={receipts.readIds} ready={receipts.ready} saving={receipts.saving} error={receipts.error} onRead={receipts.markRead} onOpen={openInboxItem} onRefresh={() => { if (receipts.error) receipts.retry(); void refresh(); }} refreshing={busy}/>}
       {state && tab === 'account' && <AccountScreen initialPage={accountPage} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onUpdated={reload} onSignOut={()=>void signOut()} signingOut={busy}/>}
     </ScrollView>}
-      {state && <View key={getInboxStorageKey()+':'+applyRequest} style={tab==='assessment'?{flex:1}:{display:'none'}} accessibilityElementsHidden={tab!=='assessment'} importantForAccessibility={tab==='assessment'?'auto':'no-hide-descendants'}><AssessmentScreen onApplied={reload} active={tab==='assessment'&&!toolsOpen} items={draft.items} onChange={draft.change} ready={draft.ready} error={draft.error} basketRequest={basketRequest} onCloseCamera={()=>switchTab('home')}/></View>}
+      {state && <View key={getInboxStorageKey()+':'+applyRequest} style={tab==='assessment'?{flex:1}:{display:'none'}} accessibilityElementsHidden={tab!=='assessment'} importantForAccessibility={tab==='assessment'?'auto':'no-hide-descendants'}><AssessmentScreen onBusyChange={setBusy} onApplied={reload} active={tab==='assessment'&&!toolsOpen} items={draft.items} onChange={draft.change} form={draft.form} onFormChange={draft.changeForm} ready={draft.ready} error={draft.error} basketRequest={basketRequest} onCloseCamera={()=>switchTab('home')}/></View>}
     <View accessibilityRole="tablist" style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-      {([['home','ホーム','home'],['loans','取引状況','transactions'],['assessment','申し込み','plus'],['inbox','お知らせ','mail'],['account','マイページ','person']] as const).map(([key,label,icon]) => <Pressable key={key} accessibilityRole="tab" accessibilityLabel={key==='assessment'?`申し込み、申込リスト${collateralQuantity(draft.items)}枚`:key === 'inbox' && unreadCount ? `お知らせ、未読${unreadCount}件` : label} accessibilityState={{selected: tab === key}} onPress={() => switchTab(key)} style={[styles.tab, tab === key && key!=='assessment'&&styles.activeTab]}>
+      {([['home','ホーム','home'],['loans','取引状況','transactions'],['assessment','申し込み','plus'],['inbox','お知らせ','mail'],['account','マイページ','person']] as const).map(([key,label,icon]) => <Pressable key={key} accessibilityRole="tab" disabled={busy} accessibilityLabel={key==='assessment'?`申し込み、申込リスト${collateralQuantity(draft.items)}枚`:key === 'inbox' && unreadCount ? `お知らせ、未読${unreadCount}件` : label} accessibilityState={{selected: tab === key}} onPress={() => switchTab(key)} style={[styles.tab, tab === key && key!=='assessment'&&styles.activeTab]}>
         {key==='assessment'?<View style={[styles.applyCircle,tab===key&&styles.applySelected]}><RoyalIcon name="plus" size={22} color={colors.gold}/></View>:<RoyalIcon name={icon} size={20} color={tab===key?colors.gold:colors.muted}/>}
         <Text style={[styles.tabText, tab === key && styles.activeText]}>{label}</Text>
         {key==='assessment'&&draft.items.length>0&&<View style={styles.unreadBadge}><Text style={styles.unreadText}>{collateralQuantity(draft.items)}</Text></View>}

@@ -1,7 +1,8 @@
 import type {CollateralItem} from '../../lib/lending/collateral-types';
-export interface ApplicationDraft {version:1;items:CollateralItem[];updatedAt:string}
+export interface ApplicationForm {requestedAmount:string;notes:string}
+export interface ApplicationDraft extends ApplicationForm {version:1;items:CollateralItem[];updatedAt:string}
 export function parseApplicationDraft(raw:string|null):ApplicationDraft{
- if(!raw)return {version:1,items:[],updatedAt:new Date().toISOString()};
+ if(!raw)return {version:1,items:[],requestedAmount:'',notes:'',updatedAt:new Date().toISOString()};
  const value=JSON.parse(raw);
  if(value.version!==1||!Array.isArray(value.items)||value.items.length>20)throw Error('invalid_draft');
  const items:CollateralItem[]=value.items.map((row:CollateralItem)=>{
@@ -10,5 +11,7 @@ export function parseApplicationDraft(raw:string|null):ApplicationDraft{
   return {id:row.id,name:row.name,cardNumber:row.cardNumber,grade:row.grade,condition:row.condition,quantity:row.quantity,source:row.source,cardUid:row.cardUid,productId:row.productId,...(typeof row.imageUrl==='string'&&row.imageUrl.length<=2000&&/^https:\/\//i.test(row.imageUrl)?{imageUrl:row.imageUrl}:{})};
  });
  if(items.reduce((sum,row)=>sum+row.quantity,0)>100||new Set(items.map(row=>row.id)).size!==items.length)throw Error('invalid_draft');
- return {version:1,items,updatedAt:typeof value.updatedAt==='string'?value.updatedAt:new Date().toISOString()};
+ const requestedAmount=value.requestedAmount??'',notes=value.notes??'';
+ if(typeof requestedAmount!=='string'||!/^\d{0,8}$/.test(requestedAmount)||typeof notes!=='string'||notes.length>1000)throw Error('invalid_draft');
+ return {version:1,items,requestedAmount,notes,updatedAt:typeof value.updatedAt==='string'?value.updatedAt:new Date().toISOString()};
 }

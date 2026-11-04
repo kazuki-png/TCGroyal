@@ -12,15 +12,15 @@ import {colors} from '../theme';
 import {RoyalIcon} from '../RoyalIcon';
 import {Button,Field,ui} from '../ui';
 import {ReferenceEstimate} from './ReferenceEstimate';
-import {ApplicationSummary} from './ApplicationSummary';
+import type {ApplicationForm} from '../application-draft';
 import {CollateralBasket} from './CollateralBasket';
 import {CardCapture} from './CardCapture';
 import {CardGradeSelect} from './CardGradeSelect';
 import {selectCardImage} from '../select-card-image';
 
-type Route='camera'|'manual'|'results'|'added'|'basket';
+type Route='camera'|'manual'|'results'|'added';
 const noop=()=>{};
-export function ApplicationScreen({active,items,onChange,onApplied,ready,error:draftError,onNavigate=noop,onCameraModeChange=noop,onCloseCamera=noop,basketRequest=0}:{active:boolean;items:CollateralItem[];onChange:(items:CollateralItem[])=>void;onApplied:()=>Promise<void>;ready:boolean;error:string;onNavigate?:()=>void;onCameraModeChange?:(fullscreen:boolean)=>void;onCloseCamera?:()=>void;basketRequest?:number}){
+export function ApplicationScreen({active,items,onChange,onApplied,ready,error:draftError,onNavigate=noop,onCameraModeChange=noop,onCloseCamera=noop,basketRequest=0,form,onFormChange,onBusyChange}:{active:boolean;items:CollateralItem[];onChange:(items:CollateralItem[])=>void;onApplied:()=>Promise<void>;ready:boolean;error:string;onNavigate?:()=>void;onCameraModeChange?:(fullscreen:boolean)=>void;onCloseCamera?:()=>void;basketRequest?:number;form?:ApplicationForm;onFormChange?:(patch:Partial<ApplicationForm>)=>void;onBusyChange?:(busy:boolean)=>void}){
  const [route,setRoute]=useState<Route>('camera'),[selected,setSelected]=useState<{card:DiscoveryCard;id:string}|null>(null);
  const [query,setQuery]=useState(''),[results,setResults]=useState<DiscoverySearch|null>(null);
  const [grade,setGrade]=useState('PSA10'),[quantity,setQuantity]=useState('1'),[condition,setCondition]=useState('');
@@ -36,7 +36,7 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
  useEffect(()=>{visible.current=active;if(!active)controller.current?.abort()},[active]);
  useEffect(()=>{if(active){scroll.current?.scrollTo({y:0,animated:false});onNavigate()}},[route,selected,active,onNavigate]);
  useEffect(()=>{onCameraModeChange(active&&ready&&route==='camera'&&!selected);return()=>onCameraModeChange(false)},[active,ready,route,selected,onCameraModeChange]);
- useAppBack(active&&(!!selected||route!=='camera'),25,()=>{cancel();if(selected)setSelected(null);else if(route==='basket')setRoute('added');else cameraRoute();return true});
+ useAppBack(active&&(!!selected||route!=='camera'),25,()=>{cancel();if(selected)setSelected(null);else cameraRoute();return true});
 
  const lastBasketRequest=useRef(basketRequest);
  useEffect(()=>{if(basketRequest!==lastBasketRequest.current){lastBasketRequest.current=basketRequest;cancel();setSelected(null);setRoute('added');setNotice('')}},[basketRequest,cancel]);
@@ -88,12 +88,12 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
  }
  if(!ready)return <ActivityIndicator accessibilityLabel="申込下書きを復元中" color={colors.gold}/>;
  if(route==='camera'&&!selected)return active?<CardCapture onCapture={uri=>void imageSearch(uri)} onManual={manualRoute} onClose={onCloseCamera} error={draftError}/>:null;
- if(route==='added'&&!selected)return <ApplicationSummary notice={notice} error={draftError} active={active} items={items} onRemove={id=>onChange(items.filter(item=>item.id!==id))} onContinue={cameraRoute} onProceed={()=>setRoute('basket')}/>;
+ if(route==='added'&&!selected)return <CollateralBasket key={basketRequest} notice={notice} error={draftError} active={active} items={items} form={form} onFormChange={onFormChange} onBusyChange={onBusyChange} onChange={onChange} onApplied={onApplied} onBack={cameraRoute} onReset={()=>{onChange([]);cameraRoute()}}/>;
  const showCandidates=!selected&&(route==='results'||route==='manual');
  return <View style={{flex:1}}><ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:20,paddingTop:24,gap:18,paddingBottom:32}}>
   {!!draftError&&<Text accessibilityRole="alert" style={ui.error}>{draftError}</Text>}
   {!!error&&<Text accessibilityRole="alert" style={ui.error}>{error}</Text>}
-  {route==='basket'?<CollateralBasket active={active} items={items} onChange={onChange} onApplied={onApplied} onBack={()=>setRoute('added')} onReset={()=>{onChange([]);cameraRoute()}} onSubmitted={()=>onChange([])}/>:selected?<>
+  {selected?<>
    <Button title="候補一覧に戻る" secondary onPress={()=>{setSelected(null);setRoute(origin);setError('')}}/>
    <View style={ui.card}>{selected.card.imageUrl?<Image alt={selected.card.name} source={{uri:selected.card.imageUrl}} accessibilityLabel={selected.card.name} style={{height:330,width:'100%'}} resizeMode="contain"/>:<Text style={ui.muted}>画像は準備中です</Text>}<Text style={ui.title}>{selected.card.name}</Text><Text style={ui.body}>型番 {selected.card.cardNumber||'未登録'}</Text><Text style={ui.muted}>版・言語・型番が、お手元のカードと一致することを確認してください。</Text><CardGradeSelect value={grade} onChange={setGrade} active={active}/><Field label="枚数" value={quantity} onChangeText={setQuantity} keyboardType="number-pad" maxLength={3}/><Field label="傷・白かけ・ケース破損など（任意）" value={condition} onChangeText={setCondition} maxLength={300} multiline/></View>
    {line&&<ReferenceEstimate {...reference} onRefresh={reference.refresh}/>}

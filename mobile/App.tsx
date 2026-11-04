@@ -225,9 +225,9 @@ function LendingApp() {
       <ApplicationCartButton count={collateralQuantity(draft.items)} onPress={()=>{setTab('assessment');setBasketRequest(value=>value+1);setError('');setNotice('')}}/>
       </View>
     </View>
-    {!(state&&tab==='assessment')&&<ScrollView ref={scroll} onScroll={event=>{scrollPositions.current[tab]=event.nativeEvent.contentOffset.y}} scrollEventThrottle={100} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.gold} />:undefined}>
-      {tab==='home'&&<HomeBanners active={!toolsOpen}/>}
-      {!(state&&tab==='assessment')&&<Text accessibilityRole="header" style={styles.heading}>{heading}</Text>}
+    {!(state&&tab==='assessment')&&<ScrollView ref={scroll} onScroll={event=>{scrollPositions.current[tab]=event.nativeEvent.contentOffset.y}} scrollEventThrottle={100} contentContainerStyle={[styles.content,tab==='home'&&styles.homeContent]} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.gold} />:undefined}>
+      {tab==='home'&&!state&&<HomeBanners active={!toolsOpen}/>}
+      {!(state&&(tab==='assessment'||tab==='home'))&&<Text accessibilityRole="header" style={styles.heading}>{heading}</Text>}
       {state&&returnToInbox&&<Action label="お知らせ一覧に戻る" disabled={busy} onPress={()=>{setReturnToInbox(false);setFocusedLoan(null);setTab('inbox');scroll.current?.scrollTo({y:0,animated:false})}}/>}
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       {notice ? <Text accessibilityLiveRegion="polite" style={styles.success}>{notice}</Text> : null}
@@ -239,7 +239,7 @@ function LendingApp() {
         <SupabaseLogin accessUrl={accessUrl} onConnected={reload} disabled={busy || restoring} onBusyChange={setBusy} recovering={recovering} onRecovered={() => setRecovering(false)}/>
         </>}
       </>}
-      {state&&tab==='home'&&<HomeScreen state={state} items={transactions} draftCount={collateralQuantity(draft.items)} onApply={()=>switchTab('assessment')} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onOpen={id=>{switchTab('loans');setFocusedLoan(id);requestAnimationFrame(()=>scroll.current?.scrollTo({y:0,animated:false}))}} onIdentity={()=>{switchTab('account');setAccountPage('identity')}} onInbox={()=>switchTab('inbox')} notices={inbox}/>}
+      {state&&tab==='home'&&<HomeScreen state={state} items={transactions} now={now} banner={<HomeBanners active={!toolsOpen}/>} draftCount={collateralQuantity(draft.items)} onApply={()=>switchTab('assessment')} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onOpen={id=>{switchTab('loans');setFocusedLoan(id);requestAnimationFrame(()=>scroll.current?.scrollTo({y:0,animated:false}))}} onIdentity={()=>{switchTab('account');setAccountPage('identity')}} onInbox={()=>switchTab('inbox')} notices={inbox}/>}
       {state?.transactionsUnavailable&&<Text style={styles.error}>査定依頼の一部を取得できません。一覧を更新してください。</Text>}
       {state && tab==='loans'&&<TransactionList items={transactions} selectedId={focusedLoan} onSelect={id=>{setFocusedLoan(id);scroll.current?.scrollTo({y:0,animated:false})}} onApply={()=>switchTab('assessment')} renderDetail={item=>{
        const loan=state.loans.find(loan=>loan.id===item.loanId);
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   toolsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, borderColor: colors.border },
   close: { minHeight: 52, minWidth: 64, justifyContent: 'center', alignItems: 'center' },
   screen: { flex: 1, backgroundColor: colors.background }, content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 32, gap: 20 },
-  brandLogo:{width:150,height:43,flexShrink:1},heading: { color: colors.gold, fontSize: 28, fontWeight: '800', lineHeight: 40 },
+  homeContent:{paddingHorizontal:16,paddingTop:12,paddingBottom:20,gap:10},brandLogo:{width:150,height:43,flexShrink:1},heading: { color: colors.gold, fontSize: 28, fontWeight: '800', lineHeight: 40 },
   title: { color: colors.text, fontSize: 19, fontWeight: '700' }, badge: { color: colors.gold, fontSize: 12, fontWeight: '700' },
   card: { backgroundColor: colors.surface, borderRadius: 20, borderColor: colors.border, borderWidth: 1, padding: 20, gap: 14 },
   body: { color: colors.text, fontSize: 14, lineHeight: 23 }, muted: { color: colors.muted, fontSize: 12, lineHeight: 21 },

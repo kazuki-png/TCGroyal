@@ -33,6 +33,11 @@ describe('image candidate identity evidence',()=>{
   const result=rankImageCandidates([card('modern','ピカチュウ LV.12','DP-P 095'),card('old','ピカチュウ :旧裏','PMCG1 No.025'),card('unknown','ピカチュウ','')],vintage,true)
   expect(result.map(card=>card.id)).toEqual(['old','unknown'])
  })
+ it.each([false,true])('keeps an exact promo number despite a contradictory old-back estimate (related=%s)',related=>{
+  const promo={...hints,name:'コイキングごっこピカチュウ',cardNumber:'150/XY-P',setName:'XY',rarity:null,oldBack:true}
+  const result=rankImageCandidates([card('wrong','コイキングごっこピカチュウ','XY-P 151/XY-P'),card('correct','コイキングごっこピカチュウ','XY-P 150/XY-P')],promo,related)
+  expect(result.map(value=>value.id)).toEqual(['correct']);expect(result[0].imageMatch?.matchedOn).toContain('number')
+ })
  it('shows at most three candidates and never automatically picks one',()=>{
   expect(rankImageCandidates(Array.from({length:6},(_,i)=>card(String(i),'ピカチュウ')),hints)).toHaveLength(3)
   expect(rankImageCandidates([card('one','ピカチュウ')],{...hints,cardNumber:null,setName:null,rarity:null})[0]).not.toHaveProperty('selected')

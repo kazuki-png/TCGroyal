@@ -16,13 +16,15 @@ export function rankImageCandidates(cards:DiscoveryCard[],hints:Hints,related=fa
  return cards.flatMap((card,index)=>{
   if(hints.category&&card.category!==hints.category)return []
   const fullText=folded(`${card.name} ${card.cardNumber}`),text=normalized(fullText),actual=numbers(card.cardNumber||card.name)
+  const numberMatch=expected.length>0&&expected.some(number=>actual.includes(number))
   if(!related&&expected.length&&actual.length&&!expected.some(number=>actual.includes(number)))return []
-  // An explicit modern set code contradicts an old-back interpretation.
-  if(hints.category==='pokemon'&&hints.oldBack===true&&/\b(?:DP(?:T)?|BW|XY|SM|SV)[A-Z0-9-]*\s+\d/i.test(card.cardNumber.normalize('NFKC')))return []
+  // Era is only an image estimate. It must not discard a complete printed
+  // number match (e.g. 150/XY-P misclassified as old-back by the model).
+  if(!numberMatch&&hints.category==='pokemon'&&hints.oldBack===true&&/\b(?:DP(?:T)?|BW|XY|SM|SV)[A-Z0-9-]*\s+\d/i.test(card.cardNumber.normalize('NFKC')))return []
   // Only exclude explicit language labels; absence of a label is not evidence.
   if(japanese&&/英語版|english/.test(text)||english&&/日本語版|japanese/.test(text))return []
   const matchedOn:NonNullable<DiscoveryCard['imageMatch']>['matchedOn']=[]
-  if(expected.length&&expected.some(number=>actual.includes(number)))matchedOn.push('number')
+  if(numberMatch)matchedOn.push('number')
   if(setCode){
    const codes:string[]=fullText.match(/\b(?:sv|sm|s|xy|bw|dp|pt)\d+[a-z]*\b/g)??[]
    if(!related&&codes.length&&!codes.includes(setCode))return []

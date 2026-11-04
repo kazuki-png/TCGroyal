@@ -8,6 +8,12 @@ const hints={name:'ピカチュウ',cardNumber:'132/106',category:'pokemon' as c
 const match={cards:[{id:'1',name:'ピカチュウ SAR',cardNumber:'SV8 132/106',category:'pokemon',kind:'external',productId:'1',cardUid:null,imageUrl:null}],page:1,hasMore:true,partial:false}
 beforeEach(()=>vi.resetAllMocks())
 describe('bounded image discovery',()=>{
+ it('does not lose the correctly identified modern promo to a mistaken old-back hint',async()=>{
+  const promo={...hints,name:'コイキングごっこピカチュウ',cardNumber:'150/XY-P',setName:'XY',specificTerms:['HP60','10まんボルト'],oldBack:true}
+  discover.mockResolvedValue({...match,cards:[{...match.cards[0],id:'91395',name:promo.name,cardNumber:'XY-P 150/XY-P'}]})
+  const result=await discoverImageCards(promo,async()=>true)
+  expect(result.cards.map(card=>card.id)).toEqual(['91395']);expect(result.cards[0].imageMatch?.matchedOn).toContain('number')
+ })
  it('searches the printed number first and supplements fewer than three candidates by name',async()=>{
   discover.mockResolvedValue(match);const allow=vi.fn(async()=>true)
   const result=await discoverImageCards(hints,allow)

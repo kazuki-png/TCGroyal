@@ -18,6 +18,17 @@ describe('bounded card image provider',()=>{
   vi.mocked(fetch).mockResolvedValue(response({...hints,name:'ライチュウ',cardNumber:'No.026',specificTerms:['HP70','ろうでん'],oldBack:true}))
   expect((await extractCardHints(Buffer.from('fixture'))).hints).toMatchObject({cardNumber:null,oldBack:true,specificTerms:['HP70','ろうでん']})
  })
+ it.each(['150/XY-P','208/S-P','001/SV-P'])('corrects contradictory old-back output using complete modern promo number %s',async cardNumber=>{
+  vi.mocked(fetch).mockResolvedValue(response({...hints,name:'コイキングごっこピカチュウ',cardNumber,oldBack:true}))
+  expect((await extractCardHints(Buffer.from('fixture'))).hints).toMatchObject({cardNumber,oldBack:false})
+  expect(fetch).toHaveBeenCalledOnce()
+ })
+ it('does not infer an era from a bare number or generic fraction',async()=>{
+  for(const cardNumber of ['150','150/103']){
+   vi.mocked(fetch).mockResolvedValueOnce(response({...hints,cardNumber,oldBack:null}))
+   expect((await extractCardHints(Buffer.from('fixture'))).hints.oldBack).toBeNull()
+  }
+ })
  it('does not contact OpenAI if not configured',async()=>{
   vi.stubEnv('OPENAI_API_KEY','');await expect(extractCardHints(Buffer.alloc(1))).rejects.toThrow('unconfigured');expect(fetch).not.toHaveBeenCalled()
  })

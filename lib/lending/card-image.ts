@@ -1,5 +1,6 @@
 import 'server-only'
 import {imageHints} from './catalog'
+import {hasModernPokemonPromoNumber} from './card-identifiers'
 export async function extractCardHints(image:Buffer){
  const key=process.env.OPENAI_API_KEY?.trim()
  if(!key)throw Error('image_search_unconfigured')
@@ -14,6 +15,7 @@ export async function extractCardHints(image:Buffer){
  const hints=imageHints.parse(raw.value)
  // Enforce the Pokédex-number boundary even when the model ignores the prompt.
  if(hints.category==='pokemon'&&/^no[.\s]*\d{1,4}$/i.test((hints.cardNumber??'').normalize('NFKC')))hints.cardNumber=null
+ if(hints.category==='pokemon'&&hasModernPokemonPromoNumber(hints.cardNumber??''))hints.oldBack=false
  return {hints,usage:raw.usage,model:process.env.LENDING_IMAGE_MODEL||'gpt-4.1-mini'}
 }
 

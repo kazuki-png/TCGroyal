@@ -600,3 +600,5 @@ LINE由来の手動作成は「連絡先だけの相談」と「アカウント�
 - 満期3日前・前日、日本時間9時以降にプッシュ/メールを各1回登録。契約・期限・日数・送信先単位で重複防止し、返済済み・延長後の旧期限の未送信分は失効させる。通知本文にカード名・金額を含めない。メールは認証済みの登録メールのみ。
 - Preview専用の認証付き通知ワーカーとPreview DB内Cronを使用。本番のCron・設定・DBは変更しない。通知失敗は最大5回再試行し、メールはプロバイダーの冪等キーを使用する。
 - 暦月の応当日は当日を前の1か月の最終日として扱う（月末は月末日）。部分返済・自動引落・カード決済・口座残高取得は対象外。
+
+- Preview定期通知設定: `scripts/setup-lending-reminders-preview.mjs --run-preview`。対象は `mkmkkkdserlcaycknuxp` に固定し、DB Cron名 `lending-preview-due-reminders` を5分ごとに実行。ワーカーはPreview限定・専用HMAC認証で保護し、認証情報はVaultの `lending_preview_due_worker` に保存する。実際の通知登録は満期3日前/前日の9時以降だけ。設定スクリプトは本番では使用できない。

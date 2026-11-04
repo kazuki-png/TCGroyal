@@ -18,7 +18,6 @@ import {buildTransactions} from '../lib/lending/transactions';
 import {useApplicationDraft,clearApplicationDraft} from './src/use-application-draft';
 import {collateralQuantity} from '../lib/lending/collateral-types';
 import {BankPayment} from './src/screens/BankPayment';
-import {repaymentChargeLabel} from '../lib/lending/bank-payment-types';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import {ConnectionDiagnostics} from './src/screens/ConnectionDiagnostics';
@@ -51,17 +50,17 @@ function LoanTile({ loan, send, busy,initialPanel='summary' }: { loan: WorkflowL
   const pending = loan.requests.find(r => r.status === 'pending');
   const terms = loan.terms;
   const [panel,setPanel]=useState<'summary'|'terms'|'repayment'|'extension'|'additional'|'history'>(initialPanel);
+  const paymentPanel=panel==='repayment'||panel==='extension';
   useAppBack(panel!=='summary',20,()=>{if(!busy)setPanel('summary');return true});
-  return <View style={styles.card}>
+  return <View style={[styles.card,paymentPanel&&{padding:12,gap:10,borderRadius:12}]}>
     <Text style={styles.badge}>{LOAN_STATUS_LABELS[loan.status]}</Text>
-    <Text style={styles.title}>{loan.card_name}</Text>
-    <CollateralLines items={loan.collateral_items}/>
+    <Text style={styles.title} numberOfLines={paymentPanel?2:undefined}>{loan.card_name}</Text>
+    {!paymentPanel&&<><CollateralLines items={loan.collateral_items}/>
     <Text style={styles.muted}>{loan.cert_number?`PSA / 鑑定番号 ${loan.cert_number}`:'個別見積もり'}</Text>
     <Text style={styles.muted}>{['active','repayment_pending'].includes(loan.status) ? '借入元本' : '申込希望額'}</Text>
     <Text style={styles.amount}>{yen(['active','repayment_pending'].includes(loan.status) ? loan.principal_jpy : loan.requested_jpy)}</Text>
-    <Text style={styles.muted}>{repaymentChargeLabel(loan.due_at,loan.evaluated_at)}は月単位で計算します。</Text>
     <Text style={styles.body}>返済必要額: {loan.payoff_jpy ? yen(loan.payoff_jpy) : '—'}</Text>
-    <Text style={styles.body}>返済期限: {date(loan.due_at)}</Text>
+    <Text style={styles.body}>返済期限: {date(loan.due_at)}</Text></>}
     {panel!=='summary'&&<Action label="取引詳細に戻る" disabled={busy} onPress={()=>setPanel('summary')}/>}
     {panel==='summary'&&<><Action label={loan.status==='offered'?'融資条件を確認する':'契約条件を見る'} onPress={()=>setPanel('terms')}/>{['active','repayment_pending'].includes(loan.status)&&<Action label="返済手続きを確認" onPress={()=>setPanel('repayment')}/>}<Action label="手続き履歴を見る" onPress={()=>setPanel('history')}/></>}
     {terms && panel==='terms'&& <View style={styles.inset}>

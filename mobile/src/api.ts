@@ -1,3 +1,4 @@
+import {isLendingApiPath} from './api-path';
 import { CryptoDigestAlgorithm, digestStringAsync, randomUUID } from 'expo-crypto';
 import {firebaseIdToken,firebaseAccountId,signOutPhone} from './firebase-phone';
 import { readAccess, saveAccess, clearAccess } from './access-vault';
@@ -122,7 +123,7 @@ export async function workflowRequest(body?: Record<string, unknown>) {
 export const loadWorkflow = async (): Promise<WorkflowState> => workflowRequest();
 
 export async function lendingApi<T = Record<string, unknown>>(path: string, options: { method?: 'GET'|'POST'|'DELETE'; body?: Record<string, unknown>|FormData; signal?:AbortSignal } = {}): Promise<T> {
-  if (!/^\/(?:cards|catalog|card-image|account|documents|notifications|identity|support-cases)(?:\?id=[a-f0-9-]{36})?$/.test(path)) throw Error('APIパスが不正です。');
+  if (!isLendingApiPath(path)) throw Error('APIパスが不正です。');
   const base = getApiBase();
   const multipart = options.body instanceof FormData;
   const response = await mobileFetch(`${base}/api/lending${path}`, {

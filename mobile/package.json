@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo/metro-runtime": "~58.0.17",
     "@expo/plist": "0.10.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-firebase/app": "26.4.1",
@@ -21,9 +22,11 @@
     "expo-status-bar": "~58.0.4",
     "expo-system-ui": "~58.0.6",
     "react": "19.3.0",
+    "react-dom": "19.3.0",
     "react-native": "0.88.0",
     "react-native-safe-area-context": "5.10.1",
-    "react-native-url-polyfill": "2.0.0"
+    "react-native-url-polyfill": "2.0.0",
+    "react-native-web": "^0.21.4"
   },
   "devDependencies": {
     "@types/react": "~19.3.0",

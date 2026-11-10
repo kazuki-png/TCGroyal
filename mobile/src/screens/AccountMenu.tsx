@@ -1,5 +1,6 @@
+import {Alert} from '../alert';
 import {useState} from 'react';
-import {Alert,Linking,Modal,Pressable,ScrollView,StyleSheet,Text,View} from 'react-native';
+import {Linking,Modal,Pressable,ScrollView,StyleSheet,Text,View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {colors} from '../theme';
 import {Button,ui} from '../ui';

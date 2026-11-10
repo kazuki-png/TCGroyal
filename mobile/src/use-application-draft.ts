@@ -1,5 +1,5 @@
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from './secure-storage';
 import {randomUUID} from 'expo-crypto';
 import {createChunkedAuthStorage} from './chunked-auth-storage';
 import {parseApplicationDraft,type ApplicationDraft,type ApplicationForm} from './application-draft';

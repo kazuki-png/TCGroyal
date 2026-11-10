@@ -73,7 +73,7 @@ export function ApplicationScreen({active,items,onChange,onApplied,ready,error:d
   setPhoto(uri);setRoute('results');setSelected(null);setResults(null);setBusy(true);setError('');setNotice('');
   const timer=setTimeout(()=>abort.abort(),85000);
   try{
-   const form=new FormData();appendImageFile(form,uri);form.append('key',imageRequest.current!.key);form.append('consent','true');form.append('format','discovery');
+   const form=new FormData();await appendImageFile(form,uri);form.append('key',imageRequest.current!.key);form.append('consent','true');form.append('format','discovery');
    const value=await lendingApi<ImageDiscoverySearch>('/card-image',{body:form,signal:abort.signal});
    if(!mounted.current||attempt!==generation.current)return;
    setResults(value);setQuery(value.searchQuery??value.hints?.cardNumber??value.hints?.name??'');setNotice(value.message??'');

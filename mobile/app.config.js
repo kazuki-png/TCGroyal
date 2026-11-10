@@ -4,6 +4,10 @@ const { withAppBuildGradle } = require('expo/config-plugins');
 const { applyPreviewSigning } = require('./preview-signing.cjs');
 const { withTcgNetworking } = require('./networking-plugin.cjs');
 const config = structuredClone(require('./app.json').expo);
+if (process.env.LENDING_WEB_EXPORT === '1') {
+  config.experiments = { ...config.experiments, baseUrl: '/lending-web' };
+  config.web = { ...config.web, output: 'single', bundler: 'metro', name: 'TCG ROYAL テスト' };
+}
 let projectId;
 const servicesPath = process.env.GOOGLE_SERVICES_JSON_PATH || path.join(__dirname, 'google-services.json');
 if (fs.existsSync(servicesPath)) {

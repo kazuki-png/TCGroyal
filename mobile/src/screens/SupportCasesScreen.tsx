@@ -1,5 +1,6 @@
+import {Alert} from '../alert';
 import {useEffect,useRef,useState} from 'react';
-import {Alert,Linking,Text,View} from 'react-native';
+import {Linking,Text,View} from 'react-native';
 import {randomUUID} from 'expo-crypto';
 import * as Clipboard from 'expo-clipboard';
 import {SUPPORT_CASE_STATUS,type SupportCase,type SupportCaseList} from '../../../lib/lending/support-case-types';

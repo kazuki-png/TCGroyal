@@ -2,7 +2,7 @@
 import { safeLocalPath } from '@/lib/security/redirect'
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import {isMobilePreviewHost,isMobilePreviewPath} from '@/lib/lending/mobile-preview-host'
+import {isMobilePreviewHost,isMobilePreviewPath,isLendingWebPath} from '@/lib/lending/mobile-preview-host'
 import {
   isAdminApiPathname,
   isAdminHostAllowed,
@@ -13,6 +13,15 @@ const safeNextPath = (value: unknown) => safeLocalPath(value, "/mypage")
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  if(isLendingWebPath(pathname)) {
+    if(process.env.VERCEL_ENV!=='preview')return new NextResponse(null,{status:404});
+    const response=NextResponse.next();
+    response.headers.set('Permissions-Policy','camera=(self), microphone=(), geolocation=(), payment=()');
+    response.headers.set('Referrer-Policy','no-referrer');
+    response.headers.set('X-Robots-Tag','noindex, nofollow, noarchive');
+    if(pathname.endsWith('.html'))response.headers.set('Cache-Control','private, no-store');
+    return response;
+  }
   if (isMobilePreviewHost(request.headers.get('host') ?? request.nextUrl.host) &&
       (process.env.VERCEL_ENV !== 'preview' || !isMobilePreviewPath(pathname))) {
     return new NextResponse(null, {status:404,headers:{'Cache-Control':'private, no-store'}})

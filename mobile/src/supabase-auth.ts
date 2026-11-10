@@ -1,8 +1,8 @@
 import 'react-native-url-polyfill/auto';
 import './native-auth-random';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { createClient, processLock } from '@supabase/supabase-js';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from './secure-storage';
 import { randomUUID, digestStringAsync, CryptoDigestAlgorithm, CryptoEncoding } from 'expo-crypto';
 import { upgradePkceRequest } from './pkce-request';
 import { serviceErrorMessage } from './service-errors';
@@ -43,11 +43,14 @@ export async function signupWithConfirmation(email: string, password: string) {
 }
 export async function handleSupabaseAuthLink(value: string) {
   const url = new URL(value);
-  if (url.protocol !== 'tcgroyal-preview:' || url.hostname !== 'auth' || url.pathname !== '/callback' || url.username || url.password) return false;
+  const expected = new URL(AUTH_REDIRECT_URL);
+  if (url.protocol !== expected.protocol || url.host !== expected.host || url.pathname !== expected.pathname || url.username || url.password) return false;
+  if (Platform.OS === 'web' && !url.searchParams.has('code') && !url.searchParams.has('error')) return false;
   if (url.searchParams.has('error')) throw Error('確認リンクが無効か期限切れです。もう一度お試しください。');
   const code = url.searchParams.get('code');
   if (!code || code.length > 4096 || url.hash) throw Error('認証リンクが不正です。メールを送信した端末でリンクを開いてください。');
   const { error } = await supabaseAuth.auth.exchangeCodeForSession(code);
+  if (Platform.OS === 'web') window.history.replaceState(null, '', AUTH_REDIRECT_URL);
   if (error) throw error;
   return true;
 }

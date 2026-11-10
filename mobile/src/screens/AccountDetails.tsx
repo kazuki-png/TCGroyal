@@ -1,6 +1,7 @@
+import {Alert} from '../alert';
 import {colors} from '../theme';
 import { useEffect,useState } from 'react';
-import { ActivityIndicator, Alert, Image, Text, View } from 'react-native';
+import { ActivityIndicator,  Image, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import type { AccountState,LendingProfile } from '../../../lib/lending/mobile-types';
 import { lendingApi } from '../api';
@@ -40,7 +41,7 @@ export function AccountDetails({onUpdated,section,onBusyChange}:{onUpdated:()=>P
    {section==='identity'&&account.capabilities.documentUploadEnabled&&<View style={ui.card}><Text style={ui.title}>免許証の表裏をアップロード</Text><Text style={ui.muted}>表面・裏面をそれぞれ送信してください。両面の確認が終わるまで本人確認は完了しません。登録情報を変更した場合は、両面の再提出が必要です。</Text>
     <View style={ui.row}>{(['front','back'] as const).map(v=><View style={{flex:1}} key={v}><Button icon={side===v?'check':undefined} title={`${v==='front'?'表面':'裏面'}`} secondary disabled={busy} onPress={()=>{setSide(v);setAsset(null);setConsent(false)}}/></View>)}</View>
     <Button title="書類を撮影する" secondary disabled={busy} onPress={()=>void run(()=>choose(true))}/><Button title="写真から選択する" secondary disabled={busy} onPress={()=>void run(()=>choose(false))}/>
-    {asset&&<><Image alt="送信する書類のプレビュー" accessibilityLabel="送信する書類のプレビュー" source={{uri:asset.uri}} style={{height:180,width:'100%',borderRadius:12}} resizeMode="contain"/><View style={ui.row}><Switch accessibilityLabel="書類送信への同意" value={consent} onValueChange={setConsent} disabled={busy}/><Text style={[ui.body,{flex:1}]}>本人確認のための画像送信に同意します</Text></View><Button title="この書類を送信する" disabled={busy||!consent} onPress={()=>void run(async()=>{const form=new FormData();appendImageFile(form,asset.uri);form.append('documentType',documentType);form.append('side',side);form.append('consent','true');await lendingApi('/documents',{body:form});setAsset(null);setConsent(false);await load();await onUpdated();setNotice('書類を送信しました。運営の確認待ちです。')})}/></>}
+    {asset&&<><Image alt="送信する書類のプレビュー" accessibilityLabel="送信する書類のプレビュー" source={{uri:asset.uri}} style={{height:180,width:'100%',borderRadius:12}} resizeMode="contain"/><View style={ui.row}><Switch accessibilityLabel="書類送信への同意" value={consent} onValueChange={setConsent} disabled={busy}/><Text style={[ui.body,{flex:1}]}>本人確認のための画像送信に同意します</Text></View><Button title="この書類を送信する" disabled={busy||!consent} onPress={()=>void run(async()=>{const form=new FormData();await appendImageFile(form,asset.uri);form.append('documentType',documentType);form.append('side',side);form.append('consent','true');await lendingApi('/documents',{body:form});setAsset(null);setConsent(false);await load();await onUpdated();setNotice('書類を送信しました。運営の確認待ちです。')})}/></>}
     <Text style={ui.label}>送信した書類</Text>
     {!account.documents.length&&<Text style={ui.muted}>書類はまだ送信されていません。</Text>}
     {account.documents.map(d=><View key={d.id} style={{gap:8,borderTopWidth:1,borderColor:colors.border,paddingTop:12}}><Text style={ui.body}>{docTypes[d.document_type as keyof typeof docTypes]} / {d.side==='front'?'表面':'裏面'} / {statuses[d.status]??d.status}</Text><Text style={ui.muted}>{date(d.uploaded_at)}</Text><Button title="送信書類を削除" secondary disabled={busy} onPress={()=>Alert.alert('書類を削除','送信した画像を削除します。',[{text:'戻る',style:'cancel'},{text:'削除する',style:'destructive',onPress:()=>void run(async()=>{await lendingApi(`/documents?id=${d.id}`,{method:'DELETE'});await load();setNotice('書類を削除しました。')})}])}/></View>)}

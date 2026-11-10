@@ -1,5 +1,16 @@
 # TCG ROYAL mobile
 
+## v1.30.0 ブラウザテスト・APK配布
+
+共有入口は Preview の `/lending/test`。公開モバイル用エイリアスではVercelへのログイン不要、アプリ内の利用者ログインは必要。管理画面は引き続き既存の保護されたdevelop Previewを使う。
+
+- ブラウザ版：`/lending-web/index.html`。Windows/Android/iPhoneのブラウザ向け。撮影はHTTPS・カメラ許可が必要。プッシュ通知はAndroid版で確認する。
+- APK：`/lending/download`。専用署名のarm64実機向け。非公開のPreview Storageへ保存し、7日間の署名URLをサーバー環境変数 `LENDING_TEST_APK_DOWNLOAD_JSON`（Previewのみ）に保存する。形式は `{ "url": "期限付きURL", "expiresAt": 0 }`（ミリ秒の期限）。期限切れは410で案内し、自動で無期限に更新しない。更新時は対象ファイルとSHA-256を確認し、Previewのみ再デプロイする。
+- Supabase PreviewのRedirect URLsに `https://tcg-royal-mobile-preview-collectorsrepublic.vercel.app/lending-web/index.html` を登録する。メール確認リンクは送信したブラウザの同じタブで開く（PKCE検証情報はsessionStorage）。ログイン・下書きはタブを閉じると失われることがある。
+- Web生成はVercelのPreviewビルドだけで実行。ローカルは `LENDING_WEB_EXPORT=1 node scripts/build-lending-web.mjs`。生成物・APK・署名URL・秘密鍵はGitへ入れない。
+
+確認手順：入口→ブラウザ版→テスト会員ログイン→撮影/画像選択/手動検索→カード詳細→複数枚追加→カートの希望額→テスト申請→取引状況/お知らせ。削除・キャンセルの確認で「戻る」を押して変更されないことも確認する。AndroidはAPKの署名/バージョン確認後に更新し、プッシュ通知を確認する。実際の振込・カード発送はしない。
+
 ## v1.16.1 Androidの戻るジェスチャー（2026-10-30）
 
 Androidのシステム戻る（画面端からの右スワイプ/戻るボタン）を共通の階層処理に接続。お知らせから開いた貸付状況・マイページはお知らせ一覧へ戻る。設定の詳細、プロフィール編集、カード選択、申込リストの確認、登録カード検索/画像検索、ログインの補助画面は一段ずつ戻る。最上位の4タブではAndroid標準の終了動作に渡し、フッターのタブ移動を戻る履歴には積まない。

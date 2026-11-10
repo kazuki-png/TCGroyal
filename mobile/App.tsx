@@ -1,9 +1,10 @@
+import {Alert} from './src/alert';
 import {colors} from './src/theme';
 import {RoyalIcon} from './src/RoyalIcon';
 import siteLogo from './assets/site-logo.png';
 import {RoyalSwitch as Switch,Button} from './src/ui';
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
-import { ActivityIndicator, Alert, BackHandler, Image, Linking, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator,  BackHandler, Image, Linking, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
@@ -136,7 +137,7 @@ function LendingApp() {
   const inbox = useMemo(() => buildInbox(state, inboxAccount, now,inboxCases), [state, inboxAccount, now,inboxCases]);
   const statusPushKey=state?getInboxStorageKey():null;
   useEffect(()=>{
-   if(!statusPushKey)return;
+   if(!statusPushKey||Platform.OS==='web')return;
    void registerStatusPush().catch(()=>{});
    const changed=watchStatusPushToken();
    void Notifications.getLastNotificationResponseAsync().then(last=>{if(last?.notification.request.content.data?.screen==='loans'){setTab('loans');setFocusedLoan(null);setReturnToInbox(false);void reload().catch(()=>{})}}).catch(()=>{});
@@ -170,6 +171,7 @@ function LendingApp() {
     return () => { live = false; links.remove(); subscription.unsubscribe(); };
   }, []);
   useEffect(() => {
+    if(Platform.OS==='web')return;
     const report = (data: Record<string, unknown> | undefined) => {
       if (typeof data?.testId === 'string') void lendingApi('/notifications', { body: { action: 'received', testId: data.testId } }).catch(() => {});
       if(typeof data?.notificationId==='string')void reportStatusPush(data.notificationId).catch(()=>{});
@@ -191,7 +193,7 @@ function LendingApp() {
   async function connect() {
     setBusy(true); setError('');
     try { await connectPreview(accessUrl, accessCode); await reload(); setAccessCode('');
-      const last = await Notifications.getLastNotificationResponseAsync();
+      const last = Platform.OS==='web'?null:await Notifications.getLastNotificationResponseAsync();
       if (last?.notification.request.content.data?.screen === 'notifications') { setToolsOpen(true); const testId = last.notification.request.content.data.testId; if (typeof testId === 'string') await lendingApi('/notifications', { body: { action: 'received', testId } }); }
     }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Previewに接続できません。'); }

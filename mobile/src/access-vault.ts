@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from './secure-storage';
 import { createVaultQueue, parseRememberedAccess, type RememberedAccess } from './remembered-access';
 const key = 'tcg-royal-preview-access-v1';
 const options: SecureStore.SecureStoreOptions = { keychainService: 'tcg-royal-preview', keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };

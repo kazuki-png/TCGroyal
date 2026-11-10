@@ -53,7 +53,7 @@ export function CatalogAssessmentScreen({onApplied,active=true}:{onApplied:()=>P
  }
  async function imageSearch(){
   if(!asset||!imageConsent)return;
-  const form=new FormData();appendImageFile(form,asset.uri);
+  const form=new FormData();await appendImageFile(form,asset.uri);
   form.append('key',imageKey.current??(imageKey.current=randomUUID()));form.append('consent','true');
   const data=await lendingApi<CatalogSearch>('/card-image',{body:form});
   setResults(data);setSelected(null);invalidate();setAsset(null);setImageConsent(false);setImageMode(false);

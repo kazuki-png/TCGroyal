@@ -28,5 +28,5 @@ export function HomeRepayment({loan,now,onOpen,onExtend}:{loan:WorkflowLoan;now:
 const styles=StyleSheet.create({
  card:{padding:14,gap:6,borderRadius:12,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.goldMuted},row:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8},
  amount:{fontSize:34,lineHeight:42,fontWeight:'800',color:colors.gold,fontVariant:['tabular-nums']},pending:{fontSize:12,color:colors.gold},
- deadline:{flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:8,marginTop:4},due:{fontSize:16,fontWeight:'700',color:colors.text},remaining:{fontSize:12,color:colors.gold},urgent:{color:'#ffb4a6'},asOf:{fontSize:11,color:colors.muted},
+ deadline:{flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:8,marginTop:4},due:{fontSize:16,fontWeight:'700',color:colors.text},remaining:{fontSize:12,color:colors.gold},urgent:{color:'#b42338'},asOf:{fontSize:11,color:colors.muted},
 });

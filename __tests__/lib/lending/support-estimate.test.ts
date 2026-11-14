@@ -19,7 +19,8 @@ describe('individual support estimate', () => {
     expect(message).toContain('見積もり後に相談したい');
   });
   it('rejects empty names, oversized requests and malformed amounts before opening an external service', () => {
-    for (const patch of [{ cardName: '  ' }, { cardName: 'あ'.repeat(101) }, { notes: 'あ'.repeat(1001) }, { requestedAmount: '-1' }, { requestedAmount: '1e6' }, { requestedAmount: '10000001' }, { reason: 'unknown' }]) {
+    expect(buildSupportEstimateMessage({ ...draft, requestedAmount: '20000000' })).toContain('20,000,000円');
+    for (const patch of [{ cardName: '  ' }, { cardName: 'あ'.repeat(101) }, { notes: 'あ'.repeat(1001) }, { requestedAmount: '-1' }, { requestedAmount: '1e6' }, { requestedAmount: '9007199254740992' }, { reason: 'unknown' }]) {
       expect(() => buildSupportEstimateMessage({ ...draft, ...patch } as SupportEstimateDraft)).toThrow();
     }
   });

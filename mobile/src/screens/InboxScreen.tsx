@@ -24,7 +24,7 @@ export function InboxScreen({ items, readIds, ready, saving, error, onRead, onOp
     <Button title="すべて既読にする" secondary disabled={!ready || saving || unread.length === 0} onPress={() => void onRead(items.map(item => item.id))}/>
     {!visible.length && <View style={ui.card}><Text style={ui.title}>{unreadOnly ? '未読のお知らせはありません' : 'お知らせはまだありません'}</Text><Text style={ui.muted}>申込・書類確認の更新や、返済期限のご案内をこちらに表示します。</Text></View>}
     {visible.map(item => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`${ready && !read.has(item.id) ? '未読。' : ''}${item.title}。${item.body}`} disabled={saving} onPress={() => { onOpen(item);if(ready)void onRead([item.id]); }} style={[ui.card, ready && !read.has(item.id) && { borderColor: colors.gold }]}>
-      <View style={ui.row}>{ready && !read.has(item.id) && <Text style={{ color: colors.gold, fontSize: 12, fontWeight: '700' }}>未読</Text>}{item.urgent && <Text style={{ color: '#fda4af', fontSize: 12 }}>要確認</Text>}</View>
+      <View style={ui.row}>{ready && !read.has(item.id) && <Text style={{ color: colors.gold, fontSize: 12, fontWeight: '700' }}>未読</Text>}{item.urgent && <Text style={{ color: '#b42338', fontSize: 12 }}>要確認</Text>}</View>
       <Text style={ui.title}>{item.title}</Text><Text style={ui.body}>{item.body}</Text>
       <Text style={ui.muted}>{item.dateLabel} {date(item.date)}</Text>
       <View style={{flexDirection:'row',alignItems:'center',gap:6}}><Text style={{ color: colors.gold, fontSize: 13 }}>{item.target === 'loans' ? '貸付状況を確認する' : 'マイページを確認する'}</Text><RoyalIcon name="right" size={12}/></View>

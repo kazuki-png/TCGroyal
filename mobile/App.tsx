@@ -1,10 +1,10 @@
+import {ConsentLinks} from './src/screens/ConsentLinks';
 import {Alert} from './src/alert';
 import {colors} from './src/theme';
 import {RoyalIcon} from './src/RoyalIcon';
-import siteLogo from './assets/site-logo.png';
 import {RoyalSwitch as Switch,Button} from './src/ui';
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
-import { ActivityIndicator,  BackHandler, Image, Linking, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator,  BackHandler, Linking, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
@@ -72,7 +72,7 @@ function LoanTile({ loan, send, busy,initialPanel='summary' }: { loan: WorkflowL
       {loan.requests.filter(r => r.kind === 'extension' && r.status === 'completed').map(r => <Text key={r.id} style={styles.muted}>延長記録: 質料 {yen(r.amount_jpy)} / 期限 {date(r.consent_terms.newDueAt ?? null)}</Text>)}
     </View>}
     {loan.status === 'offered' && panel==='terms'&& <>
-      <View style={styles.row}><Switch accessibilityLabel="契約条件への同意" value={consent} onValueChange={setConsent} disabled={busy} /><Text style={styles.body}>条件を確認し、同意します</Text></View>
+      <ConsentLinks/><View style={styles.row}><Switch accessibilityLabel="契約条件への同意" value={consent} onValueChange={setConsent} disabled={busy} /><Text style={styles.body}>条件を確認し、同意します</Text></View>
       <Action label="この条件に同意する" disabled={busy || !consent} onPress={() => command('accept', { termsAccepted: true })} />
     </>}
     {panel==='summary'&&['submitted','received','offered','accepted'].includes(loan.status) && <Action label="申込をキャンセル" disabled={busy} onPress={() => Alert.alert('申込のキャンセル', '預入済みのカードは返却待ちになります。', [{ text: '戻る', style: 'cancel' }, { text: 'キャンセルする', onPress: () => command('cancel') }])} />}
@@ -216,9 +216,9 @@ function LendingApp() {
   }
   function openInboxItem(item: InboxItem) { switchTab(item.target);setReturnToInbox(true); setFocusedLoan(item.loanId?`loan:${item.loanId}`:item.caseId?`case:${item.caseId}`:null); }
   return <KeyboardAvoidingView style={[styles.screen, { paddingTop: insets.top }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <StatusBar style="light" />
+    <StatusBar style="dark" />
     <View style={styles.header}>
-      <Image source={siteLogo} accessibilityRole="image" accessibilityLabel="TCG ROYAL" alt="TCG ROYAL" style={styles.brandLogo} resizeMode="contain"/>
+      <Text accessibilityRole="header" style={{color:colors.text,fontSize:21,fontWeight:'700',letterSpacing:2}}>TCG ROYAL</Text>
       <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
       {process.env.EXPO_PUBLIC_LENDING_CHANNEL!=='production'&&<Pressable accessibilityRole="button" accessibilityLabel="テスト環境の設定と機能を開く" disabled={busy} onPress={() => setToolsOpen(true)} style={styles.environment}>
         <View style={styles.environmentDot}/><Text maxFontSizeMultiplier={1.3} style={styles.badge}>テスト環境</Text>
@@ -298,9 +298,9 @@ const styles = StyleSheet.create({
   body: { color: colors.text, fontSize: 14, lineHeight: 23 }, muted: { color: colors.muted, fontSize: 12, lineHeight: 21 },
   label: { color: colors.text, fontSize: 13, fontWeight: '700' }, amount: { color: colors.text, fontSize: 34, fontWeight: '800' },
   button: { backgroundColor: colors.gold, borderRadius: 12, padding: 15, alignItems: 'center', minHeight: 48 }, buttonText: { color: colors.background, fontWeight: '800', fontSize: 14 }, disabled: { opacity: 0.4 },
-  input: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 12, padding: 14, color: '#fff', fontSize: 16 },
+  input: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 12, padding: 14, color: colors.text, fontSize: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 }, flex: { flex: 1 },
   choice: { borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 12, padding: 14 }, chosen: { borderColor: colors.gold, backgroundColor: colors.active },
   inset: { padding: 14, borderRadius: 12, backgroundColor: colors.background, gap: 8 }, camera: { height: 260, borderRadius: 12 },
-  error: { color: '#fecaca', backgroundColor: '#421b26', padding: 14, borderRadius: 12 }, success: { color: '#a7f3d0', backgroundColor: '#11352e', padding: 14, borderRadius: 12 },
+  error: { color: '#9b2436', backgroundColor: '#fff0f2', padding: 14, borderRadius: 12 }, success: { color: '#146449', backgroundColor: '#e9f7ef', padding: 14, borderRadius: 12 },
 });

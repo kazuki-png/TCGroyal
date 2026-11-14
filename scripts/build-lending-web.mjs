@@ -12,4 +12,4 @@ function run(args,cwd){const result=spawnSync(process.execPath,args,{cwd,env,std
 if(process.env.VERCEL==='1')run([process.env.npm_execpath,'ci','--prefix',mobile,'--include=dev','--no-audit','--no-fund'],mobile);
 run(['node_modules/expo/bin/cli','export','--platform','web','--output-dir',join(root,'public/lending-web')],mobile);
 const html=join(root,'public/lending-web/index.html');
-writeFileSync(html,readFileSync(html,'utf8').replace('<html lang="en">','<html lang="ja">').replace('</head>','<meta name="robots" content="noindex,nofollow"><style>body{background:#080808}#root{max-width:720px;margin:auto;height:100dvh}</style></head>'));
+writeFileSync(html,readFileSync(html,'utf8').replace('<html lang="en">','<html lang="ja">').replace('</head>','<meta name="robots" content="noindex,nofollow"><style>body{background:#f5f7fa}#root{max-width:720px;margin:auto;height:100dvh}</style></head>'));

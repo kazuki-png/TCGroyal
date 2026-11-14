@@ -1,7 +1,7 @@
 export const TEST_APK = {
-  version: '1.30.0',
-  sizeBytes: 33220489,
-  sha256: 'e65cff920dbeb1d397d2cfe984d95349f091cef4184d5b607f6f475c435d5ed9',
+  version: '1.31.0',
+  sizeBytes: 32822633,
+  sha256: 'eea701d8790344e22329bc35390f1ec93bcae37d5febf68decf8ed1835984445',
 } as const;
 
 // A finite, private-object link. Never mint an anonymous permanent download capability.

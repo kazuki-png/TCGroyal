@@ -1,7 +1,8 @@
 import {beforeEach,describe,expect,it,vi} from 'vitest'
 vi.mock('server-only',()=>({}))
-const mocks=vi.hoisted(()=>({access:vi.fn(),rpc:vi.fn(),client:vi.fn()}))
+const mocks=vi.hoisted(()=>({access:vi.fn(),rpc:vi.fn(),client:vi.fn(),estimate:vi.fn()}))
 vi.mock('@/lib/lending/api-guard',()=>({lendingAccess:mocks.access,lendingJson:(value:unknown,status=200)=>Response.json(value,{status}),boundedBody:async(request:Request)=>Buffer.from(await request.text())}))
+vi.mock('@/lib/lending/bundle-estimate',()=>({estimateBundle:mocks.estimate}))
 vi.mock('@/lib/lending/workflow-client',()=>({createWorkflowClient:mocks.client}))
 import {GET,POST} from '@/app/api/lending/support-cases/route'
 const actor='10000000-0000-4000-8000-000000000001',id='20000000-0000-4000-8000-000000000001',key='30000000-0000-4000-8000-000000000001'
@@ -29,3 +30,12 @@ describe('tracked support case API',()=>{
   expect(mocks.client).not.toHaveBeenCalled()
  })
 })
+
+it('enforces the server quote ceiling and allows a manual basket above the old consultation limit',async()=>{
+ const item={id:key,name:'カード',cardNumber:'001',quantity:1,grade:'PSA10',condition:'',source:'snkrdunk',productId:'123',cardUid:null};
+ const body={action:'create',draft:{...draft,items:[item],requestedAmount:'20000000'},consent:true,key};
+ mocks.estimate.mockResolvedValue({amountJpy:10000,expiresAt:'2099-01-01'});
+ expect((await POST(request(body))).status).toBe(422);expect(mocks.rpc).not.toHaveBeenCalled();
+ mocks.estimate.mockResolvedValue({amountJpy:null,expiresAt:'2099-01-01'});
+ expect((await POST(request(body))).status).toBe(200);
+});

@@ -1,3 +1,5 @@
+import {estimateBundle} from '@/lib/lending/bundle-estimate'
+import {requestedAmountError} from '@/lib/lending/requested-amount'
 import {withCollateralImages} from '@/lib/lending/collateral-images'
 import type {SupportCaseList} from '@/lib/lending/support-case-types'
 import {lendingAccess,lendingJson,boundedBody} from '@/lib/lending/api-guard'
@@ -18,6 +20,11 @@ export async function POST(request:Request){
  let input
  try{input=supportCaseRequest.parse(JSON.parse((await boundedBody(request,65536)).toString('utf8')))}catch{return lendingJson({error:'カード明細・入力内容と同意を確認してください。'},400)}
  if(actor.role!=='admin'&&(input.action==='create'?(input.userId!==undefined||input.contactLabel!==undefined):!['accept','cancel'].includes(input.action)))return lendingJson({error:'管理者権限が必要です。'},403)
+ if(input.action==='create'&&input.draft.items?.length){
+  const estimate=await estimateBundle(input.draft.items);
+  const error=requestedAmountError(input.draft.requestedAmount,estimate);
+  if(error)return lendingJson({error},422);
+ }
  const db=createWorkflowClient()
  const result=input.action==='create'?await db.rpc('lending_support_create',{p_actor:actor.id,p_input:{...input.draft,consent:input.consent,...(input.userId?{userId:input.userId}:{}),...(input.contactLabel!==undefined?{contactLabel:input.contactLabel}:{})},p_key:input.key}):await db.rpc('lending_support_command',{p_actor:actor.id,p_case:input.caseId,p_action:input.action,p_payload:input.payload,p_key:input.key,p_version:input.version})
  if(result.error)return lendingJson({error:supportCaseError(result.error.message)},409)

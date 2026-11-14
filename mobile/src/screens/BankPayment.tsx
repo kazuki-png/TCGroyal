@@ -1,3 +1,4 @@
+import {ConsentLinks} from './ConsentLinks';
 import {useEffect,useState} from 'react';
 import {Text,View} from 'react-native';
 import type {WorkflowLoan} from '../../../lib/lending/workflow-types';
@@ -26,7 +27,7 @@ export function BankPayment({loan,kind,busy,onReport}:{loan:WorkflowLoan;kind:'r
   <View style={[ui.card,{padding:14,gap:4,borderRadius:12}]}><Text style={ui.label}>振込先（ダミー）</Text><Text style={ui.body}>{bank.bank} {bank.branch}</Text><Text style={ui.body}>{bank.accountType} {bank.accountNumber} / {bank.accountName}</Text><Text style={ui.muted}>この口座へは振り込めません。</Text></View>
   <Field label="振込日（YYYY-MM-DD）" value={day} onChangeText={value=>{setDay(value);setQuote(null);setConsent(false)}} maxLength={10} editable={!busy}/>
   <Field label="振込名義" value={name} onChangeText={value=>{setName(value);setConsent(false)}} maxLength={100} editable={!busy}/>
-  <View style={ui.row}><RoyalSwitch accessibilityLabel="振込内容を確認しました" value={consent} onValueChange={setConsent} disabled={busy}/><Text style={[ui.body,{flex:1}]}>振込内容を確認しました</Text></View>
+  <ConsentLinks/><View style={ui.row}><RoyalSwitch accessibilityLabel="振込内容を確認しました" value={consent} onValueChange={setConsent} disabled={busy}/><Text style={[ui.body,{flex:1}]}>振込内容を確認しました</Text></View>
   <Button title={kind==='extension'?'延長分を振込済み':'返済分を振込済み'} disabled={busy||!available||!name.trim()||!consent} onPress={()=>onReport(kind==='extension'?'request_extension':'report_repayment',{transferDate:day,transferName:name.trim(),...(kind==='extension'?{termsAccepted:true}:{})})}/>
   <Text style={ui.muted}>管理者の入金確認後に{kind==='extension'?'期限を更新':'返却手続きを開始'}します。</Text>
  </View>;

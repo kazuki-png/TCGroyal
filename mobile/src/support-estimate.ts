@@ -21,7 +21,7 @@ export function buildSupportEstimateMessage(draft: SupportEstimateDraft, referen
   const amount = draft.requestedAmount.trim();
   if (!name || name.length > 100) throw Error('カード名を100文字以内で入力してください。');
   if (number.length > 100 || condition.length > 300 || notes.length > 1000) throw Error('入力欄の文字数を確認してください。');
-  if (amount && (!/^[1-9]\d{0,7}$/.test(amount) || Number(amount) > 10_000_000)) throw Error('借入希望額は1円から1,000万円までの数字で入力してください。');
+  if (amount && (!/^[1-9]\d{0,15}$/.test(amount) || !Number.isSafeInteger(Number(amount)))) throw Error('借入希望額は1円以上の整数で入力してください。');
   if(draft.items&&(draft.items.length<1||draft.items.length>20||draft.items.reduce((sum,item)=>sum+item.quantity,0)>100||draft.items.some(item=>!item.name.trim()||item.name.length>100||!Number.isInteger(item.quantity)||item.quantity<1||item.cardNumber.length>100||item.grade.length>60||item.condition.length>300)))throw Error('カードは20種類・合計100枚までで、枚数と明細を確認してください。');
   return [
     '【TCG ROYAL カード担保融資・個別見積もり相談】',

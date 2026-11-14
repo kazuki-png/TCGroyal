@@ -57,7 +57,7 @@ export async function estimateBundle(items:CollateralItem[]):Promise<BundleEstim
  }
  let expiresAt=Date.now()+300000
  for(const item of items){
-  const line:BundleEstimate['lines'][number]={id:item.id,name:item.name,quantity:item.quantity,amountJpy:null,score:null,ltvPercent:null,reason:'登録カード・手入力カードは、サポートが商品対応を確認して個別査定します。'}
+  const line:BundleEstimate['lines'][number]={id:item.id,name:item.name,quantity:item.quantity,valuationJpy:null,amountJpy:null,score:null,ltvPercent:null,reason:'登録カード・手入力カードは、サポートが商品対応を確認して個別査定します。'}
   if(item.source==='snkrdunk'&&item.productId){
    const grade=marketGrade(item.grade),data=grade?snapshots.get(item.productId+':'+grade.key):null
    if(!grade)line.reason='同じ鑑定区分の取引を特定できません。鑑定会社・グレードを確認して個別にご相談ください。'
@@ -74,6 +74,6 @@ export async function estimateBundle(items:CollateralItem[]):Promise<BundleEstim
  }
  const all=lines.every(line=>line.amountJpy!==null),total=lines.reduce((sum,line)=>sum+(line.amountJpy??0),0)
  const amountJpy=all?Math.min(total,10000000):null
- return {ruleVersion:'snkrdunk-observed-average-30pct-v2',calculatedAt:new Date().toISOString(),expiresAt:new Date(expiresAt).toISOString(),status:amountJpy===null?'manual':'reference',amountJpy,lines,
-  reason:!all?'同じ鑑定状態の取引履歴がないカードや、データを取得できなかったカードは個別相談となります。算出済みの金額はカード別に表示します。':'取得できた同じ鑑定状態の過去取引の平均単価の30%です。参考額は融資承認ではありません。合計上限は1,000万円、正式な条件は現物確認後に確定します。'}
+ return {ruleVersion:'three-month-average-preview-v3',calculatedAt:new Date().toISOString(),expiresAt:new Date(expiresAt).toISOString(),status:amountJpy===null?'manual':'reference',amountJpy,valuationJpy:all?lines.reduce((sum,line)=>sum+(line.valuationJpy??0),0):null,lines,
+  reason:!all?'直近3か月の同じ鑑定状態の取引履歴がないカードや、データを取得できなかったカードは個別相談となります。算出済みの金額はカード別に表示します。':'直近3か月の確認済み取引の平均を評価額とし、取引件数に応じた30〜50%で計算しています。参考額は融資承認ではありません。合計上限は1,000万円、正式な条件は現物確認後に確定します。'}
 }

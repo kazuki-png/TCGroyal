@@ -1,3 +1,4 @@
+import {ConsentLinks} from './ConsentLinks';
 import {RoyalIcon} from '../RoyalIcon';
 import {colors} from '../theme';
 import { useRef, useState } from 'react';
@@ -59,7 +60,7 @@ export function SupportEstimate({connected=false,onRegistered,onLogin,initialDra
     <Field label={items?'借入希望額・全カード合計・円（任意）':'借入希望額・円（任意）'} value={draft.requestedAmount} onChangeText={value => change('requestedAmount', value)} keyboardType="number-pad" maxLength={8} editable={!busy}/>
     <Field label="相談内容（任意）" value={draft.notes} onChangeText={value => change('notes', value)} multiline maxLength={1000} editable={!busy}/>
     <Text style={ui.muted}>LINEではカードの表面・裏面、傷がわかる写真を添付してください。本人確認書類やパスワードは送らないでください。</Text>
-    <View style={ui.row}><Switch accessibilityLabel="相談案件の登録とサポートへの共有に同意" value={consent} onValueChange={setConsent} disabled={busy}/><Text style={[ui.body, { flex: 1 }]}>相談内容を案件として保存し、公式LINEでサポートへ共有することに同意します</Text></View>
+    <ConsentLinks/><View style={ui.row}><Switch accessibilityLabel="相談案件の登録とサポートへの共有に同意" value={consent} onValueChange={setConsent} disabled={busy}/><Text style={[ui.body, { flex: 1 }]}>相談内容を案件として保存し、公式LINEでサポートへ共有することに同意します</Text></View>
     <Button title={busy ? '登録中…' : '査定依頼を送信'} disabled={busy || !consent || !draft.cardName.trim()} onPress={() => void register()}/>
     </>}
     <Text style={ui.muted}>案件の登録では融資申込・契約は成立しません。サポートからの見積もり提示後、アプリで内容を確認してお申し込みください。</Text>

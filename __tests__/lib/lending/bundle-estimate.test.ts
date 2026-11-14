@@ -11,21 +11,21 @@ beforeEach(()=>{vi.resetModules();vi.clearAllMocks();vi.useFakeTimers();vi.setSy
 afterEach(()=>vi.useRealTimers())
 function provider(count=150,price=400000){vi.mocked(fetchPublicRemoteUrl).mockImplementation(async url=>url.pathname.endsWith('sales-history')?Response.json({history:Array.from({length:count},()=>({price,date:'1日前',condition:'PSA10',size:''})),minPrice:999999}):Response.json({...product,id:Number(url.pathname.split('/').at(-1))}))}
 describe('bundle reference estimates',()=>{
- it('keeps a reference for declared damage while final inspection remains separate',async()=>{provider();const {estimateBundle}=await import('@/lib/lending/bundle-estimate');expect((await estimateBundle([{...item,condition:'ケース破損'}])).amountJpy).toBe(120000)})
- it('validates server product metadata, uses the fixed thirty-percent ratio and never returns raw prices or writes a loan',async()=>{
+ it('keeps a reference for declared damage while final inspection remains separate',async()=>{provider();const {estimateBundle}=await import('@/lib/lending/bundle-estimate');expect((await estimateBundle([{...item,condition:'ケース破損'}])).amountJpy).toBe(200000)})
+ it('validates server product metadata, uses the volume tier and exposes only the derived valuation or writes a loan',async()=>{
   provider();const {estimateBundle}=await import('@/lib/lending/bundle-estimate');const result=await estimateBundle([item]);
-  expect(result).toMatchObject({status:'reference',amountJpy:120000,lines:[{name:product.localizedName,score:null,ltvPercent:30,amountJpy:120000}]})
-  expect(JSON.stringify(result)).not.toMatch(/400000|999999|recentPrices|history|floorPrice/)
+  expect(result).toMatchObject({status:'reference',amountJpy:200000,lines:[{name:product.localizedName,score:null,ltvPercent:50,amountJpy:200000,valuationJpy:400000}]})
+  expect(JSON.stringify(result)).not.toMatch(/999999|recentPrices|history|floorPrice/)
   const url=vi.mocked(fetchPublicRemoteUrl).mock.calls[1][0];expect(url.searchParams.get('per_page')).toBe('300');expect(url.searchParams.get('condition_id')).toBe('22')
   await estimateBundle([item]);expect(fetchPublicRemoteUrl).toHaveBeenCalledTimes(2)
  })
  it('coalesces duplicate product reads and multiplies each row by its quantity',async()=>{
   provider(30);const {estimateBundle}=await import('@/lib/lending/bundle-estimate');const result=await estimateBundle([item,{...item,id:'30000000-0000-4000-8000-000000000002'}]);
-  expect(result.amountJpy).toBe(240000);expect(result.lines.every(line=>line.amountJpy===120000)).toBe(true);expect(fetchPublicRemoteUrl).toHaveBeenCalledTimes(2)
+  expect(result.amountJpy).toBe(400000);expect(result.lines.every(line=>line.amountJpy===200000)).toBe(true);expect(fetchPublicRemoteUrl).toHaveBeenCalledTimes(2)
  })
  it('does not misrepresent a partial basket as a whole basket total',async()=>{
   provider();const {estimateBundle}=await import('@/lib/lending/bundle-estimate');const result=await estimateBundle([item,{...item,id:'30000000-0000-4000-8000-000000000002',source:'manual',productId:null}]);
-  expect(result.status).toBe('manual');expect(result.amountJpy).toBeNull();expect(result.lines[0].amountJpy).toBe(120000)
+  expect(result.status).toBe('manual');expect(result.amountJpy).toBeNull();expect(result.lines[0].amountJpy).toBe(200000)
  })
  it.each([{grade:'未鑑定'},{grade:'PSA9'},{cardNumber:'wrong'}])('never uses PSA10 prices for another grade or edited number',async patch=>{
   provider();const {estimateBundle}=await import('@/lib/lending/bundle-estimate');expect((await estimateBundle([{...item,...patch}])).amountJpy).toBeNull()
@@ -41,7 +41,7 @@ describe('bundle reference estimates',()=>{
   vi.mocked(fetchPublicRemoteUrl).mockImplementation(async url=>{
    if(!url.pathname.endsWith('sales-history'))return Response.json(product)
    const id=url.searchParams.get('condition_id'),label=id==='22'?'PSA10':id==='23'?'PSA9':id==='24'?'PSA8以下':'A'
-   return Response.json({history:[{price:id==='22'?400000:10000,date:'2020/01/01',condition:label,size:''}]})
+   return Response.json({history:[{price:id==='22'?400000:10000,date:'1日前',condition:label,size:''}]})
   })
   const {estimateBundle}=await import('@/lib/lending/bundle-estimate')
   expect((await estimateBundle([item])).amountJpy).toBe(120000)

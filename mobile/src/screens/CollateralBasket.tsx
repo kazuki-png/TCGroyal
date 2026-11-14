@@ -1,3 +1,6 @@
+import {ConsentLinks} from './ConsentLinks';
+import {useReferenceEstimate} from '../use-reference-estimate';
+import {requestedAmountError} from '../../../lib/lending/requested-amount';
 import {useRef,useState} from 'react';
 import {Text,View} from 'react-native';
 import {randomUUID} from 'expo-crypto';
@@ -16,8 +19,10 @@ export function CollateralBasket({items,onChange,onApplied,onBack,onReset,onSubm
  const [busy,setBusy]=useState(false),[consentSignature,setConsentSignature]=useState<string|null>(null),[notesOpen,setNotesOpen]=useState(()=>!!form?.notes),[error,setError]=useState('');
  const lock=useRef(false),retry=useRef<{signature:string;key:string}|null>(null),value=form??localForm;
  const draft={reason:'other' as const,cardName:collateralTitle(items),cardNumber:'',condition:'カード別の状態は明細を参照',requestedAmount:value.requestedAmount,notes:value.notes,items};
+ const reference=useReferenceEstimate(items,active);
  const signature=JSON.stringify(draft);
  let validation='';try{buildSupportEstimateMessage(draft)}catch(cause){validation=cause instanceof Error?cause.message:'入力内容を確認してください。'}
+ validation=validation||requestedAmountError(value.requestedAmount,reference.estimate);
  const agreed=consentSignature===signature;
  useAppBack(active&&busy,60,()=>true);
  function change(patch:Partial<ApplicationForm>){if(busy)return;if(onFormChange)onFormChange(patch);else setLocalForm(current=>({...current,...patch}));setConsentSignature(null);setError('')}
@@ -33,11 +38,12 @@ export function CollateralBasket({items,onChange,onApplied,onBack,onReset,onSubm
   finally{lock.current=false;setBusy(false);onBusyChange?.(false)}
  }
  if(receipt)return <View style={{flex:1,padding:16,gap:12}}><Text style={ui.title}>査定依頼を受け付けました</Text><Text selectable style={ui.amount}>{receipt.reference}</Text><Text style={ui.muted}>取引状況で進捗を確認できます。</Text>{!!error&&<Text accessibilityRole="alert" style={ui.error}>{error}</Text>}<Button title="続けて登録" secondary disabled={busy} onPress={onReset}/></View>;
- return <ApplicationSummary items={items} active={active} busy={busy} notice={notice} error={error||draftError} onRemove={id=>{onChange(items.filter(item=>item.id!==id));setConsentSignature(null)}} onUpdate={(id,patch)=>{onChange(items.map(item=>item.id===id?{...item,...patch}:item));setConsentSignature(null)}} onContinue={onBack} onProceed={()=>void submit()} proceedLabel={busy?'申請中…':'申請する'} canProceed={!validation&&agreed} form={<View style={{gap:10,marginTop:6}}>
-  <Field label="融資希望額（円・任意）" placeholder="金額を入力" value={value.requestedAmount} onChangeText={requestedAmount=>change({requestedAmount})} keyboardType="number-pad" maxLength={8} editable={!busy&&items.length>0}/>
+ return <ApplicationSummary reference={reference} items={items} active={active} busy={busy} notice={notice} error={error||draftError} onRemove={id=>{onChange(items.filter(item=>item.id!==id));setConsentSignature(null)}} onUpdate={(id,patch)=>{onChange(items.map(item=>item.id===id?{...item,...patch}:item));setConsentSignature(null)}} onContinue={onBack} onProceed={()=>void submit()} proceedLabel={busy?'申請中…':'申請する'} canProceed={!validation&&agreed} form={<View style={{gap:10,marginTop:6}}>
+  <Field label="融資希望額（円・任意）" placeholder="金額を入力" value={value.requestedAmount} onChangeText={requestedAmount=>change({requestedAmount})} keyboardType="number-pad" maxLength={16} editable={!busy&&items.length>0}/>
   {!!value.requestedAmount&&!!validation&&<Text accessibilityRole="alert" style={ui.error}>{validation}</Text>}
   <Button title={notesOpen?'相談内容を閉じる':value.notes?'相談内容を編集（任意）':'相談内容を追加（任意）'} secondary disabled={busy} onPress={()=>setNotesOpen(!notesOpen)}/>
   {notesOpen&&<Field label="相談内容（任意）" value={value.notes} onChangeText={notes=>change({notes})} multiline maxLength={1000} editable={!busy}/>}
+  <ConsentLinks/>
   <View style={ui.row}><RoyalSwitch accessibilityLabel="査定依頼の登録に同意する" value={agreed} disabled={busy||!items.length} onValueChange={checked=>setConsentSignature(checked?signature:null)}/><Text style={[ui.body,{flex:1}]}>査定依頼の登録に同意する</Text></View>
   <Text style={ui.muted}>正式な融資条件は現物確認後に確定します。</Text>
  </View>}/>;

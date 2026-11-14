@@ -16,9 +16,9 @@ export function ReferenceEstimate({estimate,loading,error,onRefresh,onUse,disabl
   {!!error&&<Text accessibilityRole="alert" style={ui.error}>{error}</Text>}
   {estimate&&<>
    {expired&&<Text accessibilityRole="alert" style={ui.error}>参考額の有効期限が切れました。再計算してください。</Text>}
-   {estimate.amountJpy!==null&&<Text accessibilityLiveRegion="polite" style={[ui.amount,expired&&{color:colors.muted}]}>合計参考額 ¥{estimate.amountJpy.toLocaleString('ja-JP')}</Text>}
+   {estimate.amountJpy!==null&&<Text accessibilityLiveRegion="polite" style={[ui.amount,expired&&{color:colors.muted}]}>融資可能額 ¥{estimate.amountJpy.toLocaleString('ja-JP')}</Text>}
    {manual>0&&subtotal>0&&<Text style={ui.body}>算出済みの参考額 ¥{subtotal.toLocaleString('ja-JP')} ＋ 個別査定 {manual}種類</Text>}
-   {estimate.lines.map(line=><View key={line.id} style={{gap:6}}><Text style={ui.body}>{line.name} / {line.quantity}枚</Text><Text style={ui.body}>{line.amountJpy===null?'個別査定':`参考額 ¥${line.amountJpy.toLocaleString('ja-JP')}`}</Text><Text style={ui.muted}>{line.reason}</Text></View>)}
+   {estimate.lines.map(line=><View key={line.id} style={{gap:6}}><Text style={ui.body}>{line.name} / {line.quantity}枚</Text><Text style={ui.body}>{line.amountJpy===null?'個別査定':`融資可能額 ¥${line.amountJpy.toLocaleString('ja-JP')}`}</Text><Text style={ui.body}>評価額 {line.valuationJpy!=null?`¥${line.valuationJpy.toLocaleString('ja-JP')}`:'個別査定'}</Text><Text style={ui.muted}>{line.reason}</Text></View>)}
    <Text style={ui.muted}>{estimate.reason}</Text><Text style={ui.muted}>参考額の有効期限：{new Date(estimate.expiresAt).toLocaleTimeString('ja-JP')}</Text>
    <Text style={ui.muted}>算出日時：{new Date(estimate.calculatedAt).toLocaleString('ja-JP')}</Text>
    {estimate.amountJpy!==null&&onUse&&<Button title="参考額を借入希望額に入力" secondary disabled={disabled||loading||expired} onPress={()=>onUse(estimate.amountJpy!)}/>}

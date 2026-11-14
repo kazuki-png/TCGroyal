@@ -1,3 +1,4 @@
+import {ConsentLinks} from './ConsentLinks';
 import {colors} from '../theme';
 import {useEffect,useRef,useState} from 'react';
 import {ActivityIndicator,Image,Pressable,Text,View} from 'react-native';
@@ -90,7 +91,7 @@ export function CatalogAssessmentScreen({onApplied,active=true}:{onApplied:()=>P
      <View style={ui.row}><Button title="撮影する" secondary disabled={busy} onPress={()=>void run(()=>choose(true))}/><Button title="写真から選択" secondary disabled={busy} onPress={()=>void run(()=>choose(false))}/></View>
      {asset&&<>
       <Image alt="検索するカード画像" accessibilityLabel="検索するカード画像" source={{uri:asset.uri}} style={{height:220,width:'100%'}} resizeMode="contain"/>
-      <View style={ui.row}><Switch value={imageConsent} onValueChange={setImageConsent} disabled={busy} accessibilityLabel="カード画像をOpenAIへ送信することに同意"/><Text style={[ui.body,{flex:1}]}>検索のためカード画像をOpenAIへ送信することに同意します。本人確認書類は送らないでください。</Text></View>
+      <ConsentLinks/><View style={ui.row}><Switch value={imageConsent} onValueChange={setImageConsent} disabled={busy} accessibilityLabel="カード画像をOpenAIへ送信することに同意"/><Text style={[ui.body,{flex:1}]}>検索のためカード画像をOpenAIへ送信することに同意します。本人確認書類は送らないでください。</Text></View>
       <Button title="この画像で検索" disabled={busy||!imageConsent} onPress={()=>void run(imageSearch)}/>
      </>}
     </>}
@@ -119,7 +120,7 @@ export function CatalogAssessmentScreen({onApplied,active=true}:{onApplied:()=>P
     <Text style={ui.muted}>参考額は融資の確約ではありません。現物検品後に最終条件を提示します。受付期限 {date(assessment.expires_at)}</Text>
     <Field label="借入希望額・円（任意）" value={amount} onChangeText={v=>{setAmount(v);setConsent(false)}} keyboardType="number-pad" maxLength={8} editable={!busy}/>
     <Field label="カードの状態・相談内容（任意）" value={notes} onChangeText={v=>{setNotes(v);setConsent(false)}} multiline maxLength={1000} editable={!busy}/>
-    <View style={ui.row}><Switch value={consent} onValueChange={setConsent} disabled={busy} accessibilityLabel="カードの一致と査定依頼の保存に同意"/><Text style={[ui.body,{flex:1}]}>カードの一致を確認し、申告内容を保存して運営へ査定を依頼します。現物・本人確認と最終条件への同意が必要なことを確認しました。</Text></View>
+    <ConsentLinks/><View style={ui.row}><Switch value={consent} onValueChange={setConsent} disabled={busy} accessibilityLabel="カードの一致と査定依頼の保存に同意"/><Text style={[ui.body,{flex:1}]}>カードの一致を確認し、申告内容を保存して運営へ査定を依頼します。現物・本人確認と最終条件への同意が必要なことを確認しました。</Text></View>
     <Button title="査定を依頼する" disabled={busy||!consent||!!amount&&(!/^[1-9]\d{0,7}$/.test(amount)||Number(amount)>10000000)} onPress={()=>void run(submit)}/>
    </View>}
    {registered&&<View style={ui.card}><Text style={ui.title}>査定依頼を受け付けました</Text><Text selectable style={ui.amount}>{registered.reference}</Text><Text style={ui.body}>貸付状況から査定の進捗と見積もりを確認できます。</Text><Button title="別のカードを探す" secondary onPress={()=>{setSelected(null);setAmount('');setNotes('');invalidate()}}/></View>}

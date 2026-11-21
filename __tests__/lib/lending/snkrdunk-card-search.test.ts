@@ -54,7 +54,7 @@ describe('Snkrdunk JSON card discovery',()=>{
   expect(parseSnkrdunkCard({...product(),apparelInfo:{isTradingCard:false}},'123')).toBeNull();
   expect(parseSnkrdunkCard({...product(),primaryMedia:{imageUrl:'https://evil.example/card.webp'}},'123')?.imageUrl).toBeNull();
  });
- it('coalesces concurrent searches and limits detail reads to two simultaneous requests',async()=>{
+ it('coalesces concurrent searches and limits detail reads to four simultaneous requests',async()=>{
   let active=0,peak=0;
   vi.mocked(fetchPublicRemoteUrl).mockImplementation(async url=>{
    if(url.pathname.endsWith('/search'))return Response.json({streetwears:Array.from({length:6},(_,i)=>({id:i+1,isTradingCard:true}))});
@@ -62,7 +62,7 @@ describe('Snkrdunk JSON card discovery',()=>{
   });
   const {searchSnkrdunkCards}=await import('@/lib/lending/snkrdunk-card-search');
   const [a,b]=await Promise.all([searchSnkrdunkCards('同時検索','all',1),searchSnkrdunkCards('同時検索','all',1)]);
-  expect(a).toEqual(b);expect(a.hasMore).toBe(true);expect(peak).toBe(2);expect(fetchPublicRemoteUrl).toHaveBeenCalledTimes(7);
+  expect(a).toEqual(b);expect(a.hasMore).toBe(true);expect(peak).toBe(4);expect(fetchPublicRemoteUrl).toHaveBeenCalledTimes(7);
  });
  it('bounds inputs and filters categories without inventing totals or quotes',async()=>{
   const {searchSnkrdunkCards}=await import('@/lib/lending/snkrdunk-card-search');
@@ -70,4 +70,31 @@ describe('Snkrdunk JSON card discovery',()=>{
   vi.mocked(fetchPublicRemoteUrl).mockResolvedValueOnce(Response.json({streetwears:[{id:123,isTradingCard:true}]})).mockResolvedValueOnce(Response.json(product()));
   expect(await searchSnkrdunkCards('カード','onepiece',2)).toEqual({cards:[],page:2,hasMore:false});
  });
+});
+
+it('reuses validated details across different fallback queries and valuation lookups',async()=>{
+ vi.mocked(fetchPublicRemoteUrl).mockImplementation(async url=>url.pathname.endsWith('/search')?Response.json({streetwears:[{id:123,isTradingCard:true}]}):Response.json(product()));
+ const {searchSnkrdunkCards,getSnkrdunkCard}=await import('@/lib/lending/snkrdunk-card-search');
+ await searchSnkrdunkCards('カード LV32','all',1);await searchSnkrdunkCards('カード 旧裏','all',1);
+ expect((await getSnkrdunkCard('123'))?.productId).toBe('123');
+ expect(fetchPublicRemoteUrl).toHaveBeenCalledTimes(3); // 2 searches + 1 detail, not 3 details.
+});
+it('coalesces concurrent product reads and expires metadata after five minutes',async()=>{
+ vi.useFakeTimers();vi.setSystemTime(new Date('2026-11-21T00:00:00Z'));
+ vi.mocked(fetchPublicRemoteUrl).mockImplementation(async()=>Response.json(product()));
+ const {getSnkrdunkCard}=await import('@/lib/lending/snkrdunk-card-search');
+ await Promise.all([getSnkrdunkCard('123'),getSnkrdunkCard('123')]);expect(fetchPublicRemoteUrl).toHaveBeenCalledTimes(1);
+ vi.setSystemTime(Date.now()+300000);await getSnkrdunkCard('123');expect(fetchPublicRemoteUrl).toHaveBeenCalledTimes(2);
+});
+
+it('hydrates twelve candidates in three waves, with no more than four requests in flight',async()=>{
+ vi.useFakeTimers();vi.setSystemTime(new Date('2026-11-21T00:00:00Z'));let active=0,maxActive=0;
+ vi.mocked(fetchPublicRemoteUrl).mockImplementation(async url=>{
+  if(url.pathname.endsWith('/search'))return Response.json({streetwears:Array.from({length:12},(_,i)=>({id:i+1,isTradingCard:true}))});
+  active++;maxActive=Math.max(maxActive,active);await new Promise(resolve=>setTimeout(resolve,100));active--;
+  return Response.json(product(Number(url.pathname.split('/').at(-1))));
+ });
+ const {searchSnkrdunkCards}=await import('@/lib/lending/snkrdunk-card-search');const start=Date.now();
+ const result=searchSnkrdunkCards('parallel','all',1,12);await vi.runAllTimersAsync();
+ expect((await result).cards).toHaveLength(12);expect(maxActive).toBe(4);expect(Date.now()-start).toBe(300);
 });

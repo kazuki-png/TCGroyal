@@ -1,3 +1,4 @@
+import {requestTiming} from '@/lib/lending/request-timing'
 import sharp from 'sharp'
 import {createHash} from 'node:crypto'
 import {z} from 'zod'
@@ -11,7 +12,8 @@ import {discoverImageCards} from '@/lib/lending/image-discovery'
 export const runtime='nodejs'
 export const maxDuration=75
 export async function POST(request:Request){
- const actor=await lendingAccess(request,'lending:card-image',6);if(actor instanceof Response)return actor
+ const timing=requestTiming()
+ const actor=await timing.measure('auth',()=>lendingAccess(request,'lending:card-image',6));if(actor instanceof Response)return actor
  if(!process.env.OPENAI_API_KEY?.trim())return lendingJson({error:'画像検索は準備中です。カード名・型番で検索するか、個別見積もりをご利用ください。'},503)
  let image:Buffer,key:string,discovery=false
  try{
@@ -38,15 +40,15 @@ export async function POST(request:Request){
    await db.from('lending_image_searches').update({status:'failed'}).eq('id',key).eq('user_id',actor.id)
    return lendingJson({error:'画像検索の利用上限に達しました。カード名・型番で検索してください。'},429)
   }
-  const {hints,usage,model}=await extractCardHints(image)
+  const {hints,usage,model}=await timing.measure('recognition',()=>extractCardHints(image))
   const usageSaved=await db.from('lending_image_searches').update({model,input_tokens:usage.inputTokens,output_tokens:usage.outputTokens}).eq('id',key).eq('user_id',actor.id)
   if(usageSaved.error)throw Error('usage_save')
   const query=imageSearchQuery(hints)
-  const matches=discovery?await discoverImageCards(hints,async()=>(await checkWorkflowRateLimit('lending:snkrdunk-search',actor.id,{limit:6,windowMs:60000})).allowed,cards=>rankCardImages(image,cards,extra=>{usage.inputTokens+=extra.inputTokens;usage.outputTokens+=extra.outputTokens})):query?await searchCatalog(query,hints.category??'all'):{cards:[],total:0,page:1}
+  const matches=await timing.measure('search',async()=>discovery?await discoverImageCards(hints,async()=>(await checkWorkflowRateLimit('lending:snkrdunk-search',actor.id,{limit:6,windowMs:60000})).allowed,cards=>timing.measure('visual',()=>rankCardImages(image,cards,extra=>{usage.inputTokens+=extra.inputTokens;usage.outputTokens+=extra.outputTokens}))):query?await searchCatalog(query,hints.category??'all'):{cards:[],total:0,page:1})
   const result={...matches,hints,imageRequestId:key}
   const saved=await db.from('lending_image_searches').update({status:'completed',result,model,input_tokens:usage.inputTokens,output_tokens:usage.outputTokens}).eq('id',key).eq('user_id',actor.id)
   if(saved.error)throw Error('save')
-  return lendingJson(result)
+  return timing.response(lendingJson(result))
  }catch{
   await db.from('lending_image_searches').update({status:'failed'}).eq('id',key).eq('user_id',actor.id)
   return lendingJson({error:'画像を読み取れませんでした。再撮影、カード名・型番での検索、個別見積もりをお試しください。'},502)

@@ -30,6 +30,24 @@ export function parseSnkrdunkCard(value:unknown,productId:string):SnkrdunkCard|n
  try{const url=new URL(product.primaryMedia?.imageUrl??'');if(url.protocol==='https:'&&url.hostname==='cdn.snkrdunk.com'&&!url.username&&!url.password&&!url.port)imageUrl=url.href}catch{}
  return {productId,name:product.localizedName,category,cardNumber:product.localizedName.match(/\[([^\]]{1,100})\]/)?.[1]??'',imageUrl,sourceUrl:`https://snkrdunk.com/apparels/${productId}`}
 }
+// Share validated metadata across fallback queries and price lookups, never prices.
+const products=new Map<string,{until:number;card:SnkrdunkCard|null}>()
+const productRequests=new Map<string,Promise<SnkrdunkCard|null>>()
+export async function getSnkrdunkCard(productId:string,deadline=Date.now()+5000):Promise<SnkrdunkCard|null>{
+ if(!/^[1-9]\d{0,8}$/.test(productId))throw Error('invalid_product')
+ const now=Date.now()
+ for(const [key,value] of products)if(value.until<=now)products.delete(key)
+ const saved=products.get(productId);if(saved)return saved.card
+ const active=productRequests.get(productId);if(active)return active
+ if(productRequests.size>=20)throw Error('product_lookup_busy')
+ const work=(async()=>{
+  const card=parseSnkrdunkCard(await json(new URL(`https://snkrdunk.com/v1/apparels/${productId}`),deadline),productId)
+  if(products.size>=240)products.delete(products.keys().next().value!)
+  products.set(productId,{until:Date.now()+ttl,card});return card
+ })()
+ productRequests.set(productId,work)
+ try{return await work}finally{productRequests.delete(productId)}
+}
 export async function searchSnkrdunkCards(query:string,category:'all'|'pokemon'|'onepiece',page:number,pageSize:6|12=6):Promise<SnkrdunkCardSearch>{
  if(![6,12].includes(pageSize)||!query.trim()||query.length>100||!Number.isInteger(page)||page<1||page>100)throw Error('カード名・型番を入力してください。')
  const key=JSON.stringify([query.trim(),category,page,pageSize]),now=Date.now()
@@ -49,9 +67,9 @@ export async function searchSnkrdunkCards(query:string,category:'all'|'pokemon'|
   url.searchParams.set('keyword',keyword);url.searchParams.set('perPage',String(pageSize));url.searchParams.set('page',String(page))
   const data=searchSchema.parse(await json(url,deadline)),candidates=[...new Set(data.streetwears.filter(p=>p.isTradingCard===true).map(p=>String(p.id)))].slice(0,pageSize)
   const cards:SnkrdunkCard[]=[],references:SnkrdunkCard[]=[]
-  // Two simultaneous detail reads at most; obtain Japanese names and validate single-card categories.
-  for(let offset=0;offset<candidates.length;offset+=2){
-   const group=await Promise.all(candidates.slice(offset,offset+2).map(async productId=>parseSnkrdunkCard(await json(new URL(`https://snkrdunk.com/v1/apparels/${productId}`),deadline),productId)))
+  // Four simultaneous detail reads at most; obtain Japanese names and validate single-card categories.
+  for(let offset=0;offset<candidates.length;offset+=4){
+   const group=await Promise.all(candidates.slice(offset,offset+4).map(async productId=>getSnkrdunkCard(productId,deadline)))
    const valid=group.filter((card):card is SnkrdunkCard=>!!card)
    references.push(...valid)
    cards.push(...valid.filter(card=>category==='all'||card.category===category))

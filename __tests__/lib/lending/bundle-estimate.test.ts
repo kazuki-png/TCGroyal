@@ -56,3 +56,18 @@ describe('bundle reference estimates',()=>{
   provider();const {estimateBundle}=await import('@/lib/lending/bundle-estimate');await estimateBundle([item]);vi.setSystemTime(Date.now()+300000);await estimateBundle([item]);expect(fetchPublicRemoteUrl).toHaveBeenCalledTimes(4)
  })
 })
+
+it('reads ungraded histories in two bounded parallel waves while saving references',async()=>{
+ let active=0,maxActive=0;const conditions:string[]=[];
+ vi.mocked(fetchPublicRemoteUrl).mockImplementation(async url=>{
+  if(!url.pathname.endsWith('sales-history'))return Response.json(product);
+  active++;maxActive=Math.max(maxActive,active);const condition=url.searchParams.get('condition_id')!;conditions.push(condition);
+  await new Promise(resolve=>setTimeout(resolve,100));active--;
+  return Response.json({history:[{price:10000,date:'1日前',condition:({18:'A',19:'B',20:'C',21:'D'} as Record<string,string>)[condition],size:''}]});
+ });
+ const {estimateBundle}=await import('@/lib/lending/bundle-estimate');
+ const started=Date.now(),work=estimateBundle([{...item,grade:'未鑑定'}]);
+ await vi.runAllTimersAsync();const result=await work;
+ expect(Date.now()-started).toBe(200);expect(maxActive).toBe(2);expect(conditions).toEqual(['18','19','20','21']);
+ expect(result.amountJpy).toBe(3000);
+});

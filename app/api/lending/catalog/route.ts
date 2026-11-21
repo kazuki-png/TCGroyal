@@ -1,3 +1,4 @@
+import {requestTiming} from '@/lib/lending/request-timing'
 import {lendingAccess,lendingJson,boundedBody} from '@/lib/lending/api-guard'
 import {createWorkflowClient,checkWorkflowRateLimit} from '@/lib/lending/workflow-client'
 import {catalogInput} from '@/lib/lending/catalog'
@@ -15,7 +16,8 @@ import {discoverCards} from '@/lib/lending/discovery'
 export const runtime='nodejs'
 export const maxDuration=60
 export async function POST(request:Request){
- const actor=await lendingAccess(request,'lending:catalog',30);if(actor instanceof Response)return actor
+ const timing=requestTiming()
+ const actor=await timing.measure('auth',()=>lendingAccess(request,'lending:catalog',30));if(actor instanceof Response)return actor
  let input
  try{input=catalogInput.parse(JSON.parse((await boundedBody(request,65536)).toString('utf8')))}catch{return lendingJson({error:'入力内容を確認してください。'},400)}
  try{
@@ -33,11 +35,13 @@ export async function POST(request:Request){
   // Reference calculation is read-only, like card discovery. Administrative
   // accounts may preview it without gaining access to customer mutations.
   if(input.action==='quote_bundle'){
-   const limit=await checkWorkflowRateLimit('lending:bundle-estimate',actor.id,{limit:20,windowMs:60000})
+   const [limit,shared]=await timing.measure('limits',()=>Promise.all([
+    checkWorkflowRateLimit('lending:bundle-estimate',actor.id,{limit:20,windowMs:60000}),
+    checkWorkflowRateLimit('lending:bundle-estimate-global','snkrdunk',{limit:60,windowMs:60000}),
+   ]))
    if(!limit.allowed)return lendingJson({error:'参考額の計算回数が多いため、1分ほど待ってからお試しください。'},429)
-   const shared=await checkWorkflowRateLimit('lending:bundle-estimate-global','snkrdunk',{limit:60,windowMs:60000})
    if(!shared.allowed)return lendingJson({error:'参考額の計算が混み合っています。1分ほど待ってからお試しください。'},429)
-   return lendingJson({estimate:await estimateBundle(input.items)})
+   return timing.response(lendingJson({estimate:await timing.measure('valuation',()=>estimateBundle(input.items))}))
   }
   if(actor.role!=='customer')return lendingJson({error:'利用者のアカウントで操作してください。'},403)
   const db=createWorkflowClient()

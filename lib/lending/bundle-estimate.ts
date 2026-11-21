@@ -1,6 +1,6 @@
 import 'server-only'
 import {fetchPublicRemoteUrl} from '@/lib/security/safeRemoteFetch'
-import {parseSnkrdunkCard} from './snkrdunk-card-search'
+import {getSnkrdunkCard} from './snkrdunk-card-search'
 import {observeMarket,valueObservedMarket,type ObservedMarket} from './observed-valuation'
 import type {CollateralItem} from './collateral-types'
 import type {BundleEstimate} from './bundle-estimate-types'
@@ -25,17 +25,22 @@ async function snapshot(productId:string,grade:NonNullable<ReturnType<typeof mar
  const work=(async()=>{
   // Fixed, observed Web API, not a contracted partner API. One bounded history
   // sample per grade category, no crawling, pagination loops or retries.
-  const card=parseSnkrdunkCard(await json(`/v1/apparels/${productId}`),productId)
+  const card=await getSnkrdunkCard(productId)
   if(!card)throw Error('unsupported_product')
-  await saveCardReferences([card])
   const prices:number[]=[]
-  // The selected categories share a total cap of 300 returned transactions.
+  // Persist reference metadata concurrently with the price read. At most two
+  // grade categories per product run together; every category retains its filter.
   const pageSize=Math.floor(300/grade.ids.length)
-  for(const [index,condition] of grade.ids.entries()){
-   const part=observeMarket(await json(`/v1/apparels/${productId}/sales-history?page=1&per_page=${pageSize}&condition_id=${condition}`),new Date(),[grade.labels[index]])
-   if(part.prices.length>pageSize)throw Error('history_limit_changed')
-   prices.push(...part.prices)
-  }
+  await Promise.all([saveCardReferences([card]),(async()=>{
+   for(let offset=0;offset<grade.ids.length;offset+=2){
+    const parts=await Promise.all(grade.ids.slice(offset,offset+2).map(async(condition,index)=>{
+     const part=observeMarket(await json(`/v1/apparels/${productId}/sales-history?page=1&per_page=${pageSize}&condition_id=${condition}`),new Date(),[grade.labels[offset+index]])
+     if(part.prices.length>pageSize)throw Error('history_limit_changed')
+     return part.prices
+    }))
+    prices.push(...parts.flat())
+   }
+  })()])
   const market={fetchedAt:new Date().toISOString(),prices}
   const result={name:card.name,cardNumber:card.cardNumber,market}
   if(cache.size>=60)cache.delete(cache.keys().next().value!)

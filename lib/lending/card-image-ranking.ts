@@ -12,8 +12,8 @@ export async function rankCardImages(image:Buffer,cards:DiscoveryCard[],onUsage:
   try{const url=new URL(card.imageUrl??'');return url.protocol==='https:'&&url.hostname==='cdn.snkrdunk.com'&&!url.username&&!url.password&&!url.port}catch{return false}
  }).slice(0,12)
  const images:{card:DiscoveryCard;data:string}[]=[],deadline=Date.now()+6000
- for(let offset=0;offset<candidates.length;offset+=2){
-  const group=await Promise.all(candidates.slice(offset,offset+2).map(async card=>{
+ for(let offset=0;offset<candidates.length;offset+=4){
+  const group=await Promise.all(candidates.slice(offset,offset+4).map(async card=>{
    try{
     const remaining=deadline-Date.now();if(remaining<=0)return null
     const response=await fetchPublicRemoteUrl(new URL(card.imageUrl!),{timeoutMs:Math.min(3000,remaining),maxBytes:1500000,maxRedirects:0,headers:{Accept:'image/*'}})

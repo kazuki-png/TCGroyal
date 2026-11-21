@@ -2,7 +2,7 @@ export interface CollateralItem {
  id:string;name:string;cardNumber:string;quantity:number;grade:string;condition:string;
  source:'snkrdunk'|'catalog'|'manual';productId:string|null;cardUid:string|null;imageUrl?:string|null;
 }
-export interface CollateralInspection {id:string;quantity:number;location:string;checked:boolean}
+export interface CollateralInspection {id:string;quantity:number;checked:boolean}
 export const collateralQuantity=(items:CollateralItem[])=>items.reduce((sum,item)=>sum+item.quantity,0);
 // Classify declared defects for inspection; reference prices use the declared grade.
 export const conditionNeedsReview=(condition:string)=>/傷|破損|折れ|白[か欠]け|汚れ|擦れ|割れ|欠け/u.test(condition.replace(/(?:傷|破損|折れ|白[か欠]け|汚れ|擦れ|割れ|欠け)(?:なし|無し|はありません)/gu,''));

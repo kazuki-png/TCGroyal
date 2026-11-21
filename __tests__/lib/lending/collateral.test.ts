@@ -14,10 +14,10 @@ describe('bundled collateral',()=>{
   expect(collateralItems.safeParse([item,{...item,id:'30000000-0000-4000-8000-000000000002',quantity:99}]).success).toBe(false);
   expect(collateralItems.safeParse([item]).success).toBe(true);
  });
- it('requires exact per-line received quantities, storage and confirmation',()=>{
-  const base={location:'Common',inspected:true,collateralInspection:[{id:item.id,quantity:2,location:'A',checked:true}]};
+ it('requires exact per-line received quantities and confirmation without storage',()=>{
+  const base={inspected:true,collateralInspection:[{id:item.id,quantity:2,checked:true}]};
   expect(inspectionInputError(null,base,[item])).toBeNull();
-  for(const rows of [[],[{...base.collateralInspection[0],quantity:1}],[{...base.collateralInspection[0],checked:false}],[{...base.collateralInspection[0],location:''}]])expect(inspectionInputError(null,{...base,collateralInspection:rows},[item])).not.toBeNull();
+  for(const rows of [[],[{...base.collateralInspection[0],quantity:1}],[{...base.collateralInspection[0],checked:false}]])expect(inspectionInputError(null,{...base,collateralInspection:rows},[item])).not.toBeNull();
  });
  it('keeps structured item data in the support request and includes it in the LINE draft',()=>{
   const draft={reason:'other' as const,cardName:'まとめて申込',cardNumber:'',condition:'',notes:'',requestedAmount:'300000',items:[item]};

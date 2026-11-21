@@ -15,7 +15,7 @@ export interface InboxItem {
 }
 
 const actionTitles: Record<string, string> = {
-  arrive: 'カードを受領しました', apply: '融資申請を受け付けました', receive: 'カードの検品が完了しました',
+  arrive: 'カードを受領しました', apply: '融資申請を受け付けました', receive: 'カードの受領・検品が完了しました',
   offer: '融資条件をご確認ください', accept: '融資条件への同意を受け付けました',
   fund: '融資の実行が記録されました', report_repayment: '返済の申告を受け付けました',
   confirm_repayment: '返済を確認しました', reject_repayment: '返済の確認結果をご確認ください',

@@ -14,7 +14,7 @@ const button = 'rounded-xl bg-amber-300 px-5 py-3 text-sm font-bold text-[#11182
 const yen = (amount: number) => `¥${amount.toLocaleString('ja-JP')}`
 const date = (value: string | null) => value ? new Date(value).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : '—'
 const actionLabels: Record<LoanCommand, string> = {
-  arrive: 'カードの受領を記録', receive: '検品・保管を記録', offer: '最終条件を提示', accept: '条件に同意', fund: '出金を記録', cancel: '申込をキャンセル',
+  receive: '受領・検品完了を記録', offer: '最終条件を提示', accept: '条件に同意', fund: '出金を記録', cancel: '申込をキャンセル',
   reject: '申込を見送る', report_repayment: '振込済みを申告', reject_repayment: '入金申告を差し戻す', confirm_repayment: '入金を照合・記録', return: '返却を記録',
   request_extension: '1か月延長の振込を申告', request_additional: '追加借入の相談を申請', extend: '延長質料の入金を確認',
   reject_request: '追加申請を見送る', forfeit: '質流れを記録',
@@ -25,7 +25,7 @@ function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: Workf
   const actions: LoanCommand[] = []
   const pending = loan.requests.find(r => r.status === 'pending')
   if (admin) {
-    if (loan.status === 'submitted') actions.push('arrive', 'receive', 'reject')
+    if (loan.status === 'submitted') actions.push('receive', 'reject')
     if (loan.status === 'received') actions.push(loan.inspected_at ? 'offer' : 'receive', 'reject')
     if (loan.status === 'offered') actions.push('offer', 'reject')
     if (loan.status === 'accepted') actions.push('fund', 'offer', 'reject')
@@ -64,13 +64,11 @@ function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: Workf
     if(['confirm_repayment','extend'].includes(action))payload.paidAt=new Date(String(values.get('paidAt'))+'+09:00').toISOString()
     if(['report_repayment','request_extension'].includes(action)){payload.transferDate=values.get('transferDate');payload.transferName=values.get('transferName')}
     if (action === 'offer') {payload.monthlyRateBps = Math.round(Number(values.get('rate')) * 100);if(!loan.cert_number){payload.manualValuationJpy=Number(values.get('valuation'));payload.manualCapJpy=Number(values.get('cap'));payload.reason=values.get('basis')}}
-    if (action === 'arrive') payload.location = String(values.get('location') ?? '').trim()
     if (action === 'cancel') payload.reason = String(values.get('reason') ?? '').trim() || '利用者による申込キャンセル'
     if (action === 'receive') {
-      payload.location = String(values.get('location') ?? '').trim()
       if (loan.cert_number) payload.certNumber = String(values.get('cert') ?? '').trim()
       payload.inspected = values.has('inspected')
-      if(loan.collateral_items?.length)payload.collateralInspection=loan.collateral_items.map(item=>({id:item.id,quantity:Number(values.get(`quantity-${item.id}`)),location:String(values.get(`location-${item.id}`)||payload.location).trim(),checked:values.has(`checked-${item.id}`)}))
+      if(loan.collateral_items?.length)payload.collateralInspection=loan.collateral_items.map(item=>({id:item.id,quantity:Number(values.get(`quantity-${item.id}`)),checked:values.has(`checked-${item.id}`)}))
       const error = inspectionInputError(loan.cert_number, payload,loan.collateral_items??[])
       setInputError(error)
       if (error) return
@@ -86,16 +84,14 @@ function LoanActions({ loan, admin, send, busy, allowOffer=true }: { loan: Workf
     <fieldset disabled={busy} className="space-y-4">
       <label className="block text-sm">{admin?'変更先ステータス・手続き':'手続き'}
         <select className={field} value={action} onChange={e => {setSelected(e.target.value as LoanCommand);setInputError(null)}}>
-          {actions.map(value => {const targets:Partial<Record<LoanCommand,string>>={arrive:'受領済み・現物査定中',receive:'検品完了',offer:'条件の確認待ち',fund:'契約中',confirm_repayment:'返却待ち',reject_repayment:'契約中',return:'返却済み',reject:'見送り',cancel:loan.storage_location?'返却待ち':'キャンセル',forfeit:'質流れ'};return <option key={value} value={value}>{admin&&targets[value]?`${targets[value]}：${actionLabels[value]}`:actionLabels[value]}</option>})}
+          {actions.map(value => {const targets:Partial<Record<LoanCommand,string>>={receive:'受領・検品完了',offer:'条件の確認待ち',fund:'契約中',confirm_repayment:'返却待ち',reject_repayment:'契約中',return:'返却済み',reject:'見送り',cancel:loan.received_at||loan.inspected_at?'返却待ち':'キャンセル',forfeit:'質流れ'};return <option key={value} value={value}>{admin&&targets[value]?`${targets[value]}：${actionLabels[value]}`:actionLabels[value]}</option>})}
         </select>
       </label>
-      {action === 'arrive' && <label className="block text-sm">受領カードの保管場所<input className={field} name="location" maxLength={120} required/></label>}
       {action === 'cancel' && <><p className="text-sm">受領済みのカードは返却待ちになります。</p><label className="block text-sm">キャンセル理由（任意）<textarea name="reason" maxLength={500} className={field}/></label><label className="flex gap-3 text-sm"><input type="checkbox" required/>申込をキャンセルし、預けたカードの返却を依頼します</label></>}
       {action === 'receive' && <>
-        <p className="text-sm leading-6 text-zinc-300">現物の到着後、申込内容との照合と保管場所の登録を行います。{loan.cert_number?'現物のラベルを読み取り、申込時と同じ鑑定番号を入力してください。':'PSA鑑定番号の入力は不要です。'}</p>
+        <p className="text-sm leading-6 text-zinc-300">現物の到着後、申込内容との照合を行い、受領・検品を完了します。{loan.cert_number?'現物のラベルを読み取り、申込時と同じ鑑定番号を入力してください。':'PSA鑑定番号の入力は不要です。'}</p>
         {loan.cert_number&&<label className="block text-sm">現物のPSA鑑定番号<input className={field} name="cert" inputMode="numeric" pattern="[0-9]{6,12}" required /></label>}
-        <label className="block text-sm">保管場所<input className={field} name="location" maxLength={120} required placeholder="金庫A / 棚01" /></label>
-        {loan.collateral_items?.map(item=><div key={item.id} className="space-y-3 rounded-xl border border-white/10 p-4"><p>{item.name} / 申込 {item.quantity}枚 / {item.grade} / {item.condition}</p><label className="block text-sm">{item.name} の現物枚数<input className={field} name={`quantity-${item.id}`} type="number" min={1} max={100} defaultValue={item.quantity} required/></label><label className="block text-sm">{item.name} の保管場所（空欄なら共通保管場所）<input className={field} name={`location-${item.id}`} maxLength={120}/></label><label className="flex gap-3 text-sm"><input type="checkbox" name={`checked-${item.id}`} required/>この明細の現物・枚数・状態を照合しました</label></div>)}
+        {loan.collateral_items?.map(item=><div key={item.id} className="space-y-3 rounded-xl border border-white/10 p-4"><p>{item.name} / 申込 {item.quantity}枚 / {item.grade} / {item.condition}</p><label className="block text-sm">{item.name} の現物枚数<input className={field} name={`quantity-${item.id}`} type="number" min={1} max={100} defaultValue={item.quantity} required/></label><label className="flex gap-3 text-sm"><input type="checkbox" name={`checked-${item.id}`} required/>この明細の現物・枚数・状態を照合しました</label></div>)}
         <label className="flex items-start gap-3 text-sm"><input type="checkbox" name="inspected" required className="mt-1" />現物のカード・状態と申込内容を照合しました（鑑定品はラベル・スラブも確認）</label>
         {inputError&&<p role="alert" className="rounded-lg bg-red-950/40 p-3 text-sm text-red-200">{inputError}</p>}
       </>}
@@ -140,13 +136,12 @@ export function LoanCard({ loan, admin, send, busy,allowOffer=true }: { loan: Wo
     <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-lg font-bold">{loan.card_name}</h3><span className="rounded-full bg-amber-200/10 px-3 py-1 text-xs font-bold text-amber-200">{LOAN_STATUS_LABELS[loan.status]}</span></div>
     <p className="mt-2 text-xs text-zinc-400">{loan.cert_number?`カード番号 ${loan.card_number??''} / PSA鑑定番号 ${loan.cert_number}`:'PSA番号なし・個別見積もり'}</p>
     <CollateralLines items={loan.collateral_items} inspection={admin?loan.collateral_inspection:undefined}/>
-    {admin && loan.status==='received' && <p className="mt-3 text-sm text-zinc-300">受領：{date(loan.received_at??loan.inspected_at??null)} / 検品：{loan.inspected_at?'完了':'未完了'}</p>}
+    {admin && loan.status==='received' && <p className="mt-3 text-sm text-zinc-300">{loan.inspected_at?`受領・検品完了：${date(loan.inspected_at)}`:'検品を完了してください（旧受領記録）'}</p>}
     <p className="mt-5 text-xs text-zinc-400">{loan.status === 'active' || loan.status === 'repayment_pending' ? '借入元本' : '申込希望額'}</p>
     <p className="mt-1 text-3xl font-bold tracking-tight">{yen(['active','repayment_pending'].includes(loan.status) ? loan.principal_jpy : loan.requested_jpy)}</p>
     <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">
       <div><dt className="text-zinc-400">現在の返済必要額</dt><dd className="mt-1 font-semibold">{loan.payoff_jpy ? yen(loan.payoff_jpy) : '—'}</dd></div>
       <div><dt className="text-zinc-400">返済期限（日本時間）</dt><dd className="mt-1">{date(loan.due_at)}</dd></div>
-      {admin && <div><dt className="text-zinc-400">保管場所</dt><dd>{loan.storage_location ?? '未入庫'}</dd></div>}
     </dl>
     {terms && <details open={loan.status === 'offered'} className="mt-5 rounded-xl bg-black/20 p-4 text-sm leading-7">
       <summary className="cursor-pointer font-bold text-amber-200">契約条件を確認</summary>

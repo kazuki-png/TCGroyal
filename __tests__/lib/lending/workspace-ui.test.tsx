@@ -15,25 +15,23 @@ const submitted: WorkflowLoan = { id: loanId, version: 1, status: 'submitted', c
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('physical inspection form', () => {
-  it.each(['12345678', null])('sends the checked inspection and storage for certificate %s', async cert => {
+  it.each(['12345678', null])('sends the checked inspection without storage for certificate %s', async cert => {
     const send = vi.fn().mockResolvedValue(undefined)
     render(<LoanCard loan={{...submitted, cert_number: cert}} admin send={send} busy={false} />)
     fireEvent.change(screen.getByLabelText('変更先ステータス・手続き'), {target:{value:'receive'}})
     if (cert) fireEvent.change(screen.getByLabelText('現物のPSA鑑定番号'), {target:{value:cert}})
     else expect(screen.queryByLabelText('現物のPSA鑑定番号')).not.toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('保管場所'), {target:{value:'  金庫A / 棚01  '}})
     fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', {name:'ステータス・手続きを更新'}))
     await waitFor(() => expect(send).toHaveBeenCalledOnce())
-    expect(send.mock.calls[0][0]).toMatchObject({action:'receive',version:1,payload:{location:'金庫A / 棚01',inspected:true}})
+    expect(send.mock.calls[0][0]).toMatchObject({action:'receive',version:1,payload:{inspected:true}})
     expect(send.mock.calls[0][0].payload.certNumber).toBe(cert ?? undefined)
   })
-  it('explains a mismatched certificate and allows correction without losing the storage entry', async () => {
+  it('explains a mismatched certificate and allows correction without losing the inspection confirmation', async () => {
     const send = vi.fn().mockResolvedValue(undefined)
     render(<LoanCard loan={submitted} admin send={send} busy={false} />)
     fireEvent.change(screen.getByLabelText('変更先ステータス・手続き'), {target:{value:'receive'}})
     fireEvent.change(screen.getByLabelText('現物のPSA鑑定番号'), {target:{value:'99999999'}})
-    fireEvent.change(screen.getByLabelText('保管場所'), {target:{value:'金庫A'}})
     fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', {name:'ステータス・手続きを更新'}))
     expect(screen.getByRole('alert')).toHaveTextContent('現物のPSA鑑定番号が申込時の番号と一致しません')
@@ -43,16 +41,7 @@ describe('physical inspection form', () => {
     await waitFor(() => expect(send).toHaveBeenCalledOnce())
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
-  it('rejects a whitespace-only storage location', () => {
-    const send=vi.fn()
-    render(<LoanCard loan={{...submitted,cert_number:null}} admin send={send} busy={false} />)
-    fireEvent.change(screen.getByLabelText('変更先ステータス・手続き'), {target:{value:'receive'}})
-    fireEvent.change(screen.getByLabelText('保管場所'), {target:{value:'   '}})
-    fireEvent.click(screen.getByRole('checkbox'))
-    fireEvent.click(screen.getByRole('button', {name:'ステータス・手続きを更新'}))
-    expect(screen.getByRole('alert')).toHaveTextContent('保管場所を1〜120文字で入力してください。')
-    expect(send).not.toHaveBeenCalled()
-  })
+
 })
 
 describe('customer lending workspace', () => {
@@ -121,17 +110,16 @@ describe('customer lending workspace', () => {
 })
 
 describe('custody cancellation',()=>{
- it('records arrival without claiming that inspection is complete',async()=>{
-  const send=vi.fn().mockResolvedValue(undefined)
-  render(<LoanCard loan={submitted} admin send={send} busy={false}/>)
-  fireEvent.change(screen.getByLabelText('受領カードの保管場所'),{target:{value:'受領棚A'}})
-  fireEvent.click(screen.getByRole('button',{name:'ステータス・手続きを更新'}))
-  await waitFor(()=>expect(send).toHaveBeenCalledWith(expect.objectContaining({action:'arrive',payload:{location:'受領棚A'}})))
- })
+ it('offers a single combined receipt and inspection action without location fields',()=>{
+  render(<LoanCard loan={submitted} admin send={vi.fn()} busy={false}/>);
+  expect(screen.getByRole('option',{name:/受領・検品完了/})).toHaveValue('receive');
+  expect(screen.queryByRole('option',{name:/カードの受領を記録/})).not.toBeInTheDocument();
+  expect(screen.queryByLabelText(/保管場所/)).not.toBeInTheDocument();
+ });
  it('keeps offers unavailable until inspection is recorded',()=>{
   render(<LoanCard loan={{...submitted,status:'received',received_at:'2026-11-21T00:00:00Z',inspected_at:null}} admin send={vi.fn()} busy={false}/>)
   expect(screen.queryByRole('option',{name:/最終条件を提示/})).not.toBeInTheDocument()
-  expect(screen.getByLabelText('保管場所')).toBeInTheDocument()
+  expect(screen.getByRole('option',{name:/受領・検品完了/})).toBeInTheDocument()
  })
  it('lets the owner cancel an uninspected received card with an audit reason',async()=>{
   const send=vi.fn().mockResolvedValue(undefined)

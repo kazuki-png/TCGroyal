@@ -72,8 +72,8 @@ export async function POST(request:Request){
  }
  const result=await db.rpc('lending_command',{p_actor:actor.id,p_loan:v.loanId,p_action:v.action,p_payload:v.payload,p_key:v.key,p_version:v.version})
  if(!result.error)scheduleStatusNotifications('loan',v.loanId)
- if(result.error?.message==='collateral_inspection_required')return lendingJson({error:'全カード明細の枚数・保管場所・検品確認を記録してください。'},409)
+ if(result.error?.message==='collateral_inspection_required')return lendingJson({error:'全カード明細の枚数・検品確認を記録してください。'},409)
  if(result.error?.message==='all_items_return_required')return lendingJson({error:'明細の全カードを返却したことを確認してください。'},409)
- const messages:Record<string,string>={receipt_location_required:'受領カードの保管場所を入力してください。',inspection_or_consent_required:'検品と利用者の条件同意を確認してください。',version_conflict:'他の操作で更新されました。再読み込みしてください。',identity_required:'利用者の融資用本人確認が完了していません。',manual_evidence_required:'現物評価額・融資上限・評価根拠を入力してください。',inspection_required:'現物の検品内容・鑑定番号・保管場所を確認してください。',amount_invalid:'金額と見積もり上限を確認してください。',repayment_amount_mismatch:'照合した入金額が返済必要額と一致しません。',duplicate_reference:'この照合番号は記録済みです。',invalid_transition:'現在の状態ではこの操作はできません。',idempotency_conflict:'前回と送信内容が異なります。一覧を更新してください。'}
+ const messages:Record<string,string>={inspection_or_consent_required:'検品と利用者の条件同意を確認してください。',version_conflict:'他の操作で更新されました。再読み込みしてください。',identity_required:'利用者の融資用本人確認が完了していません。',manual_evidence_required:'現物評価額・融資上限・評価根拠を入力してください。',inspection_required:'現物の検品内容・鑑定番号を確認してください。',amount_invalid:'金額と見積もり上限を確認してください。',repayment_amount_mismatch:'照合した入金額が返済必要額と一致しません。',duplicate_reference:'この照合番号は記録済みです。',invalid_transition:'現在の状態ではこの操作はできません。',idempotency_conflict:'前回と送信内容が異なります。一覧を更新してください。'}
  return result.error?lendingJson({error:bankPaymentError(result.error.message)??messages[result.error.message]??'手続きを記録できません。状態と入力内容を確認してください。'},409):lendingJson({ok:true})
 }

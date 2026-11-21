@@ -12,6 +12,9 @@ export interface InboxItem {
   loanId?: string;
   caseId?: string;
   urgent?: boolean;
+  imageUrl?: string|null;
+  cardCount?: number;
+  notificationDate?: string;
 }
 
 const actionTitles: Record<string, string> = {
@@ -25,6 +28,19 @@ const actionTitles: Record<string, string> = {
   reject_request: '申請の確認結果をご確認ください', forfeit: '契約の状態をご確認ください',
 };
 
+export function inboxDateLabel(value:string,now=Date.now()):string {
+ const date=new Date(value);if(!Number.isFinite(date.getTime()))return '';
+ const zone={timeZone:'Asia/Tokyo'};
+ const day=new Intl.DateTimeFormat('en-CA',{...zone,year:'numeric',month:'2-digit',day:'2-digit'});
+ if(day.format(date)===day.format(now))return new Intl.DateTimeFormat('ja-JP',{...zone,hour:'2-digit',minute:'2-digit',hour12:false}).format(date);
+ const year=new Intl.DateTimeFormat('en',{...zone,year:'numeric'});
+ return new Intl.DateTimeFormat('ja-JP',{...zone,...(year.format(date)!==year.format(now)?{year:'numeric' as const}:{}),month:'numeric',day:'numeric'}).format(date);
+}
+function inboxCards(items:import('../../lib/lending/collateral-types').CollateralItem[]|undefined,fallback?:string|null){
+ const cardCount=items?.reduce((sum,item)=>sum+item.quantity,0)??1;
+ return {cardCount,imageUrl:cardCount===1?(items?.[0]?.imageUrl??fallback??null):null};
+}
+
 // Build the inbox from authenticated business records, never from push test logs.
 export function buildInbox(workflow: WorkflowState | null, account: AccountState | null, now: number,cases:SupportCase[]=[]): InboxItem[] {
   const items: InboxItem[] = [];
@@ -32,7 +48,7 @@ export function buildInbox(workflow: WorkflowState | null, account: AccountState
     for (const event of loan.events) {
       if (!Number.isFinite(Date.parse(event.created_at))) continue;
       items.push({ id: `loan:${loan.id}:${event.version}`, title: actionTitles[event.action] ?? `申込状況が「${LOAN_STATUS_LABELS[event.to_status]}」になりました`,
-        body: `${loan.card_name}${loan.cert_number?` / PSA ${loan.cert_number}`:''}`, date: event.created_at, dateLabel: '更新日時', target: 'loans', loanId: loan.id });
+        body: `${loan.card_name}${loan.cert_number?` / PSA ${loan.cert_number}`:''}`, date: event.created_at, dateLabel: '更新日時', target: 'loans', loanId: loan.id, ...inboxCards(loan.collateral_items) });
     }
     const due = Date.parse(loan.due_at ?? '');
     const remaining = due - now;
@@ -41,10 +57,10 @@ export function buildInbox(workflow: WorkflowState | null, account: AccountState
       const stage = remaining <= 0 ? 'overdue' : remaining <= 3 * 86400000 ? '3days' : '7days';
       items.push({ id: `due:${loan.id}:${loan.due_at}:${stage}`,
         title: remaining <= 0 ? '返済期限を過ぎています' : '返済期限が近づいています',
-        body: `${loan.card_name}の返済期限をご確認ください。`, date: loan.due_at!, dateLabel: '返済期限', target: 'loans', loanId: loan.id, urgent: true });
+        body: `${loan.card_name}の返済期限をご確認ください。`, date: loan.due_at!, dateLabel: '返済期限', target: 'loans', loanId: loan.id, urgent: true, ...inboxCards(loan.collateral_items), notificationDate:new Date(due-(stage==='7days'?7:stage==='3days'?3:0)*86400000).toISOString() });
     }
   }
-  for(const item of cases){for(const event of item.events??[]){if(event.to_status==='applied'||!Number.isFinite(Date.parse(event.created_at)))continue;items.push({id:`case:${item.id}:${event.version}`,title:`査定状況が「${SUPPORT_CASE_STATUS[event.to_status]}」になりました`,body:`${item.card_name} / 受付番号 ${item.reference}`,date:event.created_at,dateLabel:'更新日時',target:'loans',...(item.loan_id?{loanId:item.loan_id}:{caseId:item.id})});}}
+  for(const item of cases){for(const event of item.events??[]){if(event.to_status==='applied'||!Number.isFinite(Date.parse(event.created_at)))continue;items.push({id:`case:${item.id}:${event.version}`,title:`査定状況が「${SUPPORT_CASE_STATUS[event.to_status]}」になりました`,body:`${item.card_name} / 受付番号 ${item.reference}`,date:event.created_at,dateLabel:'更新日時',target:'loans',...inboxCards(item.collateral_items,item.selected_card?.image_url),...(item.loan_id?{loanId:item.loan_id}:{caseId:item.id})});}}
   for (const document of account?.documents ?? []) {
     const status = { pending: '本人確認書類を受け付けました', verified: '本人確認書類の確認が完了しました', rejected: '本人確認書類の再提出が必要です' }[document.status];
     if (!status || !Number.isFinite(Date.parse(document.uploaded_at))) continue;

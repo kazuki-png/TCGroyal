@@ -232,7 +232,7 @@ function LendingApp() {
       <ApplicationCartButton disabled={busy} count={collateralQuantity(draft.items)} onPress={()=>{setTab('assessment');setBasketRequest(value=>value+1);setError('');setNotice('')}}/>
       </View>
     </View>
-    {!(state&&tab==='assessment')&&<ScrollView ref={scroll} onScroll={event=>{scrollPositions.current[tab]=event.nativeEvent.contentOffset.y}} scrollEventThrottle={100} contentContainerStyle={[styles.content,tab==='home'&&styles.homeContent]} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.gold} />:undefined}>
+    {!(state&&(tab==='assessment'||tab==='inbox'))&&<ScrollView ref={scroll} onScroll={event=>{scrollPositions.current[tab]=event.nativeEvent.contentOffset.y}} scrollEventThrottle={100} contentContainerStyle={[styles.content,tab==='home'&&styles.homeContent]} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.gold} />:undefined}>
       {tab==='home'&&!state&&<HomeBanners active={!toolsOpen}/>}
       {state&&returnToInbox&&<Action label="お知らせ一覧に戻る" disabled={busy} onPress={()=>{setReturnToInbox(false);setFocusedLoan(null);setTab('inbox');scroll.current?.scrollTo({y:0,animated:false})}}/>}
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
@@ -251,9 +251,11 @@ function LendingApp() {
        const loan=state.loans.find(loan=>loan.id===item.loanId);
        return <>{loan?<LoanTile key={`${loan.id}-${loan.version}-${loanEntry?.id===item.id?loanEntry.panel:'summary'}`} initialPanel={loanEntry?.id===item.id?loanEntry.panel:'summary'} loan={loan} send={send} busy={busy}/>:item.caseId?<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>:<Text style={styles.muted}>一覧を更新してください。</Text>}{loan&&item.caseId&&<SupportCasesScreen showCards={false} caseId={item.caseId} onChanged={reload}/>}</>;
       }}/>}
-      {state && tab === 'inbox' && <InboxScreen items={inbox} readIds={receipts.readIds} ready={receipts.ready} saving={receipts.saving} error={receipts.error} onRead={receipts.markRead} onOpen={openInboxItem} onRefresh={() => { if (receipts.error) receipts.retry(); void refresh(); }} refreshing={busy}/>}
+
       {state && tab === 'account' && <AccountScreen initialPage={accountPage} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onUpdated={reload} onSignOut={()=>void signOut()} signingOut={busy}/>}
     </ScrollView>}
+    {state && tab === 'inbox' && <InboxScreen items={inbox} readIds={receipts.readIds} ready={receipts.ready} saving={receipts.saving} error={[error,receipts.error].filter(Boolean).join('\n')} onRead={receipts.markRead} onOpen={openInboxItem} onRefresh={() => { if(receipts.error)receipts.retry();void refresh(); }} refreshing={busy} now={now}/>}
+
       {state && <View key={getInboxStorageKey()+':'+applyRequest} style={tab==='assessment'?{flex:1}:{display:'none'}} accessibilityElementsHidden={tab!=='assessment'} importantForAccessibility={tab==='assessment'?'auto':'no-hide-descendants'}><AssessmentScreen onBusyChange={setBusy} onApplied={reload} active={tab==='assessment'&&!toolsOpen} items={draft.items} onChange={draft.change} form={draft.form} onFormChange={draft.changeForm} ready={draft.ready} error={draft.error} basketRequest={basketRequest} onCloseCamera={()=>switchTab('home')}/></View>}
     <View accessibilityRole="tablist" style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
       {([['home','ホーム','home'],['loans','取引状況','transactions'],['assessment','申し込み','plus'],['inbox','お知らせ','mail'],['account','マイページ','person']] as const).map(([key,label,icon]) => <Pressable key={key} accessibilityRole="tab" disabled={busy} accessibilityLabel={key==='assessment'?`申し込み、申込リスト${collateralQuantity(draft.items)}枚`:key === 'inbox' && unreadCount ? `お知らせ、未読${unreadCount}件` : label} accessibilityState={{selected: tab === key}} onPress={() => switchTab(key)} style={[styles.tab, tab === key && key!=='assessment'&&styles.activeTab]}>

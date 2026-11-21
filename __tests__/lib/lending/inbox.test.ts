@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildInbox, parseReadIds } from '../../../mobile/src/inbox';
+import { buildInbox, parseReadIds, inboxDateLabel } from '../../../mobile/src/inbox';
 import type { WorkflowLoan, WorkflowState } from '@/lib/lending/workflow-types';
 import type { AccountState } from '@/lib/lending/mobile-types';
 import type {SupportCase} from '@/lib/lending/support-case-types';
@@ -74,4 +74,19 @@ describe('business inbox', () => {
     expect(() => parseReadIds('{"admin":true}')).toThrow();
     expect(() => parseReadIds('[123]')).toThrow();
   });
+});
+
+it('formats notification timestamps by the Japanese calendar day',()=>{
+ const now=Date.parse('2026-11-21T00:15:00Z');
+ expect(inboxDateLabel('2026-11-20T15:30:00Z',now)).toBe('00:30');
+ expect(inboxDateLabel('2026-11-20T14:59:00Z',now)).toBe('11/20');
+ expect(inboxDateLabel('2025-11-20T14:59:00Z',now)).toBe('2025/11/20');
+ expect(inboxDateLabel('bad',now)).toBe('');
+});
+it('uses one card thumbnail and a stack for multiple physical cards',()=>{
+ const card={id:'one',name:'one',quantity:1,imageUrl:'https://example.com/card.jpg'};
+ const single=buildInbox(state([{...loan,due_at:null,collateral_items:[card] as WorkflowLoan['collateral_items']}]),null,now)[0];
+ expect(single).toMatchObject({cardCount:1,imageUrl:card.imageUrl});
+ const multi=buildInbox(state([{...loan,due_at:null,collateral_items:[{...card,quantity:2}] as WorkflowLoan['collateral_items']}]),null,now)[0];
+ expect(multi).toMatchObject({cardCount:2,imageUrl:null});
 });

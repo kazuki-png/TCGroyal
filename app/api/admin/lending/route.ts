@@ -1,3 +1,4 @@
+import {estimateBundle} from '@/lib/lending/bundle-estimate'
 import {bankPaymentPreview,bankPaymentInput} from '@/lib/lending/bank-payment'
 import {bankPaymentError} from '@/lib/lending/bank-payment-errors'
 import {z} from 'zod'
@@ -49,7 +50,8 @@ export async function POST(request:Request){
   if(!parsed.success)return lendingJson({error:'入力内容と確認欄を確認してください。'},400)
   const input=parsed.data
   if(input.action==='accept')return lendingJson({error:'見積もりへの同意・申込は利用者が行います。'},403)
-  const result=input.action==='create'?await db.rpc('lending_support_create',{p_actor:actor.id,p_input:{...input.draft,consent:input.consent,...(input.userId?{userId:input.userId}:{}),...(input.contactLabel!==undefined?{contactLabel:input.contactLabel}:{})},p_key:input.key}):await db.rpc('lending_support_command',{p_actor:actor.id,p_case:input.caseId,p_action:input.action,p_payload:input.payload,p_key:input.key,p_version:input.version})
+  const applicationEstimate=input.action==='create'&&input.draft.items?.length?await estimateBundle(input.draft.items):undefined
+  const result=input.action==='create'?await db.rpc('lending_support_create',{p_actor:actor.id,p_input:{...input.draft,applicationEstimate,consent:input.consent,...(input.userId?{userId:input.userId}:{}),...(input.contactLabel!==undefined?{contactLabel:input.contactLabel}:{})},p_key:input.key}):await db.rpc('lending_support_command',{p_actor:actor.id,p_case:input.caseId,p_action:input.action,p_payload:input.payload,p_key:input.key,p_version:input.version})
   if(!result.error)scheduleStatusNotifications('case',result.data.id)
   return result.error?lendingJson({error:supportCaseError(result.error.message)},409):lendingJson({case:result.data})
  }

@@ -13,6 +13,32 @@ describe('lending status management',()=>{
   fireEvent.click(screen.getByRole('button',{name:'ステータス・手続きを更新'}));
   await waitFor(()=>expect(send).toHaveBeenCalledWith({action:'review',caseId:'case',version:3,payload:{message:''}}));
  })
+ it('defaults to the saved application estimate and requires a reason only when valuation changes',async()=>{
+  const send=vi.fn().mockResolvedValue(true);
+  render(<CaseAction item={{id:'case',version:3,status:'reviewing',user_id:'owner',application_estimate:{valuationJpy:1051740,amountJpy:315522}} as SupportCase} busy={false} send={send}/>);
+  fireEvent.change(screen.getByRole('combobox'),{target:{value:'offer'}});
+  const valuation=screen.getByLabelText('確認したカード評価額（円）');
+  expect(valuation).toHaveValue(1051740);
+  expect(screen.getByLabelText('融資参考額（円）')).toHaveValue(315522);
+  expect(screen.getByRole('textbox')).not.toBeRequired();
+  fireEvent.click(screen.getByRole('button',{name:'ステータス・手続きを更新'}));
+  await waitFor(()=>expect(send).toHaveBeenCalledWith(expect.objectContaining({payload:{message:'',amountJpy:315522,valuationJpy:1051740}})));
+  send.mockClear();
+  fireEvent.change(valuation,{target:{value:'1000000'}});
+  expect(screen.getByRole('textbox')).toBeRequired();
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'   '}});
+  fireEvent.click(screen.getByRole('button',{name:'ステータス・手続きを更新'}));
+  expect(send).not.toHaveBeenCalled();
+  fireEvent.change(valuation,{target:{value:'1051740'}});
+  expect(screen.getByRole('textbox')).not.toBeRequired();
+ });
+ it('leaves missing historical estimates blank',()=>{
+  render(<CaseAction item={{id:'case',version:1,status:'reviewing',user_id:'owner'} as SupportCase} busy={false} send={vi.fn()}/>);
+  fireEvent.change(screen.getByRole('combobox'),{target:{value:'offer'}});
+  expect(screen.getByLabelText('確認したカード評価額（円）')).toHaveValue(null);
+  expect(screen.getByLabelText('融資参考額（円）')).toHaveValue(null);
+  expect(screen.getByRole('textbox')).not.toBeRequired();
+ });
  it('requires a reason for a supported rollback and never exposes rollback for a linked loan',()=>{
   const {rerender}=render(<RevertCaseStatus item={{id:'case',status:'offered',version:2,loan_id:null} as SupportCase} busy={false} send={vi.fn()}/>);
   expect(screen.getByRole('button',{name:'理由を記録してステータスを戻す',hidden:true})).toBeDisabled();

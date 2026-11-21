@@ -12,6 +12,10 @@ export function CatalogEvidence({item}:{item:SupportCase}){
 }
 export function CaseAction({item,busy,send}:{item:SupportCase;busy:boolean;send:(body:Record<string,unknown>)=>Promise<unknown>}){
  const [action,setAction]=useState('review')
+ const [validation,setValidation]=useState('')
+ const originalValuation=item.application_estimate?.valuationJpy??null
+ const [valuation,setValuation]=useState(String(originalValuation??''))
+ const reasonRequired=action==='offer'&&originalValuation!==null&&valuation!==''&&Number(valuation)!==originalValuation
  const terminal=['applied','declined','cancelled'].includes(item.status)
  const options=[...(!item.user_id?['link']:[]),...(['registered','information_required','reviewing'].includes(item.status)?['review']:[]),'request_info',...(item.user_id&&['reviewing','information_required','offered'].includes(item.status)?['offer']:[]),'decline','cancel']
  const selected=options.includes(action)?action:options[0]
@@ -19,11 +23,14 @@ export function CaseAction({item,busy,send}:{item:SupportCase;busy:boolean;send:
  async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();const form=new FormData(event.currentTarget);const payload:Record<string,unknown>={};
   if(selected==='link')payload.userId=form.get('userId');else payload.message=form.get('message')
   if(selected==='offer'){payload.amountJpy=Number(form.get('amount'));payload.valuationJpy=Number(form.get('valuation'))}
+  if(selected==='offer'&&originalValuation!==null&&payload.valuationJpy!==originalValuation&&!String(payload.message??'').trim()){setValidation('評価額の変更理由を入力してください。');return}
+  setValidation('')
   await send({action:selected,caseId:item.id,version:item.version,payload})
  }
  return <form onSubmit={submit}><fieldset disabled={busy} className="space-y-3"><label className="block text-sm">変更先ステータス・手続き<select value={selected} onChange={e=>setAction(e.target.value)} className={input}>{options.map(value=><option key={value} value={value}>{({link:'会員を紐付ける',review:'査定中',request_info:'追加情報を依頼',offer:'見積もり提示（条件を入力）',decline:'見送り',cancel:'相談をキャンセル'} as Record<string,string>)[value]}</option>)}</select></label>
-  {selected==='link'?<label className="block text-sm">本人と照合した会員ID（UUID）<input name="userId" required className={input} placeholder="会員のユーザーID"/></label>:<label className="block text-sm">利用者に表示する案内・見積もり根拠（任意）<textarea name="message" maxLength={500} className={input}/></label>}
-  {selected==='offer'&&<><label className="block text-sm">確認したカード評価額（円）<input name="valuation" type="number" min={1} max={1000000000} required className={input}/></label><label className="block text-sm">融資参考額（円）<input name="amount" type="number" min={100000} max={10000000} step={10000} required className={input}/></label><p className="text-xs text-zinc-400">24時間有効の見積もりです。申込は利用者がアプリで行い、現物検品後に最終条件へ改めて同意します。</p></>}
+  {selected==='link'?<label className="block text-sm">本人と照合した会員ID（UUID）<input name="userId" required className={input} placeholder="会員のユーザーID"/></label>:<label className="block text-sm">利用者に表示する案内・見積もり根拠（{reasonRequired?'必須':'任意'}）<textarea name="message" onChange={()=>setValidation('')} required={reasonRequired} maxLength={500} className={input}/></label>}
+  {selected==='offer'&&<><label className="block text-sm">確認したカード評価額（円）<input name="valuation" value={valuation} onChange={event=>{setValuation(event.target.value);setValidation('')}} type="number" min={1} max={1000000000} required className={input}/></label><label className="block text-sm">融資参考額（円）<input name="amount" defaultValue={item.application_estimate?.amountJpy??item.indicative_jpy??''} type="number" min={100000} max={10000000} step={1} required className={input}/></label><p className="text-xs text-zinc-400">24時間有効の見積もりです。申込は利用者がアプリで行い、現物検品後に最終条件へ改めて同意します。</p></>}
+  {validation&&<p role="alert">{validation}</p>}
   <button className={button} type="submit">ステータス・手続きを更新</button></fieldset></form>
 }
 export function SupportCaseManager({role='admin',onChanged}:{role?:'admin'|'customer';onChanged?:()=>Promise<void>}){

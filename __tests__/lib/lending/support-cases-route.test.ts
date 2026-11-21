@@ -54,3 +54,15 @@ it('enforces the server quote ceiling and allows a manual basket above the old c
  mocks.estimate.mockResolvedValue({amountJpy:null,expiresAt:'2099-01-01'});
  expect((await POST(request(body))).status).toBe(200);
 });
+
+it('persists only the server-calculated application estimate',async()=>{
+ const item={id:key,name:'カード',cardNumber:'001',quantity:1,grade:'PSA10',condition:'',source:'snkrdunk',productId:'123',cardUid:null};
+ const estimate={valuationJpy:1051740,amountJpy:315522,lines:[],calculatedAt:'2026-11-21T00:00:00Z',expiresAt:'2099-01-01'};
+ mocks.estimate.mockResolvedValue(estimate);
+ const body={action:'create',draft:{...draft,items:[item]},consent:true,key};
+ expect((await POST(request(body))).status).toBe(200);
+ expect(mocks.rpc).toHaveBeenCalledWith('lending_support_create',expect.objectContaining({p_input:expect.objectContaining({applicationEstimate:estimate})}));
+ mocks.rpc.mockClear();
+ expect((await POST(request({...body,applicationEstimate:{valuationJpy:1}}))).status).toBe(400);
+ expect(mocks.rpc).not.toHaveBeenCalled();
+});

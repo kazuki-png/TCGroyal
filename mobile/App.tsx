@@ -43,7 +43,7 @@ function Action({ label, onPress, disabled = false }: { label: string; onPress: 
   return <Button title={label} disabled={disabled} onPress={onPress}/>;
 }
 type Send = (body: Record<string, unknown>) => Promise<void>;
-function LoanTile({ loan, send, busy,initialPanel='summary' }: { loan: WorkflowLoan; send: Send; busy: boolean;initialPanel?:'summary'|'repayment'|'extension' }) {
+function LoanTile({ loan, reference, send, busy,initialPanel='summary' }: { loan: WorkflowLoan;reference:string; send: Send; busy: boolean;initialPanel?:'summary'|'repayment'|'extension' }) {
   const [cancelReason, setCancelReason] = useState('');
   const [consent, setConsent] = useState(false);
   const [additionalConsent, setAdditionalConsent] = useState(false);
@@ -55,8 +55,8 @@ function LoanTile({ loan, send, busy,initialPanel='summary' }: { loan: WorkflowL
   const paymentPanel=panel==='repayment'||panel==='extension';
   useAppBack(panel!=='summary',20,()=>{if(!busy)setPanel('summary');return true});
   return <View style={[styles.card,paymentPanel&&{padding:12,gap:10,borderRadius:12}]}>
-    <Text style={styles.badge}>{LOAN_STATUS_LABELS[loan.status]}</Text>
-    {(paymentPanel||!loan.collateral_items?.length)&&<Text style={styles.title} numberOfLines={2}>{loan.card_name}</Text>}
+    <Text style={styles.badge}>{LOAN_STATUS_LABELS[loan.status]} · {reference}</Text>
+    {(paymentPanel||!loan.collateral_items?.length)&&<Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">{loan.card_name}</Text>}
     {!paymentPanel&&<><CollateralLines items={loan.collateral_items}/>
     <Text style={styles.muted}>{loan.cert_number?`PSA / 鑑定番号 ${loan.cert_number}`:'個別見積もり'}</Text>
     <Text style={styles.muted}>{['active','repayment_pending'].includes(loan.status) ? '借入元本' : '申込希望額'}</Text>
@@ -234,7 +234,6 @@ function LendingApp() {
     </View>
     {!(state&&(tab==='assessment'||tab==='inbox'))&&<ScrollView ref={scroll} onScroll={event=>{scrollPositions.current[tab]=event.nativeEvent.contentOffset.y}} scrollEventThrottle={100} contentContainerStyle={[styles.content,tab==='home'&&styles.homeContent]} keyboardShouldPersistTaps="handled" refreshControl={state?<RefreshControl refreshing={busy} onRefresh={() => void refresh()} tintColor={colors.gold} />:undefined}>
       {tab==='home'&&!state&&<HomeBanners active={!toolsOpen}/>}
-      {state&&returnToInbox&&<Action label="お知らせ一覧に戻る" disabled={busy} onPress={()=>{setReturnToInbox(false);setFocusedLoan(null);setTab('inbox');scroll.current?.scrollTo({y:0,animated:false})}}/>}
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       {notice ? <Text accessibilityLiveRegion="polite" style={styles.success}>{notice}</Text> : null}
       {!state && (busy || restoring) && <ActivityIndicator accessibilityLabel="接続を確認中" color={colors.gold} />}
@@ -249,7 +248,7 @@ function LendingApp() {
       {state?.transactionsUnavailable&&<Text style={styles.error}>査定依頼の一部を取得できません。一覧を更新してください。</Text>}
       {state && tab==='loans'&&<TransactionList items={transactions} selectedId={focusedLoan} onSelect={id=>{setLoanEntry(null);setFocusedLoan(id);scroll.current?.scrollTo({y:0,animated:false})}} onApply={()=>switchTab('assessment')} renderDetail={item=>{
        const loan=state.loans.find(loan=>loan.id===item.loanId);
-       return <>{loan?<LoanTile key={`${loan.id}-${loan.version}-${loanEntry?.id===item.id?loanEntry.panel:'summary'}`} initialPanel={loanEntry?.id===item.id?loanEntry.panel:'summary'} loan={loan} send={send} busy={busy}/>:item.caseId?<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>:<Text style={styles.muted}>一覧を更新してください。</Text>}{loan&&item.caseId&&<SupportCasesScreen showCards={false} caseId={item.caseId} onChanged={reload}/>}</>;
+       return <>{loan?<LoanTile key={`${loan.id}-${loan.version}-${loanEntry?.id===item.id?loanEntry.panel:'summary'}`} initialPanel={loanEntry?.id===item.id?loanEntry.panel:'summary'} loan={loan} reference={item.reference} send={send} busy={busy}/>:item.caseId?<SupportCasesScreen caseId={item.caseId} onChanged={reload}/>:<Text style={styles.muted}>一覧を更新してください。</Text>}{loan&&item.caseId&&<SupportCasesScreen showCards={false} caseId={item.caseId} onChanged={reload}/>}</>;
       }}/>}
 
       {state && tab === 'account' && <AccountScreen initialPage={accountPage} onTransactions={()=>{switchTab('loans');setFocusedLoan(null)}} onUpdated={reload} onSignOut={()=>void signOut()} signingOut={busy}/>}

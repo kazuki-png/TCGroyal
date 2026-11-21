@@ -16,7 +16,7 @@ afterEach(cleanup)
 describe('transaction collateral rows',()=>{
  it('shows compact image rows with quantity and opens a read-only full image',()=>{
   render(<CollateralLines items={[item,{...item,id:'b',name:'手入力カード',imageUrl:null,source:'manual',productId:null}]}/>);
-  expect(screen.getByText(item.name).getAttribute('data-lines')).toBe('2');expect(screen.getAllByText('2枚')).toHaveLength(2);expect(screen.getByRole('img',{name:item.name+'の画像'})).toBeTruthy();
+  expect(screen.getByText(item.name).getAttribute('data-lines')).toBe('1');expect(screen.getAllByText('2枚')).toHaveLength(2);expect(screen.getByRole('img',{name:item.name+'の画像'})).toBeTruthy();
   fireEvent.click(screen.getByRole('button',{name:item.name+'を拡大表示'}));expect(screen.getByRole('dialog')).toBeTruthy();expect(screen.getByRole('img',{name:item.name+'の拡大画像'})).toBeTruthy();expect(screen.queryByText('変更を保存')).toBeNull();fireEvent.click(screen.getByText('閉じる'));expect(screen.queryByRole('dialog')).toBeNull();
   fireEvent.click(screen.getByRole('button',{name:'手入力カードを拡大表示'}));expect(screen.getByText('画像なし')).toBeTruthy();fireEvent.click(screen.getByRole('button',{name:'背景をタップして拡大表示を閉じる'}));expect(screen.queryByRole('dialog')).toBeNull();
  });

@@ -26,7 +26,10 @@ export async function POST(request:Request){
   if(error)return lendingJson({error},422);
  }
  const db=createWorkflowClient()
- const result=input.action==='create'?await db.rpc('lending_support_create',{p_actor:actor.id,p_input:{...input.draft,consent:input.consent,...(input.userId?{userId:input.userId}:{}),...(input.contactLabel!==undefined?{contactLabel:input.contactLabel}:{})},p_key:input.key}):await db.rpc('lending_support_command',{p_actor:actor.id,p_case:input.caseId,p_action:input.action,p_payload:input.payload,p_key:input.key,p_version:input.version})
+ // An app submission has no staff-only fields. Admin accounts using the app
+ // must still own their submission; the dedicated admin route keeps manual intake.
+ const appOwner=input.action==='create'&&actor.role==='admin'&&input.userId===undefined&&input.contactLabel===undefined?{userId:actor.id}:{}
+ const result=input.action==='create'?await db.rpc('lending_support_create',{p_actor:actor.id,p_input:{...input.draft,consent:input.consent,...appOwner,...(input.userId?{userId:input.userId}:{}),...(input.contactLabel!==undefined?{contactLabel:input.contactLabel}:{})},p_key:input.key}):await db.rpc('lending_support_command',{p_actor:actor.id,p_case:input.caseId,p_action:input.action,p_payload:input.payload,p_key:input.key,p_version:input.version})
  if(result.error)return lendingJson({error:supportCaseError(result.error.message)},409)
  scheduleStatusNotifications()
  return lendingJson({case:result.data})

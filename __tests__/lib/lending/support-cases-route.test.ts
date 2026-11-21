@@ -10,6 +10,21 @@ const draft={reason:'ungraded',cardName:'未鑑定カード',cardNumber:'',condi
 const request=(body:unknown)=>new Request('https://preview.example/api/lending/support-cases',{method:'POST',body:JSON.stringify(body)})
 beforeEach(()=>{vi.clearAllMocks();mocks.access.mockResolvedValue({id:actor,role:'customer'});mocks.client.mockReturnValue({rpc:mocks.rpc});mocks.rpc.mockResolvedValue({data:{id,reference:'TR-123456ABCDEF'},error:null})})
 describe('tracked support case API',()=>{
+ it('binds an admin using the user app to their own verified account',async()=>{
+  mocks.access.mockResolvedValue({id:actor,role:'admin'})
+  const body={action:'create',draft,consent:true,key}
+  expect((await POST(request(body))).status).toBe(200)
+  expect(mocks.rpc).toHaveBeenCalledWith('lending_support_create',{p_actor:actor,p_input:{...draft,consent:true,userId:actor},p_key:key})
+  expect((await POST(request(body))).status).toBe(200)
+  expect(mocks.rpc.mock.calls[0]).toEqual(mocks.rpc.mock.calls[1])
+ })
+ it('preserves explicit staff intake and member assignment',async()=>{
+  mocks.access.mockResolvedValue({id:actor,role:'admin'})
+  for(const fields of [{contactLabel:'LINE受付'},{userId:id,contactLabel:''}]){
+   expect((await POST(request({action:'create',draft,consent:true,key,...fields}))).status).toBe(200)
+   expect(mocks.rpc).toHaveBeenLastCalledWith('lending_support_create',{p_actor:actor,p_input:{...draft,consent:true,...fields},p_key:key})
+  }
+ })
  it('binds creation to the verified caller, requires consent and keeps the retry key',async()=>{
   expect((await POST(request({action:'create',draft,consent:true,key}))).status).toBe(200)
   expect(mocks.rpc).toHaveBeenCalledWith('lending_support_create',{p_actor:actor,p_input:{...draft,consent:true},p_key:key})

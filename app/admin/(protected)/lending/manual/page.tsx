@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { LendingStatusFlow } from './LendingStatusFlow'
 import type {Metadata} from 'next'
 export const metadata:Metadata={title:'融資ステータス仕様 | 管理者マニュアル'}
 const intake=[
@@ -25,14 +26,12 @@ const payments=[
  ['質流れ確定','結果・履歴確認・問い合わせ','確定理由記録・担保の処分管理','forfeited'],
  ['見送り／キャンセル','結果確認・問い合わせ','理由や経緯の記録、預かりカードの返却','declined / rejected / cancelled'],
 ]
-function Steps({title,items}:{title:string;items:string[]}){return <section className="rounded-xl border border-emerald-300 bg-[#ecfdf5] p-4"><h3 className="mb-3 font-bold text-emerald-900">{title}</h3><ol className="space-y-2">{items.map((item,i)=><li key={item}><div className="rounded-lg border border-slate-300 bg-[#ffffff] px-3 py-2 text-sm">{item}</div>{i<items.length-1&&<div aria-hidden="true" className="text-center text-emerald-700">↓</div>}</li>)}</ol></section>}
 function Actions({rows}:{rows:string[][]}){return <div className="overflow-x-auto rounded-xl border border-slate-300"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-slate-100"><tr>{['状態','ユーザーの操作','管理者の操作','現行実装との対応'].map(v=><th key={v} scope="col" className="p-3">{v}</th>)}</tr></thead><tbody>{rows.map(([state,...cells])=><tr key={state} className="border-t border-slate-300 align-top"><th scope="row" className="w-1/5 p-3 font-semibold">{state}</th>{cells.map((v,i)=><td key={i} className="p-3 leading-6">{v}</td>)}</tr>)}</tbody></table></div>}
 export default function LendingManual(){return <article className="mx-auto max-w-6xl space-y-7 rounded-2xl bg-[#ffffff] p-5 text-slate-800 sm:p-8">
  <header><Link href="/admin/lending" className="text-sm text-emerald-800 underline">融資管理へ戻る</Link><h1 className="mt-3 text-2xl font-bold">融資ステータス仕様</h1><p className="mt-2 text-sm text-slate-600">管理者用マニュアル · 2026年11月21日更新</p><p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">合意した運用の整理案です。「追加予定」「分離予定」は未実装です。このページの追加でステータスや金銭処理は変更されません。</p></header>
  <nav aria-label="マニュアルの目次" className="flex flex-wrap gap-4 text-sm text-emerald-800">{[['flow','全体フロー'],['actions','ステータス別の操作'],['rules','返済・延長ルール'],['operation','運用上の注意']].map(([id,label])=><a key={id} href={'#'+id} className="underline">{label}</a>)}</nav>
  <section id="flow" className="scroll-mt-6 space-y-4"><h2 className="text-xl font-bold">全体フロー</h2><p className="text-sm">案件全体と、返済・延長などの手続き状況を分けます。延長中も同じ案件を維持し、「契約中・延長入金確認待ち」と表示します。</p>
- <Steps title="申請から融資実行" items={['申請受付 → 事前査定中','追加情報が必要 → 追加情報待ち → 提出確認後、事前査定へ戻る','概算見積もり・発送同意待ち → 利用者が同意','カード発送待ち → 発送登録 → カード到着待ち','受領済み・現物査定中 → 正式条件の同意待ち','利用者が正式条件に同意 → 融資振込待ち','管理者が振込実行を確認 → 契約中']}/>
- <div className="grid gap-4 lg:grid-cols-3"><Steps title="全額返済" items={['契約中 → 必要額・振込先確認','利用者が振込・申告 → 返済入金確認待ち','不足・未着金 → 要対応 → 再確認','管理者が着金確認 → カード返却待ち','カード返送中 → 受取・配達確認 → 返却完了']}/><Steps title="1か月延長" items={['契約中 → 質料・新期限確認','利用者が振込・申告 → 延長入金確認待ち','不足・照合不能 → 要対応 → 再確認','期限内の申告・着金を確認 → 延長成立','期限を1か月更新 → 契約中へ戻る']}/><Steps title="期限超過・質流れ" items={['満期超過 → 期限超過・確認待ち','未確認入金・返済申告・延長申告を照合','期限内の延長条件を満たす → 延長成立 → 契約中','返済の着金を確認 → カード返却待ち','未解決の入金を照合し、条件を確認 → 質流れ確定']}/></div>
+ <LendingStatusFlow/>
  <p className="rounded-lg bg-slate-100 p-3 text-sm">取消・見送り：カードを受領していなければ終了。預かっている場合は、現物査定済みかどうかにかかわらず返却工程へ進めます。現行の受領・検品判定は今後分離します。</p></section>
  <section id="actions" className="scroll-mt-6 space-y-4"><h2 className="text-xl font-bold">ステータス別の操作</h2><Actions rows={intake}/><Actions rows={payments}/></section>
  <section id="rules" className="scroll-mt-6 space-y-3"><h2 className="text-xl font-bold">返済・延長ルール</h2><ul className="list-disc space-y-2 pl-5 text-sm leading-7"><li>当初の期限は融資実行日から3か月。日本時間の満期日23:59を基準に扱います。</li><li>期限前の全額返済は可能。月単位で計算し最低1か月分。期限前は「期限前返済手数料」、満期日の返済・延長分は「質料」と表示します。</li><li>延長は未払いの経過期間分の質料を支払い、1か月ずつ。元金返済は不要、原則回数無制限、自動延長なし。</li><li>延長には満期日23:59までの申告と着金が必要です。振込予約だけでは成立しません。期限内の申告・着金が確認できれば、管理者の確認が翌日以降でも処理できます。</li><li>支払済み期間の質料は二重請求しません。金額はサーバーの計算結果で確認します。</li><li>満期3日前・前日にプッシュ通知とメールで案内します。延長後は新しい期限を基準にします。</li></ul></section>

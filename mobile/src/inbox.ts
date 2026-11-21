@@ -38,7 +38,7 @@ export function inboxDateLabel(value:string,now=Date.now()):string {
 }
 function inboxCards(items:import('../../lib/lending/collateral-types').CollateralItem[]|undefined,fallback?:string|null){
  const cardCount=items?.reduce((sum,item)=>sum+item.quantity,0)??1;
- return {cardCount,imageUrl:cardCount===1?(items?.[0]?.imageUrl??fallback??null):null};
+ return {cardCount,imageUrl:items?.find(item=>item.imageUrl?.trim())?.imageUrl||fallback||null};
 }
 
 // Build the inbox from authenticated business records, never from push test logs.

@@ -83,10 +83,14 @@ it('formats notification timestamps by the Japanese calendar day',()=>{
  expect(inboxDateLabel('2025-11-20T14:59:00Z',now)).toBe('2025/11/20');
  expect(inboxDateLabel('bad',now)).toBe('');
 });
-it('uses one card thumbnail and a stack for multiple physical cards',()=>{
+it('uses the first available card image even for multiple physical cards',()=>{
  const card={id:'one',name:'one',quantity:1,imageUrl:'https://example.com/card.jpg'};
  const single=buildInbox(state([{...loan,due_at:null,collateral_items:[card] as WorkflowLoan['collateral_items']}]),null,now)[0];
  expect(single).toMatchObject({cardCount:1,imageUrl:card.imageUrl});
  const multi=buildInbox(state([{...loan,due_at:null,collateral_items:[{...card,quantity:2}] as WorkflowLoan['collateral_items']}]),null,now)[0];
- expect(multi).toMatchObject({cardCount:2,imageUrl:null});
+ expect(multi).toMatchObject({cardCount:2,imageUrl:card.imageUrl});
+ const later=buildInbox(state([{...loan,due_at:null,collateral_items:[{...card,imageUrl:null},card] as WorkflowLoan['collateral_items']}]),null,now)[0];
+ expect(later).toMatchObject({cardCount:2,imageUrl:card.imageUrl});
+ const missing=buildInbox(state([{...loan,due_at:null,collateral_items:[{...card,quantity:2,imageUrl:null}] as WorkflowLoan['collateral_items']}]),null,now)[0];
+ expect(missing).toMatchObject({cardCount:2,imageUrl:null});
 });

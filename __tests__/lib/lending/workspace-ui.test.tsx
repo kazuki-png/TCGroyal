@@ -18,6 +18,7 @@ describe('physical inspection form', () => {
   it.each(['12345678', null])('sends the checked inspection and storage for certificate %s', async cert => {
     const send = vi.fn().mockResolvedValue(undefined)
     render(<LoanCard loan={{...submitted, cert_number: cert}} admin send={send} busy={false} />)
+    fireEvent.change(screen.getByLabelText('変更先ステータス・手続き'), {target:{value:'receive'}})
     if (cert) fireEvent.change(screen.getByLabelText('現物のPSA鑑定番号'), {target:{value:cert}})
     else expect(screen.queryByLabelText('現物のPSA鑑定番号')).not.toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('保管場所'), {target:{value:'  金庫A / 棚01  '}})
@@ -30,6 +31,7 @@ describe('physical inspection form', () => {
   it('explains a mismatched certificate and allows correction without losing the storage entry', async () => {
     const send = vi.fn().mockResolvedValue(undefined)
     render(<LoanCard loan={submitted} admin send={send} busy={false} />)
+    fireEvent.change(screen.getByLabelText('変更先ステータス・手続き'), {target:{value:'receive'}})
     fireEvent.change(screen.getByLabelText('現物のPSA鑑定番号'), {target:{value:'99999999'}})
     fireEvent.change(screen.getByLabelText('保管場所'), {target:{value:'金庫A'}})
     fireEvent.click(screen.getByRole('checkbox'))
@@ -44,6 +46,7 @@ describe('physical inspection form', () => {
   it('rejects a whitespace-only storage location', () => {
     const send=vi.fn()
     render(<LoanCard loan={{...submitted,cert_number:null}} admin send={send} busy={false} />)
+    fireEvent.change(screen.getByLabelText('変更先ステータス・手続き'), {target:{value:'receive'}})
     fireEvent.change(screen.getByLabelText('保管場所'), {target:{value:'   '}})
     fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', {name:'ステータス・手続きを更新'}))
@@ -107,6 +110,7 @@ describe('customer lending workspace', () => {
     }))
     render(<LendingWorkspace demo />)
     await screen.findByText('到着待ち')
+    fireEvent.click(screen.getByLabelText('申込をキャンセルし、預けたカードの返却を依頼します'))
     fireEvent.click(screen.getByRole('button', { name: '申込をキャンセル' }))
     await screen.findByRole('alert')
     await waitFor(() => expect(screen.getByRole('button', { name: '申込をキャンセル' })).toBeEnabled())
@@ -114,4 +118,32 @@ describe('customer lending workspace', () => {
     await waitFor(() => expect(requests).toHaveLength(2))
     expect(requests[0].key).toBe(requests[1].key)
   })
+})
+
+describe('custody cancellation',()=>{
+ it('records arrival without claiming that inspection is complete',async()=>{
+  const send=vi.fn().mockResolvedValue(undefined)
+  render(<LoanCard loan={submitted} admin send={send} busy={false}/>)
+  fireEvent.change(screen.getByLabelText('受領カードの保管場所'),{target:{value:'受領棚A'}})
+  fireEvent.click(screen.getByRole('button',{name:'ステータス・手続きを更新'}))
+  await waitFor(()=>expect(send).toHaveBeenCalledWith(expect.objectContaining({action:'arrive',payload:{location:'受領棚A'}})))
+ })
+ it('keeps offers unavailable until inspection is recorded',()=>{
+  render(<LoanCard loan={{...submitted,status:'received',received_at:'2026-11-21T00:00:00Z',inspected_at:null}} admin send={vi.fn()} busy={false}/>)
+  expect(screen.queryByRole('option',{name:/最終条件を提示/})).not.toBeInTheDocument()
+  expect(screen.getByLabelText('保管場所')).toBeInTheDocument()
+ })
+ it('lets the owner cancel an uninspected received card with an audit reason',async()=>{
+  const send=vi.fn().mockResolvedValue(undefined)
+  render(<LoanCard loan={{...submitted,status:'received',version:2,received_at:'2026-11-21T00:00:00Z',inspected_at:null}} admin={false} send={send} busy={false}/>)
+  fireEvent.change(screen.getByLabelText('キャンセル理由（任意）'),{target:{value:'融資が不要になった'}})
+  fireEvent.click(screen.getByLabelText('申込をキャンセルし、預けたカードの返却を依頼します'))
+  fireEvent.click(screen.getByRole('button',{name:'申込をキャンセル'}))
+  await waitFor(()=>expect(send).toHaveBeenCalledWith(expect.objectContaining({action:'cancel',version:2,payload:{reason:'融資が不要になった'}})))
+ })
+ it('offers only return handling after cancellation',()=>{
+  render(<LoanCard loan={{...submitted,status:'return_pending',version:3}} admin send={vi.fn()} busy={false}/>)
+  expect(screen.queryByRole('option',{name:/最終条件を提示|出金を記録/})).not.toBeInTheDocument()
+  expect(screen.getByRole('option',{name:/返却を記録/})).toBeInTheDocument()
+ })
 })

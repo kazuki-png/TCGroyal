@@ -9,7 +9,7 @@ export interface LendingTransaction {
  amountJpy:number|null;amountLabel:string;dueAt:string|null;updatedAt:string;
 }
 const complete=new Set(['returned','forfeited','rejected','cancelled'])
-const actions:Record<string,string>={submitted:'発送・受付内容を確認',received:'検品内容を確認',offered:'融資条件を確認',accepted:'振込手続きを確認',active:'返済手続きを確認',repayment_pending:'返済の申告内容を確認',return_pending:'返却状況を確認'}
+const actions:Record<string,string>={submitted:'発送・受付内容を確認',received:'現物査定の状況を確認',offered:'融資条件を確認',accepted:'振込手続きを確認',active:'返済手続きを確認',repayment_pending:'返済の申告内容を確認',return_pending:'返却状況を確認'}
 export function buildTransactions(loans:WorkflowLoan[],cases:SupportCase[],now=Date.now()):LendingTransaction[]{
  const byLoan=new Map(cases.filter(item=>item.loan_id).map(item=>[item.loan_id,item]))
  const loanIds=new Set(loans.map(item=>item.id))

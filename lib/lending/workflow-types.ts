@@ -1,13 +1,14 @@
 export const LOAN_STATUS_LABELS = {
-  submitted: '到着待ち', received: '検品済み', offered: '条件の確認待ち', accepted: '出金待ち',
+  submitted: '到着待ち', received: '受領済み・現物査定中', offered: '条件の確認待ち', accepted: '出金待ち',
   active: '契約中', repayment_pending: '入金確認待ち', return_pending: '返却待ち',
   returned: '返却済み', forfeited: '質流れ', rejected: '見送り', cancelled: 'キャンセル',
 } as const
 export type LoanStatus = keyof typeof LOAN_STATUS_LABELS
-export type LoanCommand = 'receive' | 'offer' | 'accept' | 'fund' | 'cancel' | 'reject'
+export type LoanCommand = 'arrive' | 'receive' | 'offer' | 'accept' | 'fund' | 'cancel' | 'reject'
   | 'report_repayment' | 'reject_repayment' | 'confirm_repayment' | 'return' | 'request_extension'
   | 'request_additional' | 'extend' | 'reject_request' | 'forfeit'
 export interface WorkflowLoan {
+  received_at?: string | null; inspected_at?: string | null;
   collateral_items?:import('./collateral-types').CollateralItem[];
   collateral_inspection?:import('./collateral-types').CollateralInspection[];
   bank_payment_report?:{transferName:string;transferDate:string;reportedAt:string}|null;interest_paid_months?:number;term_months_total?:number;

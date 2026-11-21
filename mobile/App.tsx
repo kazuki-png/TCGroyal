@@ -44,13 +44,14 @@ function Action({ label, onPress, disabled = false }: { label: string; onPress: 
 }
 type Send = (body: Record<string, unknown>) => Promise<void>;
 function LoanTile({ loan, send, busy,initialPanel='summary' }: { loan: WorkflowLoan; send: Send; busy: boolean;initialPanel?:'summary'|'repayment'|'extension' }) {
+  const [cancelReason, setCancelReason] = useState('');
   const [consent, setConsent] = useState(false);
   const [additionalConsent, setAdditionalConsent] = useState(false);
   const [additional, setAdditional] = useState('10000');
   const command = (action: LoanCommand, payload: Record<string, unknown> = {}) => void send({ type: 'command', loanId: loan.id, version: loan.version, action, payload });
   const pending = loan.requests.find(r => r.status === 'pending');
   const terms = loan.terms;
-  const [panel,setPanel]=useState<'summary'|'terms'|'repayment'|'extension'|'additional'|'history'>(initialPanel);
+  const [panel,setPanel]=useState<'summary'|'terms'|'repayment'|'extension'|'additional'|'history'|'cancel'>(initialPanel);
   const paymentPanel=panel==='repayment'||panel==='extension';
   useAppBack(panel!=='summary',20,()=>{if(!busy)setPanel('summary');return true});
   return <View style={[styles.card,paymentPanel&&{padding:12,gap:10,borderRadius:12}]}>
@@ -75,7 +76,12 @@ function LoanTile({ loan, send, busy,initialPanel='summary' }: { loan: WorkflowL
       <ConsentLinks/><View style={styles.row}><Switch accessibilityLabel="契約条件への同意" value={consent} onValueChange={setConsent} disabled={busy} /><Text style={styles.body}>条件を確認し、同意します</Text></View>
       <Action label="この条件に同意する" disabled={busy || !consent} onPress={() => command('accept', { termsAccepted: true })} />
     </>}
-    {panel==='summary'&&['submitted','received','offered','accepted'].includes(loan.status) && <Action label="申込をキャンセル" disabled={busy} onPress={() => Alert.alert('申込のキャンセル', '預入済みのカードは返却待ちになります。', [{ text: '戻る', style: 'cancel' }, { text: 'キャンセルする', onPress: () => command('cancel') }])} />}
+    {panel==='summary'&&['submitted','received','offered','accepted'].includes(loan.status) && <Action label="申込をキャンセル・返却を依頼" disabled={busy} onPress={()=>setPanel('cancel')}/>}
+    {panel==='cancel'&&['submitted','received','offered','accepted'].includes(loan.status)&&<>
+      <Text style={styles.body}>受領済みのカードは返却待ちになります。キャンセル後は融資を実行しません。</Text>
+      <TextInput accessibilityLabel="キャンセル理由（任意）" placeholder="キャンセル理由（任意）" value={cancelReason} onChangeText={setCancelReason} maxLength={500} multiline style={styles.input} editable={!busy}/>
+      <Action label="キャンセルして返却を依頼" disabled={busy} onPress={()=>Alert.alert('申込をキャンセルしますか？','預けたカードは返却手続きを行います。',[{text:'戻る',style:'cancel'},{text:'キャンセルする',style:'destructive',onPress:()=>command('cancel',{reason:cancelReason.trim()||'利用者による申込キャンセル'})}])}/>
+    </>}
     {['active','repayment_pending'].includes(loan.status)&&panel==='repayment'&&<BankPayment loan={loan} kind="repayment" busy={busy} onReport={command}/>}
     {loan.status === 'active' && <>
       {!pending && loan.due_at && Date.parse(loan.evaluated_at) < Date.parse(loan.due_at) && <>

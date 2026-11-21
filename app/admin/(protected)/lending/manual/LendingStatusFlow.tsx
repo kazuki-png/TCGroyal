@@ -28,7 +28,7 @@ export function LendingStatusFlow() {
     <p id="lending-flow-help" className="text-sm text-slate-600">中央が申請から返却までの流れです。矢印に操作する人と操作内容を記載しています。拡大後は図の中を縦横にスクロールできます。</p>
     <div ref={viewport} role="region" aria-label="融資ステータス全体図" aria-describedby="lending-flow-help" tabIndex={0} className="max-h-[80vh] overflow-auto rounded-xl border border-slate-300 bg-[#ffffff] focus-visible:outline-2 focus-visible:outline-emerald-700">
       {/* Trusted, static SVG authored with this manual; never populated from user input. */}
-      <div role="img" aria-label="申請受付から返却・質流れまで、21ステータスを36本の操作付き矢印で結んだ全体図。テキスト版は直後にあります。" style={{ width: `${zoom}%`, aspectRatio: '2310 / 2657' }} dangerouslySetInnerHTML={{ __html: lendingStatusDiagram }}/>
+      <div role="img" aria-label="申請受付から返却・質流れまで、21ステータスを37本の操作付き矢印で結んだ全体図。テキスト版は直後にあります。" style={{ width: `${zoom}%`, aspectRatio: '2574 / 2657' }} dangerouslySetInnerHTML={{ __html: lendingStatusDiagram }}/>
     </div>
     <details className="rounded-lg border border-slate-300 p-3 text-sm">
       <summary className="cursor-pointer font-semibold">図の内容をテキストで確認</summary>

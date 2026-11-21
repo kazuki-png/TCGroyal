@@ -107,6 +107,8 @@ export async function POST(request: Request) {
   if (response.error) {
     const messages: Record<string, string> = {
       version_conflict: '他の操作で更新されました。一覧を更新して再確認してください。',
+      inspection_required: '現物の検品を完了してから条件を提示してください。',
+      receipt_location_required: '受領カードの保管場所を入力してください。',
       identity_required: '融資用の本人確認が完了していません。',
       stale_price: 'TCG ROYALの買取価格が古いため、更新が必要です。',
       below_minimum: '概算額が最低融資額10万円を下回ります。',

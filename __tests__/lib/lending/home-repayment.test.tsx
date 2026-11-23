@@ -2,6 +2,7 @@ import {afterEach,describe,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen} from '@testing-library/react';
 import type {WorkflowLoan,WorkflowState} from '@/lib/lending/workflow-types';
 import {buildTransactions} from '@/lib/lending/transactions';
+vi.mock('../../../mobile/src/RoyalIcon',()=>({RoyalIcon:()=>null}));
 vi.mock('../../../mobile/node_modules/react/index.js',()=>vi.importActual('react'));
 vi.mock('../../../mobile/node_modules/react-native/index.js',()=>({
  View:({children,accessibilityLabel}:{children:React.ReactNode;accessibilityLabel?:string})=><div aria-label={accessibilityLabel}>{children}</div>,
@@ -16,11 +17,19 @@ const loan:WorkflowLoan={id:'one',version:1,status:'active',cert_number:null,car
 const state:WorkflowState={outstandingJpy:100000,loanCount:1,role:'customer',demo:true,marketFixture:false,identityVerified:true,cards:[],loans:[loan]};
 afterEach(cleanup);
 describe('home repayment priority',()=>{
- it('uses the server payoff, separates principal and interest, and opens the same contract',()=>{
-  const open=vi.fn();render(<HomeScreen state={state} items={buildTransactions([loan],[],now)} draftCount={0} onApply={()=>{}} onTransactions={()=>{}} onOpen={open} onIdentity={()=>{}} now={now} banner={<span>BANNER</span>}/>);
-  expect(screen.getByText('¥103,000')).toBeTruthy();expect(screen.getByText('元金 ¥100,000 · 期限前返済手数料 ¥3,000')).toBeTruthy();expect(screen.getByText('あと1日')).toBeTruthy();expect(screen.getByText(/11\/4.*23:00.*時点/)).toBeTruthy();
-  expect(screen.getByText('¥103,000').compareDocumentPosition(screen.getByText('BANNER'))&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(screen.queryByText('進行中の取引')).toBeNull();fireEvent.click(screen.getByText('返済する'));expect(open).toHaveBeenCalledWith('loan:one','repayment');
+ it('shows principal below the banner and opens a due-date ordered repayment breakdown',()=>{
+  const open=vi.fn(),pageChange=vi.fn();
+  const later={...loan,id:'later',principal_jpy:300000,payoff_jpy:318000,due_at:'2026-12-01T00:00:00Z'};
+  const closed={...loan,id:'closed',status:'returned' as const,principal_jpy:900000};
+  render(<HomeScreen state={{...state,loans:[later,closed,loan]}} items={buildTransactions([later,closed,loan],[],now)} draftCount={0} onApply={()=>{}} onTransactions={()=>{}} onOpen={open} onIdentity={()=>{}} now={now} banner={<span>BANNER</span>} onPageChange={pageChange}/>);
+  expect(screen.getByText('¥400,000')).toBeTruthy();expect(screen.queryByText('¥103,000')).toBeNull();
+  expect(screen.getByText('BANNER').compareDocumentPosition(screen.getByText('¥400,000'))&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  fireEvent.click(screen.getByRole('button',{name:'現在の借入額 ¥400,000、内訳を見る'}));
+  expect(screen.getByText('借入の内訳')).toBeTruthy();expect(screen.queryByText('BANNER')).toBeNull();
+  expect(screen.getByText('¥103,000').compareDocumentPosition(screen.getByText('¥318,000'))&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByText('返済期限 2026/11/5')).toBeTruthy();expect(screen.queryByText('¥900,000')).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:/返済額 ¥103,000/}));expect(open).toHaveBeenCalledWith('loan:one','repayment');
+  fireEvent.click(screen.getByRole('button',{name:'ホームに戻る'}));expect(screen.getByText('BANNER')).toBeTruthy();expect(pageChange).toHaveBeenCalledTimes(2);
  });
  it('prioritizes the nearest and overdue contracts without changing the source array',()=>{
   const loans=[{...loan,id:'missing',due_at:null},{...loan,id:'later',due_at:'2026-12-01T00:00:00Z'},{...loan,id:'ended',status:'returned' as const,due_at:'2026-10-01T00:00:00Z'},{...loan,id:'overdue',due_at:'2026-11-01T00:00:00Z'}];
